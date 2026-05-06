@@ -64,14 +64,18 @@ All four dimensions on 4.0 scale (matching GPA), tier-adaptively weighted by sch
 
 Full formulas: [docs/scoring.md](docs/scoring.md) · Skill instructions: [SKILL.md](SKILL.md) · Profile schema: [references/profile_schema.md](references/profile_schema.md).
 
-## Coverage (v0.1)
+## Coverage — works for ANY STEM field
 
-- 🔭 High Energy Physics / Physics
-- 🧱 Materials Science & Engineering (MSE)
+The deterministic scoring engine (Connection / Publication / Experience / GPA on 4.0 scale) is **field-agnostic** — same math runs for any STEM discipline.
 
-Top 30 US PhD programs in each field.
+Two paths depending on whether a verified candidate cache is bundled:
 
-Adding a new field is a YAML + a cache build script — see [`scripts/build_advisors_cache.py`](scripts/build_advisors_cache.py) (WIP). PRs welcome.
+| Path | Fields | How |
+|------|--------|-----|
+| 🟢 **Bundled cache** (best confidence) | `physics`, `mse` | `scripts/match.py` loads candidates from `data/advisors/`. |
+| 🟡 **Generated candidates** (lower confidence) | Any other STEM (chem · biology · CS · math · EE · ChemE · earth science · …) | Claude generates plausible candidate advisors from training knowledge for the user's specific research direction, then runs them through the same scoring engine. |
+
+Adding a verified cache for a new field: see [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.
 
 ## Mock data disclaimer
 

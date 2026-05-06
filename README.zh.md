@@ -64,14 +64,18 @@ Claude 会：
 
 完整公式：[docs/scoring.md](docs/scoring.md) · Skill 指令：[SKILL.md](SKILL.md) · Profile schema：[references/profile_schema.md](references/profile_schema.md)。
 
-## 覆盖范围（v0.1）
+## 覆盖范围 —— 支持任意 STEM 领域
 
-- 🔭 高能物理 / 物理 (HEP/Physics)
-- 🧱 材料科学与工程 (MSE)
+确定性打分引擎（Connection / Publication / Experience / GPA，4.0 制）**与领域无关** —— 任何 STEM 学科都跑同一套数学。
 
-每个领域 Top 30 美国 PhD program。
+根据是否有 bundled 候选导师缓存分两条路径：
 
-加新领域 = 一个 YAML + 一个 cache build 脚本。见 [`scripts/build_advisors_cache.py`](scripts/build_advisors_cache.py)（WIP）。欢迎 PR。
+| 路径 | 领域 | 怎么跑 |
+|------|------|-------|
+| 🟢 **Bundled 缓存**（置信度高） | `physics`、`mse` | `scripts/match.py` 从 `data/advisors/` 加载候选 |
+| 🟡 **Claude 生成候选**（置信度稍低） | 其他所有 STEM（化学 · 生物 · CS · 数学 · EE · 化工 · 地学 · …） | Claude 用训练知识针对用户的研究方向生成合理候选导师，再喂给同一套打分引擎 |
+
+添加新领域的 verified cache：见 [CONTRIBUTING.md](CONTRIBUTING.md)。欢迎 PR。
 
 ## Mock 数据声明
 

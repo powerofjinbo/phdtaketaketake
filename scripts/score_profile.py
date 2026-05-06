@@ -26,7 +26,10 @@ from phd_matcher.scoring import experience, gpa, pub  # noqa: E402
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Compute the per-dimension scores of a profile (no candidate ranking)."
+        description=(
+            "Compute the per-dimension scores of a profile (no candidate ranking). "
+            "Field-agnostic: works for any STEM discipline."
+        )
     )
     ap.add_argument("--profile-file", type=Path)
     ap.add_argument("--profile-json", type=str)

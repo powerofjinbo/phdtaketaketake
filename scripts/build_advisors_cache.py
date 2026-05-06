@@ -31,7 +31,7 @@ def build(field: str, limit: int | None = None) -> int:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--field", choices=["physics", "mse"], required=True)
+    ap.add_argument("--field", required=True, help="Any STEM field name")
     ap.add_argument("--limit", type=int, default=None, help="Cap number of PIs (for dev)")
     args = ap.parse_args()
     sys.exit(build(args.field, args.limit))
