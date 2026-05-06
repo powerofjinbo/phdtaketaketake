@@ -24,30 +24,71 @@ Current coverage: HEP / Physics + Materials Science & Engineering (MSE).
 
 ### Step 1 — Gather profile
 
-You need to assemble a profile JSON. **Required** fields:
+You need to assemble a profile JSON.
+
+**Required** fields (cannot run match without these — must ask if missing):
 
 - `field` — `"physics"` or `"mse"`
 - `undergrad_institution`
 - `gpa_raw` + `gpa_scale`
-- `research_direction` — short paragraph
+- `research_direction` — short paragraph (≥30 words is best)
 
-**Recommended** (significantly improves matching quality):
+**Recommended** fields — **proactively ask for these even if the user didn't
+mention them**, because each one materially changes the ranking:
 
-- `current_advisors[]` — `{id, name, institution}`. Generate ids `adv_001`, `adv_002`, …
-- `papers[]` — `{title, journal, journal_tier, author_position, year}`
-- `experiences[]` — `{lab_pi_name, lab_tier, duration_months, output_type}`
-- `master_institution` (optional)
+- `current_advisors[]` — `{id, name, institution}`. Without this, the entire
+  Connection score collapses to candidate's field strength only — losing the
+  core IP of this skill. **Always ask if not provided.**
+- `papers[]` — `{title, journal, journal_tier, author_position, year}`.
+  Without this, P score floors at 3.0. **Always ask** if the user gave a CV
+  but you couldn't extract papers, or if they only described themselves
+  in prose.
+- `experiences[]` — `{lab_pi_name, lab_tier, duration_months, output_type}`.
+  Without this, E score defaults to 2.0. **Always ask.**
+- `master_institution` (optional, only if applicable)
 - `name` (optional)
 
-**Source priority**:
+### Source priority
 
-1. CV / resume the user has pasted or attached → parse it yourself
-2. Existing profile JSON → use directly
-3. Otherwise → ask brief targeted questions for required + recommended fields
+1. **CV / resume pasted or attached** → parse it yourself, then **show the
+   user the inferred profile and ask them to confirm or correct** before
+   running the match. CV parsing always involves judgment calls
+   (`journal_tier`, `lab_tier`, exact author position) — never proceed
+   silently.
 
-When parsing a CV, **disclose** the inferred profile back to the user before
-running the match — let them correct field mappings (especially `journal_tier`
-and `lab_tier`, which require judgment).
+2. **Existing profile JSON** → use directly (skip parsing). Still spot-check
+   for missing recommended fields and ask if any are absent.
+
+3. **User describes themselves in prose** → extract what you can, then
+   **actively ask for the missing required and recommended fields, one
+   focused batch at a time** (don't dump a 10-question list at once).
+
+### How to ask when info is missing
+
+Be brief and structured. Group questions logically. Example:
+
+> Got it — to give you good matches I need a bit more. Three quick things:
+>
+> 1. Who's your current research advisor? (name + institution)
+> 2. Any publications? If yes, list each as: journal name + your author position.
+> 3. Any research experience beyond classes? (lab PI + how many months + what output — paper / poster / thesis / talk)
+
+If the user says "no advisor / no papers / no experience", that's a valid
+answer — just record it and proceed (the matcher handles missing data with
+sensible defaults). **Don't refuse to run the match**; just note in the
+result presentation which signals were missing and how that affects the
+confidence band.
+
+### When NOT to ask
+
+- The user explicitly says "skip optional fields, just run with what I gave"
+- The user has already provided a complete profile JSON
+- This is a follow-up turn and you've already asked once — don't keep
+  pestering for the same info
+
+If you decided to run the match without asking, **mention in the result
+presentation which fields were missing and that filling them would improve
+the ranking accuracy**.
 
 ### Step 2 — Map fuzzy fields to schema enums
 
