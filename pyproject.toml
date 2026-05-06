@@ -30,12 +30,9 @@ classifiers = [
 dependencies = [
     "pydantic>=2.5",
     "pyyaml>=6.0",
-    "click>=8.1",
-    "streamlit>=1.30",
 ]
 
 [project.optional-dependencies]
-llm = ["anthropic>=0.21"]
 embedding = ["sentence-transformers>=2.5"]
 dev = ["pytest>=7.4", "ruff>=0.3", "mypy>=1.8"]
 
@@ -43,9 +40,6 @@ dev = ["pytest>=7.4", "ruff>=0.3", "mypy>=1.8"]
 Homepage = "https://github.com/powerofjinbo/phdtaketaketake"
 Repository = "https://github.com/powerofjinbo/phdtaketaketake"
 Issues = "https://github.com/powerofjinbo/phdtaketaketake/issues"
-
-[project.scripts]
-phd-matcher = "phd_matcher.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["phd_matcher"]

@@ -35,9 +35,6 @@ htmlcov/
 *.swo
 .DS_Store
 
-# Streamlit
-.streamlit/secrets.toml
-
 # Local data caches (large pre-computed advisor caches go to releases, not repo)
 *.sqlite
 *.db

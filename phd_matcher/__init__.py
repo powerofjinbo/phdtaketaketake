@@ -1,4 +1,4 @@
-"""phdtaketaketake — connection-first PhD advisor matcher."""
+"""phdtaketaketake — connection-first PhD advisor matcher (Claude Code skill)."""
 
 from phd_matcher.matching.ranker import compute_match, rank_advisors
 

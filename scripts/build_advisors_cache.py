@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Build advisors cache from OpenAlex (WIP).
 
 The current repo uses bundled mock advisor data
@@ -9,19 +10,19 @@ Planned flow:
   2. For each (school, field), query OpenAlex for active PIs
   3. Pull recent papers (5y), co-author graph, institutional affiliation
   4. Build paths_to_advisors via genealogy + co-author + collaboration matching
-  5. Optionally scrape lab pages with LLM to estimate pi_signal (recent PhD count)
+  5. Optionally scrape lab pages to estimate pi_signal (recent PhD count)
   6. Write to data/advisors/<field>_cache.json (or .sqlite)
 
 Run: python scripts/build_advisors_cache.py --field physics --limit 100
 """
 
-import click
+from __future__ import annotations
+
+import argparse
+import sys
 
 
-@click.command()
-@click.option("--field", type=click.Choice(["physics", "mse"]), required=True)
-@click.option("--limit", type=int, default=None, help="Cap number of PIs (for dev)")
-def build(field: str, limit):
+def build(field: str, limit: int | None = None) -> int:
     raise NotImplementedError(
         "Advisor cache builder is not yet implemented. "
         "Use bundled mock data: data/advisors/mock_advisors.json"
@@ -29,4 +30,8 @@ def build(field: str, limit):
 
 
 if __name__ == "__main__":
-    build()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--field", choices=["physics", "mse"], required=True)
+    ap.add_argument("--limit", type=int, default=None, help="Cap number of PIs (for dev)")
+    args = ap.parse_args()
+    sys.exit(build(args.field, args.limit))
