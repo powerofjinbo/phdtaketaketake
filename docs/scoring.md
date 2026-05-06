@@ -119,10 +119,15 @@ admit_likelihood = clip(match + tier_adj + pi_adj, 0, 4.0)
 
 | School tier | tier_adj |
 |-------------|----------|
-| Top 10 | −0.4 |
-| Top 11–30 | −0.2 |
+| Top 10 | **−1.0** |
+| Top 11–30 | **−0.5** |
 | Top 31–60 | 0 |
-| Top 60+ | +0.2 |
+| Top 60+ | **+0.4** |
+
+These reflect realistic admission-rate ratios (top-10 PhD programs admit
+~5–10%; top-60+ admit ~25–35% — a 4–8× gap). A perfect 4.0 candidate at MIT
+lands at admit_likelihood ~ 3.0 (`Match`), not `Safe` — which is honest:
+even a flawless profile is uncertain at the most selective programs.
 
 | PI signal | pi_adj |
 |-----------|--------|
@@ -147,5 +152,7 @@ admit_likelihood = clip(match + tier_adj + pi_adj, 0, 4.0)
 - **5+ author rule**: HEP / big-collab papers list hundreds of authors alphabetically; treating position 312 as "barely contributed" is wrong, but treating it as 1st-author equivalent is also wrong. The `min(3.5, …)` floor balances this.
 - **Tier-adaptive weights**: top-10 schools care more about your network and pubs; top-60+ schools weight GPA more because applicants there typically have less polished pubs.
 - **Output-dominant Experience**: just being in a famous lab without producing matters less than producing something tangible (thesis, talk, paper).
+- **Steep top-10 admit penalty (−1.0)**: top-10 PhD programs reject ~90–95% of applicants. A −0.4 adjustment under-states this; the −1.0 we use forces even strong candidates to land at `Match` not `Safe` for MIT/Stanford/etc, which is honest.
+- **All listed papers count**: a paper on the profile is assumed to be published / accepted / appearing on the student's CV by application time. We don't distinguish between `published` / `accepted` / `submitted` / `in preparation` — the user is responsible for only listing papers they're confident about. This keeps the schema simple; gaming it (listing speculative papers) just leaks confidence into the user's own application.
 
 See implementation in [`phd_matcher/scoring/`](../phd_matcher/scoring/).

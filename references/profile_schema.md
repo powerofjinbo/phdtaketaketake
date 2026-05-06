@@ -66,6 +66,13 @@ candidate.
 Tier mapping is universal across STEM — see
 [`references/journal_tiers.md`](journal_tiers.md).
 
+**Paper inclusion convention**: list every paper the user expects to have on
+their CV by the PhD application deadline. The skill does **not** distinguish
+between `published` / `accepted` / `in press` / `submitted` / `in prep`. This
+is intentional simplification — the user is responsible for only listing
+papers they're confident will appear by application time, and the matcher
+trusts that listing.
+
 ### `experiences[]`
 
 ```jsonc

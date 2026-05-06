@@ -30,15 +30,21 @@ def test_match_score_invalid_tier_raises():
 
 
 def test_admit_likelihood_top_10_penalty():
-    # match=3.5, top_10 (-0.4), normal pi (0.0) → 3.1
+    # match=3.5, top_10 (-1.0), normal pi (0.0) → 2.5
     likelihood, _ = admit_likelihood(3.5, "top_10", "normal")
-    assert likelihood == pytest.approx(3.1)
+    assert likelihood == pytest.approx(2.5)
+
+
+def test_admit_likelihood_top_11_30_penalty():
+    # match=3.5, top_11_30 (-0.5), normal (0.0) → 3.0
+    likelihood, _ = admit_likelihood(3.5, "top_11_30", "normal")
+    assert likelihood == pytest.approx(3.0)
 
 
 def test_admit_likelihood_top_60_plus_bonus():
-    # match=3.0, top_60_plus (+0.2), normal (0.0) → 3.2
+    # match=3.0, top_60_plus (+0.4), normal (0.0) → 3.4
     likelihood, _ = admit_likelihood(3.0, "top_60_plus", "normal")
-    assert likelihood == pytest.approx(3.2)
+    assert likelihood == pytest.approx(3.4)
 
 
 def test_admit_likelihood_strong_pi_signal():
@@ -58,15 +64,22 @@ def test_admit_likelihood_not_recruiting_zeros_out():
     assert likelihood == 0.0
 
 
+def test_admit_likelihood_perfect_candidate_at_top10_is_match_not_safe():
+    # match=4.0 (perfect across C/P/E/G), top_10 (-1.0), strong PI (+0.2)
+    # → 3.2 (Match label) — even a perfect candidate at MIT is not "Safe"
+    likelihood, _ = admit_likelihood(4.0, "top_10", "strong")
+    assert likelihood == pytest.approx(3.2)
+
+
 def test_admit_likelihood_clipped_at_0():
     likelihood, _ = admit_likelihood(0.5, "top_10", "shrinking")
-    # 0.5 - 0.4 - 0.4 = -0.3 → clipped to 0
+    # 0.5 - 1.0 - 0.4 = -0.9 → clipped to 0
     assert likelihood == 0.0
 
 
 def test_admit_likelihood_clipped_at_4():
     likelihood, _ = admit_likelihood(4.0, "top_60_plus", "strong")
-    # 4.0 + 0.2 + 0.2 = 4.4 → clipped to 4.0
+    # 4.0 + 0.4 + 0.2 = 4.6 → clipped to 4.0
     assert likelihood == 4.0
 
 

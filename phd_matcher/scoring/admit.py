@@ -20,12 +20,14 @@ def match_score(c: float, p: float, e: float, g: float, school_tier: str) -> flo
 
 # ---- Admission likelihood (§7) -------------------------------------------
 
-# School competitiveness adjustment (lower tier = easier admit at same match)
+# School competitiveness adjustment (lower tier = easier admit at same match).
+# Calibrated to reflect realistic admission rate ratios (top 10 PhD programs
+# admit ~5–10% of applicants; top 60+ admit ~25–35% — a 4–8x gap).
 TIER_ADMIT_ADJ: dict[str, float] = {
-    "top_10":      -0.4,
-    "top_11_30":   -0.2,
+    "top_10":      -1.0,    # MIT / Stanford / Princeton / Berkeley etc — brutal
+    "top_11_30":   -0.5,
     "top_31_60":    0.0,
-    "top_60_plus": +0.2,
+    "top_60_plus": +0.4,
 }
 
 # PI recruiting signal adjustment

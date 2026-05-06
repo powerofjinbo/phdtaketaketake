@@ -48,7 +48,11 @@ Recommended (each materially changes ranking — **proactively ask**):
 - `current_advisors[]` — `{id, name, institution}`. Without this, the entire
   Connection score collapses to candidate's field strength only.
 - `papers[]` — `{title, journal, journal_tier, author_position, year}`.
-  Without this, P score floors at 3.0.
+  Without this, P score floors at 3.0. **Paper inclusion convention**: list
+  every paper the user expects to have on their CV by the application
+  deadline. Don't distinguish between `published` / `accepted` / `submitted`
+  / `in prep` — the user has self-selected papers they're confident about,
+  trust that listing.
 - `experiences[]` — `{lab_pi_name, lab_tier, duration_months, output_type}`.
   Without this, E score defaults to 2.0.
 
