@@ -1,0 +1,24 @@
+{
+  "name": "phdtaketaketake",
+  "version": "0.1.0",
+  "description": "Connection-first PhD advisor matcher — find the right advisor by network strength, not h-index. Field-agnostic 4.0-scale scoring across Connection / Publication / Experience / GPA, with bundled OpenAlex-derived candidate cache for physics + MSE and Claude-generated candidates for any other STEM discipline.",
+  "author": {
+    "name": "Jinbo Z",
+    "url": "https://github.com/powerofjinbo"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/powerofjinbo/phdtaketaketake",
+  "repository": "https://github.com/powerofjinbo/phdtaketaketake",
+  "keywords": [
+    "phd",
+    "graduate-school",
+    "phd-application",
+    "advisor-matching",
+    "academic-network",
+    "connection-graph",
+    "claude-code",
+    "claude-skill",
+    "stem"
+  ],
+  "category": "education"
+}

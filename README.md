@@ -77,9 +77,28 @@ Two paths depending on whether a verified candidate cache is bundled:
 
 Adding a verified cache for a new field: see [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.
 
-## Mock data disclaimer
+## Bundled candidate cache
 
-The bundled `data/advisors/mock_advisors.json` is **synthetic mock data**, not real faculty profiles. It's there so the skill runs out-of-the-box. Real OpenAlex-backed cache is roadmap.
+For physics + MSE, the repo ships with an OpenAlex-derived cache of real PIs at top 30 US programs:
+
+- `data/advisors/physics_cache.json` — ~700 real physics PIs (h-index ≥ 12)
+- `data/advisors/mse_cache.json` — ~450 real MSE PIs (h-index ≥ 12)
+- `data/advisors/mock_advisors.json` — fallback synthetic data when neither real cache exists
+
+To rebuild from scratch (free, no auth required, ~5 min):
+
+```bash
+python scripts/build_advisors_cache.py --field physics --mailto your@email
+python scripts/build_advisors_cache.py --field mse     --mailto your@email
+```
+
+`paths_to_advisors` (per-student-advisor co-authorship edges) is populated
+at query time by Claude based on your specific current advisor — the
+bundled cache stores only field-strength signals.
+
+## Example session
+
+See [`docs/example_session.md`](docs/example_session.md) for a walk-through of an end-to-end Claude Code conversation with the skill.
 
 ## License
 

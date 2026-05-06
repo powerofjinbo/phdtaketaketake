@@ -51,6 +51,31 @@ intentionally fixed — they're the IP of this skill's connection-first thesis.
 - Lint with `ruff` (config in `pyproject.toml`).
 - Pure stdlib + `pydantic` + `pyyaml`. Don't add deps casually.
 
+## Re-enable GitHub Actions CI
+
+The bundled CI config is staged at `.github_workflows/ci.yml` (note the
+underscore — that's intentional, see below). The repo doesn't yet have
+`.github/workflows/ci.yml` because the OAuth token used to create the
+initial repo lacked the `workflow` scope.
+
+To enable CI (one-time, needs a quick browser auth):
+
+```bash
+gh auth refresh -s workflow                       # browser one-tap
+mkdir -p ~/.claude/skills/phdtaketaketake/.github/workflows
+cp ~/.claude/skills/phdtaketaketake/.github_workflows/ci.yml \
+   ~/.claude/skills/phdtaketaketake/.github/workflows/ci.yml
+cd ~/.claude/skills/phdtaketaketake
+git add .github/workflows/ci.yml
+git commit -m "Enable GitHub Actions CI"
+git push
+```
+
+After that, every push runs `pytest` + `ruff check` on Python 3.11 + 3.12.
+If the CI passes, you can leave `.github_workflows/` in the repo as a
+template (no harm — GitHub only looks at `.github/workflows/`), or remove
+it.
+
 ## Bugs / discussion
 
 Open a GitHub issue at

@@ -77,9 +77,26 @@ Claude 会：
 
 添加新领域的 verified cache：见 [CONTRIBUTING.md](CONTRIBUTING.md)。欢迎 PR。
 
-## Mock 数据声明
+## Bundled 候选缓存
 
-打包的 `data/advisors/mock_advisors.json` 是**合成 mock 数据**，不是真实教授信息。这样 skill 不用任何数据抓取就能跑起来。真实 OpenAlex 缓存 pipeline 还在 roadmap 上。
+physics + MSE 两个领域 ship 了 OpenAlex 抓的**真实 PI 数据**（top 30 美国 PhD program）：
+
+- `data/advisors/physics_cache.json` — ~700 个真实 physics PI（h-index ≥ 12）
+- `data/advisors/mse_cache.json` — ~450 个真实 MSE PI（h-index ≥ 12）
+- `data/advisors/mock_advisors.json` — 真实 cache 不存在时的合成 fallback
+
+从零重建（OpenAlex 免费无认证，约 5 分钟）：
+
+```bash
+python scripts/build_advisors_cache.py --field physics --mailto your@email
+python scripts/build_advisors_cache.py --field mse     --mailto your@email
+```
+
+`paths_to_advisors`（学生现导师 ↔ 候选导师的合著边）由 Claude 在 query 时根据你具体的导师计算 — 缓存只存领域级 network 信号。
+
+## 示例对话
+
+`docs/example_session.md` 有完整的 Claude Code 对话示例 walk-through。
 
 ## License
 
