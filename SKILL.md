@@ -5,6 +5,30 @@ description: Score a PhD applicant's profile and rank candidate advisors using a
 
 # phdtaketaketake — Connection-first PhD advisor matcher
 
+## ⚠️ CARDINAL RULE — REAL DATA ONLY
+
+**Every connection edge, every candidate fact, every signal value MUST trace
+back to a real source you actually fetched via web search.** Fabrication is
+strictly forbidden — students use these rankings to decide where they spend
+years of their life. Made-up data is worse than no data.
+
+**The contract:**
+- ✅ Verified via web search → record + cite the source URL in the explanation
+- ✅ Searched but found nothing → leave the field empty / set signal to `"missing"`
+- ❌ Guessed from training memory → **NOT ALLOWED**
+- ❌ Inferred from name patterns / school proximity / "feels likely" → **NOT ALLOWED**
+- ❌ Estimated without any web search → **NOT ALLOWED**
+
+The matcher's confidence band (±0.3 / 0.5 / 0.7) handles missing data
+gracefully. A wide band on **real** data is far more useful than a narrow
+band on **made-up** data.
+
+Full allowed-source list and forbidden-behavior catalog:
+[`references/data_integrity.md`](references/data_integrity.md). Read it
+before doing any connection research.
+
+---
+
 This skill ranks candidate PhD advisors for a student by **network-connection
 strength** to the student's current research advisor, on a 4.0 scale across:
 
@@ -103,90 +127,101 @@ Aim for 10–30 candidates per query. The matcher caps at top-K anyway.
 
 ### Step 4 — Compute connection edges (THE core IP)
 
-For **each** candidate, dig for connection signals to the user's
-`current_advisors`. This is what differentiates this skill from h-index
-ranking — the depth of your research here drives result quality.
+For **each** candidate, search for verifiable connection signals to the
+user's `current_advisors`. **Re-read the cardinal rule above** — every
+edge must be backed by an actual web-search result, with a URL you can
+cite. No guessing from training memory.
 
-**Direct co-authorship** (strongest signal):
+**Direct co-authorship** (strongest signal). Search **at least one** of:
 
 ```
-Web search: "<student advisor full name>" "<candidate full name>"
-            site:scholar.google.com
-            
-Or: site:openalex.org / site:pubmed.ncbi.nlm.nih.gov / site:inspirehep.net
-            (whichever is dominant for the field)
+- Google Scholar:  "<advisor full name>" "<candidate full name>"
+                   site:scholar.google.com
+- OpenAlex API:    https://api.openalex.org/works?filter=
+                   authorships.author.id:<advisor_id>,
+                   authorships.author.id:<candidate_id>
+- INSPIRE-HEP:     https://inspirehep.net/search?p=a+<advisor>+a+<candidate>
+                   (preferred for physics)
+- PubMed:          for biology/medicine pairs
+- Semantic Scholar: for CS pairs
 ```
 
-Count distinct papers in last 5 years where both names appear as authors:
-→ `coauthor_papers_5y` (integer)
+Count **distinct papers in last 5 years** where both names appear as
+authors → `coauthor_papers_5y` (integer). **Record which database you
+used** so you can cite it in the explanation.
 
-**Joint big-collaboration** (e.g., ATLAS, CMS, BICEP, LIGO, multi-institution
+**Joint big-collaboration** (ATLAS, CMS, BICEP, LIGO, multi-institution
 clinical trials, large genome consortia):
 
-If both are members of a named experiment / consortium, estimate years of
-overlap. Search "<candidate name> ATLAS" / "<advisor> CMS" etc.
-→ `collaboration_overlap_years` (float, years)
+Verify membership via the consortium's published author list, the
+candidate's CV / lab page, or INSPIRE-HEP collaboration tracking — **not
+training memory**. Estimate overlap years from documented join/leave
+dates → `collaboration_overlap_years` (float).
 
 **Academic genealogy** (PhD lineage shared):
 
 ```
-Math Genealogy Project: https://www.genealogy.math.ndsu.nodak.edu/
-   (best for physics, math, some bio)
-   
-Or web search: "<advisor name>" "PhD advisor" / "thesis advisor"
-              "<candidate name>" "PhD advisor" / "thesis advisor"
+- Mathematics Genealogy Project: https://www.genealogy.math.ndsu.nodak.edu/
+  (authoritative for physics, math, some bio)
+- Faculty bios on the candidate's lab / department page
+  (often state "PhD under Prof. X, year")
 ```
 
-Match:
-- Same PhD advisor (academic siblings) → `"same_advisor"` (1.0 strength)
+Match types:
+- Same PhD advisor (academic siblings) → `"same_advisor"` (1.0)
 - Advisor is PhD sibling / nephew of candidate → `"uncle_nephew"` (0.7)
-- Two-hop (advisor's advisor and candidate's advisor crossed paths) → `"two_hop"` (0.4)
+- Two-hop (advisors' advisors crossed paths) → `"two_hop"` (0.4)
 
-**Editorial / committee co-membership** (weaker signal):
+**Don't infer from name patterns / institutional history alone.** If
+Mathematics Genealogy returns nothing and the faculty bio doesn't mention
+the lineage, leave the genealogy edge empty.
 
-Search for shared NSF panels, conference PCs, editorial boards. Lower
-strength but still counts.
+**Editorial / committee co-membership** (weaker signal): only count when
+you've found documented evidence (a journal masthead, NSF panel report,
+conference PC list). → `committee_co_member: true`, `same_period: bool`
 
-→ `committee_co_member: true`, `same_period: true/false`
+**Take the MAX of these edges, do NOT sum.** The matcher treats them as
+mutually exclusive (avoids double-counting).
 
-**Take the MAX of these edges, do NOT sum** — the matcher treats them as
-mutually exclusive (avoids double-counting). Set whatever edge you found
-strongest.
-
-If none found: `paths_to_advisors[advisor_id] = {}` is fine — the C score
-reduces cleanly to field strength only, and the matcher handles this.
-
-**Critical rule: never fabricate edges.** If your search came up empty,
-leave the field empty. Better a missing edge than a hallucinated one.
+If no edge found via search: `paths_to_advisors[advisor_id] = {}` is the
+correct value. The C score reduces cleanly to field strength only.
 
 ### Step 5 — Field-strength signals (per candidate)
 
-These are properties of the candidate themselves, not their connection to
-the student's advisor:
+Properties of the candidate themselves. Each must be sourced:
 
-- `normalized_collab_top20pct` (0–1): candidate's prominence in their field.
-  Quick proxy: `min(1.0, h_index / 50)`. Look up h-index via Google Scholar
-  / OpenAlex profile.
-- `collab_with_nas` (bool): has the candidate co-authored with an NAS / HHMI
-  member in the last 5 years? Quick check: search their recent papers, look
-  for known NAS members in the author list.
-- `grad_placement_quality` (0–1): rough — top faculty placements: 0.8+, mix
-  of academia + industry: 0.5–0.7, mostly post-docs: 0.4. Check their lab
-  page's "alumni" / "former students" section.
+- `normalized_collab_top20pct` (0–1): proxy via candidate's h-index from
+  Google Scholar or OpenAlex. Formula: `min(1.0, h_index / 50)`. Cite the
+  profile URL.
+- `collab_with_nas` (bool): set to true **only if** you found a specific
+  recent co-author who is a verified NAS / HHMI member (search the official
+  NAS / HHMI directories for confirmation). If you didn't verify, leave
+  it `false`.
+- `grad_placement_quality` (0–1): only set if you found and read the lab
+  page's "alumni" / "former students" section. Top faculty placements: 0.8+,
+  mix of academia + industry: 0.5–0.7, mostly post-docs: 0.4. **If the lab
+  page doesn't have alumni info, set this to 0.5 (neutral default) and
+  note "no alumni page" in the explanation — don't fabricate based on
+  vibes.**
 
-If you don't have time to dig: 0.5 / false / 0.5 as conservatives. Note
-this in the candidate's explanation.
+**No guessing.** If you didn't actually look it up, the conservative
+defaults are: `0.5 / false / 0.5`. Note in the explanation that these are
+defaults so the user knows the confidence is lower for that candidate.
 
 ### Step 6 — Recruiting signal (`pi_signal`)
 
-Visit the candidate's lab / faculty page. Check current students and recent
-admits:
+**Fetch** the candidate's lab / faculty page (don't assume from memory).
+Read the current-students list, "join the lab" page, or "applying" notes:
 
-- `"strong"` — ≥2 new PhDs/yr in last 3 yrs (large turnover, growing group)
-- `"normal"` — 1–2/yr
+- `"strong"` — page shows ≥2 new PhDs/yr in last 3 yrs (large turnover, growing group)
+- `"normal"` — 1–2/yr based on listed timeline
 - `"shrinking"` — <1/yr, or many recent graduations without new admits
-- `"missing"` — couldn't find data (default; don't guess)
-- `"not_recruiting"` — explicitly stated. Forces admit_likelihood = 0.
+- `"missing"` — page didn't load, didn't have a students list, or status unclear
+- `"not_recruiting"` — explicitly stated on the page. Forces admit_likelihood = 0.
+
+**Default to `"missing"` whenever you didn't actually fetch and read the
+page.** The matcher penalizes missing data slightly (−0.1) but never
+makes up a status.
 
 ### Step 7 — Run matcher
 
@@ -212,12 +247,26 @@ Top N matches for <field>:
 #1  Prof. <Name> — <Institution>  [<Label>]
     Match: <X>/4.0 · Admit: <Y>/4.0 (±<band>)
     C: <c>  P: <p>  E: <e>  G: <g>
-    <explanation, citing sources>
+    <explanation, with sources cited inline>
 ```
 
-In the explanation, **cite where you found each connection edge**:
-- ✅ "co-authored 4 papers with Prof. Wang in 2022–2024 (per Google Scholar)"
-- ❌ "co-authored 4 papers with Prof. Wang"
+**Every factual claim in the explanation must include its source.** This is
+a hard requirement — students will use these rankings for real decisions.
+
+Examples of good vs bad explanations:
+
+- ✅ "co-authored 4 papers with Prof. Wang in 2022–2024 (Google Scholar; latest: PRL 130, 2023)"
+- ✅ "co-PI on ATLAS Higgs subgroup since 2017 (per INSPIRE-HEP collaboration tracking)"
+- ✅ "academic siblings — both PhD'd under H. Georgi at Harvard (Math Genealogy Project)"
+- ✅ "lab page lists 3 PhDs admitted in 2023; pi_signal=strong (URL)"
+- ❌ "co-authored 4 papers with Prof. Wang"  *(no source)*
+- ❌ "looks like they were both on ATLAS"  *(speculation)*
+- ❌ "probably similar academic family"  *(guessed from name/school)*
+- ❌ "h_index ≈ 60"  *(no Google Scholar / OpenAlex citation)*
+
+Surface clearly when something is **missing** rather than estimated:
+- ✅ "no co-authorship found in OpenAlex search; genealogy not in Math Genealogy"
+- ✅ "lab alumni page not available; placement signal at 0.5 default"
 
 Then ask the user what they want next:
 - See more candidates?
@@ -246,9 +295,10 @@ Be honest in the result presentation about what you verified vs. estimated.
 
 ## Important constraints
 
-1. **Never fabricate connection edges.** If you searched and found nothing,
-   leave the path empty. Empty `paths_to_advisors[id] = {}` is fine.
-2. **Cite sources in the explanation** for any verified edge.
+1. **NEVER FABRICATE.** This is the cardinal rule (see top of file). If you
+   searched and didn't find a signal, mark it missing — never guess. See
+   `references/data_integrity.md` for the full forbidden-behavior catalog.
+2. **Cite sources in the explanation** for every verified edge / signal.
 3. **Don't double-count school prestige.** It's encoded in `connection_score`
    and `lab_tier` (for student experiences). Don't add a separate "school
    bonus" on top.
@@ -262,6 +312,7 @@ Be honest in the result presentation about what you verified vs. estimated.
 
 When the user asks deeper questions, read the relevant doc:
 
+- **`references/data_integrity.md`** — allowed sources + forbidden behaviors. **Read this first if you're new to the skill.**
 - `docs/scoring.md` — full formula details, edge cases
 - `references/profile_schema.md` — strict schema for StudentProfile and
   CandidateAdvisor (the latter is what you build per candidate)

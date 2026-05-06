@@ -42,17 +42,23 @@ Agent 会：
 - **分项分**：Connection / Publication / Experience / GPA
 - **匹配原因** —— 引用真实搜索来源：例如 *"与 Prof. Wang 在 2022–2024 合著 4 篇（per Google Scholar）· 自 2017 年起同属 ATLAS"*
 
-## 架构：无静态缓存
+## 架构：无静态缓存，只用真实数据
 
 **没有打包候选导师缓存**。PhD 导师信息变化太快、覆盖太广，静态数据集不实用。改成：
 
 | 组件 | 职责 |
 |------|------|
-| Agent（Claude / Codex / Cursor / …）| 深度检索：找候选、查证 connection、估计 signal |
+| Agent（Claude / Codex / Cursor / …）| 深度检索：找候选、查证 connection、估计 signal —— **全部从真实网络来源，严禁编造** |
 | `scripts/match.py` | 纯 Python 确定性打分 —— 把 agent 的发现喂入 4.0 制公式 |
 | `data/journals/<field>.yaml`、`references/*.md`、`docs/scoring.md` | 项目对 tier / 公式 / schema 的权威定义 |
 
-这样支持**任何 STEM 领域、任何细分子方向、任何学校** —— 质量随 agent 检索能力 scale，数据永远新鲜。
+### Cardinal rule：只用真实数据
+
+每条 connection edge、每个候选 PI 的事实，都必须可追溯到 agent 实际访问过的真实源（Google Scholar / OpenAlex / INSPIRE-HEP / PubMed / Math Genealogy / faculty page 等）。**严禁编造** —— 学生会根据 ranking 做真实人生决定，假数据比无数据更糟。缺失信号是诚实的，matcher 会自动加宽置信区间。
+
+完整的允许来源列表和禁止行为列在 [`references/data_integrity.md`](references/data_integrity.md)。
+
+支持**任何 STEM 领域、任何细分子方向、任何学校** —— 质量随 agent 检索能力 scale，数据永远新鲜。
 
 ## 跟其他工具对比
 

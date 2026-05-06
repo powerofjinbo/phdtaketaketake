@@ -42,17 +42,23 @@ The agent will:
 - **Per-dimension**: Connection / Publication / Experience / GPA
 - **Why matched** — cited from real searches: e.g., *"co-authored 4 papers with Prof. Wang in 2022–2024 (per Google Scholar) · same ATLAS collaboration since 2017"*
 
-## Architecture: no static cache
+## Architecture: no static cache, real data only
 
 There is **no bundled cache** of advisors. PhD-advisor data is too dynamic and too vast for static datasets to be useful. Instead:
 
 | Component | Role |
 |-----------|------|
-| The agent (Claude / Codex / Cursor / …) | Deep research: find candidates, verify connections, estimate signals |
+| The agent (Claude / Codex / Cursor / …) | Deep research: find candidates, verify connections, estimate signals — **all from real web sources, never fabricated** |
 | `scripts/match.py` | Pure-Python deterministic scoring — takes the agent's findings and applies the 4.0-scale formulas |
 | `data/journals/<field>.yaml`, `references/*.md`, `docs/scoring.md` | Authoritative project opinions on tiers / formulas / schema |
 
-This works for any STEM field, any subdiscipline, any school — quality scales with the agent's retrieval quality, and data is always fresh.
+### Cardinal rule: real data only
+
+Every connection edge, every candidate fact must trace back to a real source the agent actually fetched (Google Scholar / OpenAlex / INSPIRE-HEP / PubMed / Math Genealogy / faculty pages / etc.). **Fabrication is strictly forbidden** — students use these rankings for real decisions, and made-up data is worse than no data. Missing signals are honest; the matcher widens its confidence band accordingly.
+
+Allowed sources + forbidden behaviors are enumerated in [`references/data_integrity.md`](references/data_integrity.md).
+
+This architecture works for any STEM field, any subdiscipline, any school — quality scales with the agent's retrieval quality, and data is always fresh.
 
 ## How it differs
 
