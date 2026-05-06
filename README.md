@@ -4,6 +4,8 @@
 
 [中文](README.zh.md) · English
 
+![demo](docs/demo.png)
+
 ---
 
 ## Why this exists

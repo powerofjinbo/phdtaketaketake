@@ -4,6 +4,8 @@
 
 中文 · [English](README.md)
 
+![demo](docs/demo.png)
+
 ---
 
 ## 为什么做这个
