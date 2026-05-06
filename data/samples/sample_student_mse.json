@@ -1,0 +1,39 @@
+{
+  "name": "Sample MSE Applicant",
+  "field": "mse",
+  "undergrad_institution": "Shanghai Jiao Tong University",
+  "gpa_raw": 88,
+  "gpa_scale": "100",
+  "research_direction": "2D materials, transition metal dichalcogenides, optoelectronic photodetector devices",
+  "current_advisors": [
+    {
+      "id": "adv_002",
+      "name": "Prof. Wei Zhang",
+      "institution": "Shanghai Jiao Tong University"
+    }
+  ],
+  "papers": [
+    {
+      "title": "Strain engineering of monolayer MoS2 for tunable photoluminescence",
+      "journal": "Nano Letters",
+      "journal_tier": 2,
+      "author_position": 1,
+      "year": 2024
+    },
+    {
+      "title": "Heterostructure of WSe2 and graphene for high-performance photodetectors",
+      "journal": "ACS Nano",
+      "journal_tier": 2,
+      "author_position": 3,
+      "year": 2023
+    }
+  ],
+  "experiences": [
+    {
+      "lab_pi_name": "Prof. Wei Zhang",
+      "lab_tier": "strong_us_or_top_cn",
+      "duration_months": 24,
+      "output_type": "paper"
+    }
+  ]
+}

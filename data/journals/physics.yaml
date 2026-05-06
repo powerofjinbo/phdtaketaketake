@@ -1,0 +1,56 @@
+# Physics journal tiers — v0.1 starter set
+# Tier baselines per Scoring Design v0.3:
+#   S = 4.0 (cross-disciplinary top: Nature/Science/Cell)
+#   1 = 4.0 (field flagship)
+#   2 = 3.7 (upper specialty)
+#   3 = 3.3 (mid specialty)
+#   4 = 2.8 (general SCI)
+#   5 = 2.3 (weak / workshop)
+
+tier_baselines:
+  S: 4.0
+  1: 4.0
+  2: 3.7
+  3: 3.3
+  4: 2.8
+  5: 2.3
+  retracted: 0.0
+
+journals:
+  # ---- Cross-disciplinary (S) ----
+  - { name: "Nature", abbrev: "Nature", tier: S }
+  - { name: "Science", abbrev: "Science", tier: S }
+
+  # ---- Tier 1: physics flagship ----
+  - { name: "Physical Review Letters", abbrev: "PRL", tier: 1 }
+  - { name: "Nature Physics", abbrev: "Nat Phys", tier: 1 }
+  - { name: "Science Advances", abbrev: "Sci Adv", tier: 1 }
+
+  # ---- Tier 2: upper specialty ----
+  - { name: "Physical Review X", abbrev: "PRX", tier: 2 }
+  - { name: "Journal of High Energy Physics", abbrev: "JHEP", tier: 2 }
+  - { name: "Astrophysical Journal Letters", abbrev: "ApJL", tier: 2 }
+  - { name: "Nature Astronomy", abbrev: "Nat Astron", tier: 2 }
+  - { name: "Nature Photonics", abbrev: "Nat Photon", tier: 2 }
+  - { name: "Reviews of Modern Physics", abbrev: "RMP", tier: 2 }
+
+  # ---- Tier 3: mid specialty ----
+  - { name: "Physical Review A", abbrev: "PRA", tier: 3 }
+  - { name: "Physical Review B", abbrev: "PRB", tier: 3 }
+  - { name: "Physical Review C", abbrev: "PRC", tier: 3 }
+  - { name: "Physical Review D", abbrev: "PRD", tier: 3 }
+  - { name: "Physical Review E", abbrev: "PRE", tier: 3 }
+  - { name: "Astrophysical Journal", abbrev: "ApJ", tier: 3 }
+  - { name: "Monthly Notices of the Royal Astronomical Society", abbrev: "MNRAS", tier: 3 }
+  - { name: "Physics Letters B", abbrev: "PLB", tier: 3 }
+  - { name: "European Physical Journal C", abbrev: "EPJC", tier: 3 }
+  - { name: "New Journal of Physics", abbrev: "NJP", tier: 3 }
+  - { name: "Astronomy & Astrophysics", abbrev: "A&A", tier: 3 }
+  - { name: "Journal of Cosmology and Astroparticle Physics", abbrev: "JCAP", tier: 3 }
+
+  # ---- Tier 4: general SCI ----
+  - { name: "Physical Review Applied", abbrev: "PR Applied", tier: 4 }
+  - { name: "Physical Review Materials", abbrev: "PR Materials", tier: 4 }
+  - { name: "Physical Review Fluids", abbrev: "PR Fluids", tier: 4 }
+  - { name: "Journal of Physics G", abbrev: "J Phys G", tier: 4 }
+  - { name: "American Journal of Physics", abbrev: "AJP", tier: 4 }

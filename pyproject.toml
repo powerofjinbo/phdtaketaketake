@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "phdtaketaketake"
+version = "0.1.0"
+description = "Connection-first PhD advisor matcher — find the right advisor by network strength, not h-index."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Jinbo Z" }]
+keywords = [
+    "phd",
+    "graduate-school",
+    "academic-matching",
+    "advisor",
+    "phd-application",
+    "connection-graph",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+    "click>=8.1",
+    "streamlit>=1.30",
+]
+
+[project.optional-dependencies]
+llm = ["anthropic>=0.21"]
+embedding = ["sentence-transformers>=2.5"]
+dev = ["pytest>=7.4", "ruff>=0.3", "mypy>=1.8"]
+
+[project.urls]
+Homepage = "https://github.com/powerofjinbo/phdtaketaketake"
+Repository = "https://github.com/powerofjinbo/phdtaketaketake"
+Issues = "https://github.com/powerofjinbo/phdtaketaketake/issues"
+
+[project.scripts]
+phd-matcher = "phd_matcher.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["phd_matcher"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

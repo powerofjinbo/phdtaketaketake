@@ -1,0 +1,70 @@
+# US News PhD program ranking by field (placeholder; v0.1 starter)
+# Tiers: top_10, top_11_30, top_31_60, top_60_plus
+
+physics:
+  top_10:
+    - MIT
+    - Stanford University
+    - Harvard University
+    - Princeton University
+    - California Institute of Technology
+    - University of California, Berkeley
+    - University of Chicago
+    - Cornell University
+    - Yale University
+    - Columbia University
+  top_11_30:
+    - University of Illinois Urbana-Champaign
+    - University of Michigan
+    - University of Pennsylvania
+    - University of California, Santa Barbara
+    - University of Texas at Austin
+    - University of California, Los Angeles
+    - University of Wisconsin-Madison
+    - University of Washington
+    - University of California, San Diego
+    - Johns Hopkins University
+    - Duke University
+    - University of Maryland
+    - Pennsylvania State University
+    - Northwestern University
+    - University of Colorado Boulder
+    - Stony Brook University
+    - University of Minnesota
+    - Carnegie Mellon University
+    - Ohio State University
+    - Rutgers University
+
+mse:
+  top_10:
+    - MIT
+    - Northwestern University
+    - Stanford University
+    - University of California, Berkeley
+    - Georgia Institute of Technology
+    - University of California, Santa Barbara
+    - University of Michigan
+    - Cornell University
+    - University of Illinois Urbana-Champaign
+    - California Institute of Technology
+  top_11_30:
+    - University of Pennsylvania
+    - Carnegie Mellon University
+    - Texas A&M University
+    - University of Florida
+    - Pennsylvania State University
+    - Ohio State University
+    - University of Wisconsin-Madison
+    - North Carolina State University
+    - Purdue University
+    - University of Texas at Austin
+    - Iowa State University
+    - University of Maryland
+    - Rensselaer Polytechnic Institute
+    - University of Minnesota
+    - University of Washington
+    - University of California, Los Angeles
+    - Johns Hopkins University
+    - Columbia University
+    - Princeton University
+    - Drexel University

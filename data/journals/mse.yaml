@@ -1,0 +1,53 @@
+# Materials Science & Engineering journal tiers — v0.1 starter set
+# (Excludes Chemical Engineering — see roadmap to add ChemE separately)
+
+tier_baselines:
+  S: 4.0
+  1: 4.0
+  2: 3.7
+  3: 3.3
+  4: 2.8
+  5: 2.3
+  retracted: 0.0
+
+journals:
+  # ---- Cross-disciplinary (S) ----
+  - { name: "Nature", abbrev: "Nature", tier: S }
+  - { name: "Science", abbrev: "Science", tier: S }
+
+  # ---- Tier 1: MSE flagship ----
+  - { name: "Nature Materials", abbrev: "Nat Mater", tier: 1 }
+  - { name: "Advanced Materials", abbrev: "Adv Mater", tier: 1 }
+  - { name: "Nature Nanotechnology", abbrev: "Nat Nanotech", tier: 1 }
+  - { name: "Acta Materialia", abbrev: "Acta Mater", tier: 1 }
+  - { name: "Journal of the American Chemical Society", abbrev: "JACS", tier: 1 }
+
+  # ---- Tier 2: upper specialty ----
+  - { name: "Advanced Functional Materials", abbrev: "Adv Funct Mater", tier: 2 }
+  - { name: "Nano Letters", abbrev: "Nano Lett", tier: 2 }
+  - { name: "ACS Nano", abbrev: "ACS Nano", tier: 2 }
+  - { name: "Materials Today", abbrev: "Mater Today", tier: 2 }
+  - { name: "Materials Horizons", abbrev: "Mater Horiz", tier: 2 }
+  - { name: "Angewandte Chemie International Edition", abbrev: "Angew Chem Int Ed", tier: 2 }
+  - { name: "Energy & Environmental Science", abbrev: "Energy Environ Sci", tier: 2 }
+  - { name: "Nature Energy", abbrev: "Nat Energy", tier: 2 }
+
+  # ---- Tier 3: mid specialty ----
+  - { name: "Chemistry of Materials", abbrev: "Chem Mater", tier: 3 }
+  - { name: "Journal of Materials Chemistry A", abbrev: "J Mater Chem A", tier: 3 }
+  - { name: "Journal of Materials Chemistry B", abbrev: "J Mater Chem B", tier: 3 }
+  - { name: "Journal of Materials Chemistry C", abbrev: "J Mater Chem C", tier: 3 }
+  - { name: "Nanoscale", abbrev: "Nanoscale", tier: 3 }
+  - { name: "Advanced Energy Materials", abbrev: "Adv Energy Mater", tier: 3 }
+  - { name: "Carbon", abbrev: "Carbon", tier: 3 }
+  - { name: "Acta Crystallographica B", abbrev: "Acta Cryst B", tier: 3 }
+  - { name: "Macromolecules", abbrev: "Macromolecules", tier: 3 }
+  - { name: "Journal of Physical Chemistry C", abbrev: "J Phys Chem C", tier: 3 }
+  - { name: "Small", abbrev: "Small", tier: 3 }
+
+  # ---- Tier 4: general SCI ----
+  - { name: "Journal of Applied Physics", abbrev: "J Appl Phys", tier: 4 }
+  - { name: "Surface Science", abbrev: "Surf Sci", tier: 4 }
+  - { name: "Journal of Materials Science", abbrev: "J Mater Sci", tier: 4 }
+  - { name: "Materials Letters", abbrev: "Mater Lett", tier: 4 }
+  - { name: "Thin Solid Films", abbrev: "Thin Solid Films", tier: 4 }

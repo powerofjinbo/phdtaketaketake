@@ -1,0 +1,39 @@
+{
+  "name": "Sample Physics Applicant",
+  "field": "physics",
+  "undergrad_institution": "Tsinghua University",
+  "gpa_raw": 3.82,
+  "gpa_scale": "4.0",
+  "research_direction": "experimental high energy physics, ATLAS detector, BSM searches and Higgs boson coupling measurements",
+  "current_advisors": [
+    {
+      "id": "adv_001",
+      "name": "Prof. Lisa Wang",
+      "institution": "Tsinghua University"
+    }
+  ],
+  "papers": [
+    {
+      "title": "Search for new physics in dijet events with the ATLAS detector",
+      "journal": "Physical Review D",
+      "journal_tier": 3,
+      "author_position": 312,
+      "year": 2024
+    },
+    {
+      "title": "First measurement of charm quark coupling in WH events",
+      "journal": "Physical Review Letters",
+      "journal_tier": 1,
+      "author_position": 456,
+      "year": 2024
+    }
+  ],
+  "experiences": [
+    {
+      "lab_pi_name": "Prof. Lisa Wang",
+      "lab_tier": "strong_us_or_top_cn",
+      "duration_months": 18,
+      "output_type": "honors_thesis"
+    }
+  ]
+}
