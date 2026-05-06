@@ -1,6 +1,6 @@
 # phdtaketaketake
 
-> **以人脉关系网络为先**的 PhD 导师匹配工具，打包成 **Claude Code skill**。
+> **以人脉关系网络为先**的 PhD 导师匹配工具，打包成 **Claude Code skill**（也兼容 Codex CLI / Cursor / 任何能读 SKILL.md 的 LLM agent）。
 > 不靠 h-index，靠 connection 找对的导师。
 
 中文 · [English](README.md)
@@ -15,7 +15,7 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
-下次开 Claude Code session 时自动加载这个 skill。
+下次开 Claude Code session 时自动加载。其他 agent 见下方[与其他 agent 配合](#与其他-agent-配合)。
 
 > 没装 Claude Code？在 [claude.com/code](https://claude.com/code) 安装。
 
@@ -27,29 +27,42 @@ pip install -e .
 
 > *"我是 SJTU 材料系本科，研究方向 2D 材料 photodetector，GPA 88/100，求美国 PhD 申请定位。"*
 
-Claude 会：
+Agent 会：
 
-1. 读你的 CV（信息不全时主动问关键字段）
-2. 拼装 profile JSON
-3. 跑 `scripts/match.py` 算分
-4. 返回 ranked 候选导师 + 各维度分项 + connection 路径解释
+1. 拼装 profile（缺关键信息会主动问）
+2. 在你的目标学校 web-search 匹配你研究方向的候选 PI
+3. 查证每个候选与你现导师的 connection（合著 paper、学术家谱、共同 collaboration）
+4. 调 `scripts/match.py` 跑确定性 4.0 制打分
+5. 返回 ranked 候选 + 各维度分项 + 引用来源的解释
 
 ### 每个候选的输出
 
 - **Match score**（0–4.0）+ **录取可能性**（0–4.0），带置信区间 ±
 - **5 档定性标签**：Reach · Target · Match · Safe · Far Reach
 - **分项分**：Connection / Publication / Experience / GPA
-- **匹配原因** —— 例："与你导师近 5 年合著 4 篇；学术家谱同一师门"
+- **匹配原因** —— 引用真实搜索来源：例如 *"与 Prof. Wang 在 2022–2024 合著 4 篇（per Google Scholar）· 自 2017 年起同属 ATLAS"*
+
+## 架构：无静态缓存
+
+**没有打包候选导师缓存**。PhD 导师信息变化太快、覆盖太广，静态数据集不实用。改成：
+
+| 组件 | 职责 |
+|------|------|
+| Agent（Claude / Codex / Cursor / …）| 深度检索：找候选、查证 connection、估计 signal |
+| `scripts/match.py` | 纯 Python 确定性打分 —— 把 agent 的发现喂入 4.0 制公式 |
+| `data/journals/<field>.yaml`、`references/*.md`、`docs/scoring.md` | 项目对 tier / 公式 / schema 的权威定义 |
+
+这样支持**任何 STEM 领域、任何细分子方向、任何学校** —— 质量随 agent 检索能力 scale，数据永远新鲜。
 
 ## 跟其他工具对比
 
 |                    | CSrankings   | h-index 排名 | **phdtaketaketake**          |
 | ------------------ | ------------ | ------------ | ---------------------------- |
-| 数据               | 顶会 paper 数| 引用数       | 合著图 + 家谱 + 多维度       |
+| 数据新鲜度          | 静态         | 静态         | ✅ agent 实时检索            |
 | 个性化             | ❌           | ❌           | ✅ 学生 profile → 候选导师   |
 | Connection 优先    | ❌           | ❌           | ✅ #1 排序信号               |
 | 大组论文处理       | ❌           | ❌           | ✅ ATLAS/CMS 式 5+ 作者规则  |
-| 多领域             | ❌ 仅 CS     | 部分         | ✅ HEP/物理 + MSE            |
+| 多领域             | ❌ 仅 CS     | 部分         | ✅ 通用（任意领域）          |
 
 ## 打分哲学
 
@@ -62,41 +75,19 @@ Claude 会：
 
 `admit_likelihood = match_score + tier_adjustment + pi_recruiting_signal`，clip 到 [0, 4.0]。
 
-完整公式：[docs/scoring.md](docs/scoring.md) · Skill 指令：[SKILL.md](SKILL.md) · Profile schema：[references/profile_schema.md](references/profile_schema.md)。
+完整公式：[docs/scoring.md](docs/scoring.md) · Skill 指令：[SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema：[references/profile_schema.md](references/profile_schema.md)。
 
-## 覆盖范围 —— 支持任意 STEM 领域
+## 与其他 agent 配合
 
-确定性打分引擎（Connection / Publication / Experience / GPA，4.0 制）**与领域无关** —— 任何 STEM 学科都跑同一套数学。
+Skill 是 Claude Code native 设计，但底层 matcher 是纯 Python，SKILL.md 工作流指令也是 framework-agnostic。其他 agent 用法：
 
-根据是否有 bundled 候选导师缓存分两条路径：
-
-| 路径 | 领域 | 怎么跑 |
-|------|------|-------|
-| 🟢 **Bundled 缓存**（置信度高） | `physics`、`mse` | `scripts/match.py` 从 `data/advisors/` 加载候选 |
-| 🟡 **Claude 生成候选**（置信度稍低） | 其他所有 STEM（化学 · 生物 · CS · 数学 · EE · 化工 · 地学 · …） | Claude 用训练知识针对用户的研究方向生成合理候选导师，再喂给同一套打分引擎 |
-
-添加新领域的 verified cache：见 [CONTRIBUTING.md](CONTRIBUTING.md)。欢迎 PR。
-
-## Bundled 候选缓存
-
-physics + MSE 两个领域 ship 了 OpenAlex 抓的**真实 PI 数据**（top 30 美国 PhD program）：
-
-- `data/advisors/physics_cache.json` — ~700 个真实 physics PI（h-index ≥ 12）
-- `data/advisors/mse_cache.json` — ~450 个真实 MSE PI（h-index ≥ 12）
-- `data/advisors/mock_advisors.json` — 真实 cache 不存在时的合成 fallback
-
-从零重建（OpenAlex 免费无认证，约 5 分钟）：
-
-```bash
-python scripts/build_advisors_cache.py --field physics --mailto your@email
-python scripts/build_advisors_cache.py --field mse     --mailto your@email
-```
-
-`paths_to_advisors`（学生现导师 ↔ 候选导师的合著边）由 Claude 在 query 时根据你具体的导师计算 — 缓存只存领域级 network 信号。
+- **Codex CLI / OpenCode**：在 repo 根加 symlink `ln -s SKILL.md AGENTS.md`。Codex 自动读 `AGENTS.md`。
+- **Cursor**：把 `SKILL.md` 内容放到 `.cursorrules` 里。
+- **其他**：直接说"follow the workflow in `SKILL.md`"，主流 coding agent 都能读懂并跑完整 deep-research + `scripts/match.py` 流。
 
 ## 示例对话
 
-`docs/example_session.md` 有完整的 Claude Code 对话示例 walk-through。
+见 [`docs/example_session.md`](docs/example_session.md) 完整 walk-through。
 
 ## License
 

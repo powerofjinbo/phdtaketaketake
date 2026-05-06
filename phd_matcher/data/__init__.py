@@ -1,5 +1,5 @@
-"""Data loaders for journal tiers, schools, and advisor caches."""
+"""Loaders for the journal tier YAML reference."""
 
-from phd_matcher.data.loaders import load_advisors, load_journal_tiers, load_schools
+from phd_matcher.data.loaders import load_journal_tiers
 
-__all__ = ["load_advisors", "load_journal_tiers", "load_schools"]
+__all__ = ["load_journal_tiers"]

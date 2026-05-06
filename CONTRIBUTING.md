@@ -2,48 +2,46 @@
 
 Thanks for considering a contribution. The most useful kinds:
 
-## Add a verified candidate cache for a new STEM field
+## Add or refine journal tier mappings
 
-The skill works for any STEM discipline by having Claude generate candidates
-on the fly, but a **verified cache** lifts confidence. To add one for, say,
-chemistry:
+The bundled YAMLs at `data/journals/<field>.yaml` are the project's
+authoritative opinion on what counts as tier 1 vs 2 vs 3 within a field.
+Currently bundled: physics, mse. Add a new field by:
 
-1. **Build the candidate list** — the schema is in
-   [`references/profile_schema.md`](references/profile_schema.md) under
-   *CandidateAdvisor*. Aim for 50+ candidates spanning top-10 / top-11–30 /
-   top-31–60 / top-60+ schools, all active PIs.
-2. Save as `data/advisors/<field>_cache.json` *or* append to
-   `data/advisors/mock_advisors.json` (and tag each entry with
-   `"field": "<field>"`).
-3. **Add a journal tier YAML** at `data/journals/<field>.yaml`. Mirror the
-   structure of `data/journals/physics.yaml`. Cover the top 30–50 journals
-   in that field across tiers S / 1 / 2 / 3 / 4.
-4. **Add school rankings** — append a `<field>` section to
-   `data/schools/us_news_rank.yaml`.
-5. **(Optional) Add a sample profile** at
-   `data/samples/sample_student_<field>.json` for documentation.
-6. Open a PR.
+1. Build the YAML mirroring `data/journals/physics.yaml`. Cover the top
+   30–50 journals across tiers S / 1 / 2 / 3 / 4.
+2. Cite at least one impact-factor / reputational source per non-obvious
+   placement so the change can be reviewed.
+3. Open a PR.
 
-## Add or correct journal tier mappings
+The cross-field digest at [`references/journal_tiers.md`](references/journal_tiers.md)
+should be updated in lock-step.
 
-The bundled YAMLs at `data/journals/<field>.yaml` are the source of truth for
-covered fields. For uncovered fields, the cross-field digest is in
-[`references/journal_tiers.md`](references/journal_tiers.md). PRs welcome
-for either — please cite at least one impact-factor / reputational source
-in the PR description so the change can be reviewed objectively.
-
-## Add or correct lab tier criteria
+## Add or refine lab tier criteria
 
 Edit [`references/lab_tiers.md`](references/lab_tiers.md). The 6-tier scheme
-is intentionally fixed; criteria refinements are welcome. Edge cases (e.g.,
-"how do I tier a national lab in country X?") are good to surface.
+(`world_class` / `top_us` / `strong_us_or_top_cn` / `good_us_or_985` /
+`211_or_overseas` / `other`) is intentionally fixed; criteria refinements
+and edge cases (national labs, international universities, etc.) are
+welcome.
+
+## Refine the SKILL.md deep-research workflow
+
+`SKILL.md` is the agent-facing instructions for how to find candidates and
+verify connection edges. Improvements that are valuable:
+
+- Better search query templates for specific fields / databases (Google
+  Scholar / OpenAlex / PubMed / INSPIRE-HEP / etc.)
+- More-reliable signals for `pi_signal` extraction from lab pages
+- Better heuristics for `normalized_collab_top20pct` / `grad_placement_quality`
+  estimation
 
 ## Modify scoring rules
 
 The scoring formulas (weights, decays, tier baselines, 5+ author rule) are
-intentionally fixed — they're the IP of this skill's connection-first thesis.
-**Open an issue first to discuss** before touching the formulas. Code: see
-`phd_matcher/scoring/`.
+intentionally fixed — they're the IP of this skill's connection-first
+thesis. **Open an issue first to discuss** before touching the formulas.
+Code: see `phd_matcher/scoring/`.
 
 ## Code standards
 
@@ -54,11 +52,11 @@ intentionally fixed — they're the IP of this skill's connection-first thesis.
 ## Re-enable GitHub Actions CI
 
 The bundled CI config is staged at `.github_workflows/ci.yml` (note the
-underscore — that's intentional, see below). The repo doesn't yet have
-`.github/workflows/ci.yml` because the OAuth token used to create the
-initial repo lacked the `workflow` scope.
+underscore). The repo doesn't yet have `.github/workflows/ci.yml` because
+the OAuth token used to create the initial repo lacked the `workflow`
+scope.
 
-To enable CI (one-time, needs a quick browser auth):
+To enable (one-time, needs a quick browser auth):
 
 ```bash
 gh auth refresh -s workflow                       # browser one-tap
@@ -72,9 +70,6 @@ git push
 ```
 
 After that, every push runs `pytest` + `ruff check` on Python 3.11 + 3.12.
-If the CI passes, you can leave `.github_workflows/` in the repo as a
-template (no harm — GitHub only looks at `.github/workflows/`), or remove
-it.
 
 ## Bugs / discussion
 

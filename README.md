@@ -1,6 +1,6 @@
 # phdtaketaketake
 
-> **Connection-first PhD advisor matcher**, packaged as a **Claude Code skill**.
+> **Connection-first PhD advisor matcher**, packaged as a **Claude Code skill** (also works with Codex CLI / Cursor / any LLM coding agent that can read SKILL.md).
 > Find the right advisor by network strength, not h-index.
 
 [中文](README.zh.md) · English
@@ -15,7 +15,7 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
-Claude Code auto-discovers the skill on next session start.
+Claude Code auto-discovers the skill on next session. For other agents, see [Use with non-Claude agents](#use-with-non-claude-agents) below.
 
 > Don't have Claude Code? Install at [claude.com/code](https://claude.com/code).
 
@@ -27,33 +27,46 @@ In any Claude Code session, describe what you want in plain English (or Chinese)
 
 > *"我是 SJTU 材料系本科，研究方向 2D 材料 photodetector，GPA 88/100，求美国 PhD 申请定位。"*
 
-Claude will:
+The agent will:
 
-1. Read your CV (or ask brief targeted questions if info is missing)
-2. Build a profile JSON
-3. Run `scripts/match.py` to compute scores
-4. Return ranked candidates with per-dimension breakdown + connection-path explanation
+1. Build your profile (asks for any missing key info)
+2. Web-research candidate advisors at your target schools matching your research direction
+3. Verify connection edges to your current advisor (co-author papers, academic genealogy, joint collaborations)
+4. Run `scripts/match.py` for deterministic 4.0-scale scoring
+5. Present ranked candidates with per-dimension breakdown and cited sources
 
 ### Output per candidate
 
 - **Match score** (0–4.0) + **admit likelihood** (0–4.0) with ±confidence band
 - **5-tier label**: Reach · Target · Match · Safe · Far Reach
 - **Per-dimension**: Connection / Publication / Experience / GPA
-- **Why matched** — e.g., *"co-authored 4 papers with your advisor; same academic genealogy line"*
+- **Why matched** — cited from real searches: e.g., *"co-authored 4 papers with Prof. Wang in 2022–2024 (per Google Scholar) · same ATLAS collaboration since 2017"*
+
+## Architecture: no static cache
+
+There is **no bundled cache** of advisors. PhD-advisor data is too dynamic and too vast for static datasets to be useful. Instead:
+
+| Component | Role |
+|-----------|------|
+| The agent (Claude / Codex / Cursor / …) | Deep research: find candidates, verify connections, estimate signals |
+| `scripts/match.py` | Pure-Python deterministic scoring — takes the agent's findings and applies the 4.0-scale formulas |
+| `data/journals/<field>.yaml`, `references/*.md`, `docs/scoring.md` | Authoritative project opinions on tiers / formulas / schema |
+
+This works for any STEM field, any subdiscipline, any school — quality scales with the agent's retrieval quality, and data is always fresh.
 
 ## How it differs
 
-|                        | CSrankings        | h-index ranking | **phdtaketaketake**                       |
-| ---------------------- | ----------------- | --------------- | ----------------------------------------- |
-| Data                   | conf. paper count | citations       | co-author + genealogy + multi-dim         |
-| Personalized           | ❌                | ❌              | ✅ student profile → candidate matching   |
-| Connection-first       | ❌                | ❌              | ✅ #1 ranking signal                      |
-| Big-collab paper aware | ❌                | ❌              | ✅ ATLAS/CMS-style 5+ author rule         |
-| Multi-STEM             | ❌ CS only        | partial         | ✅ HEP/Physics + MSE                      |
+|                        | CSrankings        | h-index ranking | **phdtaketaketake**                                |
+| ---------------------- | ----------------- | --------------- | -------------------------------------------------- |
+| Data freshness         | static            | static          | ✅ real-time agent retrieval                       |
+| Personalized           | ❌                | ❌              | ✅ student profile → candidate matching            |
+| Connection-first       | ❌                | ❌              | ✅ #1 ranking signal                               |
+| Big-collab paper aware | ❌                | ❌              | ✅ ATLAS/CMS-style 5+ author rule                  |
+| Multi-STEM             | ❌ CS only        | partial         | ✅ universal (any field)                           |
 
 ## Scoring philosophy
 
-All four dimensions on 4.0 scale (matching GPA), tier-adaptively weighted by school competitiveness:
+Four dimensions, all on a 4.0 scale (matching GPA), tier-adaptively weighted by school competitiveness:
 
 - **Connection (C)** — paths between candidate ↔ your current advisor (co-author / genealogy / joint collaborations / committee)
 - **Publication (P)** — journal tier × author position decay; 5+ author papers handled specially for big-collaboration physics
@@ -62,43 +75,19 @@ All four dimensions on 4.0 scale (matching GPA), tier-adaptively weighted by sch
 
 `admit_likelihood = match_score + tier_adjustment + pi_recruiting_signal`, clipped to [0, 4.0].
 
-Full formulas: [docs/scoring.md](docs/scoring.md) · Skill instructions: [SKILL.md](SKILL.md) · Profile schema: [references/profile_schema.md](references/profile_schema.md).
+Full formulas: [docs/scoring.md](docs/scoring.md) · Skill instructions: [SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema: [references/profile_schema.md](references/profile_schema.md).
 
-## Coverage — works for ANY STEM field
+## Use with non-Claude agents
 
-The deterministic scoring engine (Connection / Publication / Experience / GPA on 4.0 scale) is **field-agnostic** — same math runs for any STEM discipline.
+The skill is designed Claude-Code-native but the underlying matcher is plain Python and the workflow instructions in `SKILL.md` are framework-agnostic. To use with another agent:
 
-Two paths depending on whether a verified candidate cache is bundled:
-
-| Path | Fields | How |
-|------|--------|-----|
-| 🟢 **Bundled cache** (best confidence) | `physics`, `mse` | `scripts/match.py` loads candidates from `data/advisors/`. |
-| 🟡 **Generated candidates** (lower confidence) | Any other STEM (chem · biology · CS · math · EE · ChemE · earth science · …) | Claude generates plausible candidate advisors from training knowledge for the user's specific research direction, then runs them through the same scoring engine. |
-
-Adding a verified cache for a new field: see [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.
-
-## Bundled candidate cache
-
-For physics + MSE, the repo ships with an OpenAlex-derived cache of real PIs at top 30 US programs:
-
-- `data/advisors/physics_cache.json` — ~700 real physics PIs (h-index ≥ 12)
-- `data/advisors/mse_cache.json` — ~450 real MSE PIs (h-index ≥ 12)
-- `data/advisors/mock_advisors.json` — fallback synthetic data when neither real cache exists
-
-To rebuild from scratch (free, no auth required, ~5 min):
-
-```bash
-python scripts/build_advisors_cache.py --field physics --mailto your@email
-python scripts/build_advisors_cache.py --field mse     --mailto your@email
-```
-
-`paths_to_advisors` (per-student-advisor co-authorship edges) is populated
-at query time by Claude based on your specific current advisor — the
-bundled cache stores only field-strength signals.
+- **Codex CLI / OpenCode**: drop a symlink at the repo root: `ln -s SKILL.md AGENTS.md`. Codex auto-reads `AGENTS.md`.
+- **Cursor**: copy `SKILL.md` content into `.cursorrules` at your project root.
+- **Other**: tell the agent "follow the workflow in `SKILL.md`" — most modern coding agents read it and execute the deep-research + `scripts/match.py` flow correctly.
 
 ## Example session
 
-See [`docs/example_session.md`](docs/example_session.md) for a walk-through of an end-to-end Claude Code conversation with the skill.
+See [`docs/example_session.md`](docs/example_session.md) for a walk-through.
 
 ## License
 
