@@ -479,6 +479,75 @@ class ProgramProfile(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# ResearchFit — Sprint-2-c3 structured research fit
+# ---------------------------------------------------------------------------
+
+class ResearchFit(BaseModel):
+    """Structured 6-axis research-fit score (Sprint-2-c3).
+
+    Replaces the free-form `research_fit_axes` dict with a fixed schema
+    that the matcher can score deterministically. When set, the matcher
+    derives `research_fit_score` from the weighted formula:
+
+      research_fit_score = 0.30·topic_fit
+                         + 0.20·method_fit
+                         + 0.15·system_or_dataset_fit
+                         + 0.15·temporal_fit
+                         + 0.10·grant_fit
+                         + 0.10·student_background_fit
+
+    `theory_experiment_fit` is stored for display (especially physics)
+    but does NOT enter the formula in v1 — keeps the score additive
+    over a meaningful 6-axis basis. Future calibration may include it.
+
+    All axes are 0–1 (Pydantic-bounded). When `research_fit` is set,
+    legacy `research_fit_score` / `research_fit_axes` are ignored — the
+    structured submodel wins.
+
+    Strict mode: when `research_fit` is set, evidence must live in
+    `research_fit.evidence` with `supports_fields=["research_fit"]`
+    (or the legacy candidate-level `evidence["research_fit"]` for
+    back-compat with v1 research-fit data).
+    """
+
+    topic_fit: float = Field(
+        ge=0.0, le=1.0,
+        description="Subfield / problem-area alignment with student's research_direction",
+    )
+    method_fit: float = Field(
+        ge=0.0, le=1.0,
+        description="Methodology / technique alignment",
+    )
+    system_or_dataset_fit: float = Field(
+        ge=0.0, le=1.0,
+        description="System / dataset / material / organism / detector alignment",
+    )
+    theory_experiment_fit: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Theory ↔ experiment alignment (mainly physics; stored for display, "
+                    "not in v1 formula)",
+    )
+    temporal_fit: float = Field(
+        ge=0.0, le=1.0,
+        description="Is the candidate still actively working in the topic? "
+                    "(High if recent papers are on the topic; low if the PI has pivoted away.)",
+    )
+    grant_fit: float = Field(
+        ge=0.0, le=1.0,
+        description="Active grants / funded projects align with student's interests",
+    )
+    student_background_fit: float = Field(
+        ge=0.0, le=1.0,
+        description="Student's coursework / prior research prepares them for this PI's lab "
+                    "(strict math / wet-lab / etc. requirements)",
+    )
+
+    evidence: dict[str, EvidenceEntry] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
 # OpportunitySignal — admit-cycle availability (post-roadmap-#6a)
 # ---------------------------------------------------------------------------
 
@@ -554,10 +623,14 @@ class CandidateAdvisor(BaseModel):
     # ERC etc. on a 0–1 quality score (e.g., active R01 + NSF CAREER ≈ 0.85).
     active_funding_quality: float | None = Field(default=None, ge=0.0, le=1.0)
 
-    # ---- Research fit (roadmap #4) -------------------------------------
+    # ---- Research fit (roadmap #4 / Sprint-2-c3 structured v2) -------
     # NOT a 6th pillar in the match formula. Used as a tie-breaker (sort
     # key) when candidates land at the same risk_adjusted_strength.
-    # Range 0–1; None = "didn't compute".
+    # Sprint-2-c3 added structured `research_fit: ResearchFit | None` —
+    # when set, it derives `research_fit_score` from a deterministic
+    # 6-axis weighted formula. Otherwise the legacy `research_fit_score`
+    # value (set directly) wins, then fall back to None.
+    research_fit: ResearchFit | None = None
     research_fit_score: float | None = Field(default=None, ge=0.0, le=1.0)
     research_fit_summary: str | None = None
     # Per-axis breakdown. Axes are field-specific (see

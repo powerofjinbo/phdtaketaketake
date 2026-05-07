@@ -967,6 +967,262 @@ def test_validate_research_fit_axes_warns_on_unknown_axis_key():
     assert validate_research_fit_axes([cand_bad], field_profile=profile_no_axes) == []
 
 
+# ---- Research fit v2 (Sprint-2-c3) ---------------------------------------
+
+def test_research_fit_v2_schema_bounds():
+    """ResearchFit Pydantic-bounds each axis to [0,1]."""
+    from pydantic import ValidationError
+
+    from phd_matcher.models import ResearchFit
+
+    # Valid construction with all 6 required + 1 optional
+    rf = ResearchFit(
+        topic_fit=0.9, method_fit=0.8, system_or_dataset_fit=0.7,
+        theory_experiment_fit=0.6, temporal_fit=0.85,
+        grant_fit=0.5, student_background_fit=0.4,
+    )
+    assert rf.topic_fit == 0.9
+    assert rf.theory_experiment_fit == 0.6
+
+    # Out-of-range rejected
+    with pytest.raises(ValidationError):
+        ResearchFit(
+            topic_fit=1.5, method_fit=0.5, system_or_dataset_fit=0.5,
+            temporal_fit=0.5, grant_fit=0.5, student_background_fit=0.5,
+        )
+
+    # extra="forbid"
+    with pytest.raises(ValidationError):
+        ResearchFit(
+            topic_fit=0.5, method_fit=0.5, system_or_dataset_fit=0.5,
+            temporal_fit=0.5, grant_fit=0.5, student_background_fit=0.5,
+            unknown_axis=0.5,
+        )
+
+
+def test_research_fit_v2_score_formula():
+    """v2 formula: 0.30·topic + 0.20·method + 0.15·system + 0.15·temporal
+    + 0.10·grant + 0.10·background. theory_experiment_fit NOT in formula."""
+    from phd_matcher.models import ResearchFit
+    from phd_matcher.scoring.research_fit import research_fit_v2_score
+
+    rf = ResearchFit(
+        topic_fit=1.0, method_fit=1.0, system_or_dataset_fit=1.0,
+        theory_experiment_fit=0.0,   # NOT in formula
+        temporal_fit=1.0, grant_fit=1.0, student_background_fit=1.0,
+    )
+    # All max → 0.30+0.20+0.15+0.15+0.10+0.10 = 1.00 (theory_experiment ignored)
+    assert research_fit_v2_score(rf) == pytest.approx(1.0)
+
+    rf_zero = ResearchFit(
+        topic_fit=0.0, method_fit=0.0, system_or_dataset_fit=0.0,
+        temporal_fit=0.0, grant_fit=0.0, student_background_fit=0.0,
+    )
+    assert research_fit_v2_score(rf_zero) == 0.0
+
+
+def test_research_fit_v2_overrides_legacy_research_fit_score():
+    """When `research_fit` (v2) is set, it wins over legacy
+    `research_fit_score` field. The MatchResult exposes the v2 score."""
+    from phd_matcher.matching.ranker import compute_match
+    from phd_matcher.models import (
+        CandidateAdvisor,
+        ResearchFit,
+        StudentProfile,
+    )
+
+    student = StudentProfile(
+        field="physics", undergrad_institution="X",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS Higgs",
+    )
+
+    cand = CandidateAdvisor(
+        id="c1", name="Y", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_areas=["physics"],
+        # Legacy field set to 0.10 (low)
+        research_fit_score=0.10,
+        # v2 structured set to high — should win
+        research_fit=ResearchFit(
+            topic_fit=1.0, method_fit=1.0, system_or_dataset_fit=1.0,
+            temporal_fit=1.0, grant_fit=1.0, student_background_fit=1.0,
+        ),
+    )
+    r = compute_match(student, cand)
+    # v2 score is 1.0, not the legacy 0.10
+    assert r.research_fit_score == pytest.approx(1.0)
+
+
+def test_research_fit_v2_temporal_decay_lowers_score():
+    """A candidate who hasn't published on the topic in years (low
+    temporal_fit) scores below one currently active in the area."""
+    from phd_matcher.models import ResearchFit
+    from phd_matcher.scoring.research_fit import research_fit_v2_score
+
+    active = ResearchFit(
+        topic_fit=1.0, method_fit=1.0, system_or_dataset_fit=1.0,
+        temporal_fit=1.0, grant_fit=1.0, student_background_fit=1.0,
+    )
+    pivoted = ResearchFit(
+        topic_fit=1.0, method_fit=1.0, system_or_dataset_fit=1.0,
+        temporal_fit=0.1,   # PI moved away from this topic
+        grant_fit=1.0, student_background_fit=1.0,
+    )
+    s_active = research_fit_v2_score(active)
+    s_pivoted = research_fit_v2_score(pivoted)
+    assert s_active > s_pivoted
+    # 0.15 weight × (1.0 - 0.1) = 0.135 difference
+    assert s_active - s_pivoted == pytest.approx(0.135)
+
+
+def test_research_fit_v2_legacy_score_still_works_when_v2_unset():
+    """Back-compat: a candidate with only legacy `research_fit_score`
+    (no `research_fit` submodel) keeps producing the same effective
+    score."""
+    from phd_matcher.matching.ranker import compute_match
+    from phd_matcher.models import CandidateAdvisor, StudentProfile
+
+    student = StudentProfile(
+        field="physics", undergrad_institution="X",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS",
+    )
+    cand = CandidateAdvisor(
+        id="c1", name="Y", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_areas=["physics"],
+        research_fit_score=0.7,   # legacy only
+    )
+    r = compute_match(student, cand)
+    assert r.research_fit_score == pytest.approx(0.7)
+
+
+def test_research_fit_v2_evidence_via_submodel_satisfies_strict():
+    """Strict-mode evidence: when research_fit is set, evidence may live
+    EITHER on `candidate.evidence['research_fit']` (legacy) OR on
+    `candidate.research_fit.evidence['research_fit']` (v2 location).
+    Both must verify."""
+    from phd_matcher.matching.ranker import evidence_coverage
+    from phd_matcher.models import (
+        CandidateAdvisor,
+        EvidenceEntry,
+        EvidenceSource,
+        ResearchFit,
+        StudentProfile,
+    )
+
+    student = StudentProfile(
+        field="physics", undergrad_institution="X",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS",
+    )
+    base_rf = ResearchFit(
+        topic_fit=0.7, method_fit=0.7, system_or_dataset_fit=0.7,
+        temporal_fit=0.7, grant_fit=0.7, student_background_fit=0.7,
+    )
+    cand_v2_evidence = CandidateAdvisor(
+        id="c1", name="Y", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_fit=base_rf.model_copy(update={
+            "evidence": {
+                "research_fit": EvidenceEntry(items=[EvidenceSource(
+                    url="https://scholar.google.com/papers",
+                    source_type="google_scholar",
+                    claim="6/10 recent papers on H→cc̄",
+                    supports_fields=["research_fit"],
+                )]),
+            },
+        }),
+    )
+    cov = evidence_coverage(student, cand_v2_evidence, strict=True)
+    assert "research_fit" not in cov.unsourced_names
+
+    # Or via legacy candidate.evidence path
+    cand_legacy_evidence = CandidateAdvisor(
+        id="c2", name="Z", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_fit=base_rf,
+        evidence={
+            "research_fit": EvidenceEntry(items=[EvidenceSource(
+                url="https://scholar.google.com/papers",
+                source_type="google_scholar",
+                claim="6/10 recent papers on H→cc̄",
+                supports_fields=["research_fit"],
+            )]),
+        },
+    )
+    cov_legacy = evidence_coverage(student, cand_legacy_evidence, strict=True)
+    assert "research_fit" not in cov_legacy.unsourced_names
+
+
+def test_research_fit_v2_unsourced_strict_rejects():
+    """v2 ResearchFit set without evidence → unsourced in strict mode."""
+    from phd_matcher.matching.ranker import evidence_coverage
+    from phd_matcher.models import (
+        CandidateAdvisor,
+        ResearchFit,
+        StudentProfile,
+    )
+
+    student = StudentProfile(
+        field="physics", undergrad_institution="X",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS",
+    )
+    cand = CandidateAdvisor(
+        id="c1", name="Y", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_fit=ResearchFit(
+            topic_fit=0.9, method_fit=0.8, system_or_dataset_fit=0.7,
+            temporal_fit=0.85, grant_fit=0.5, student_background_fit=0.4,
+        ),
+        # No evidence anywhere
+    )
+    cov = evidence_coverage(student, cand, strict=True)
+    assert "research_fit" in cov.unsourced_names
+
+
+def test_research_fit_v2_theory_experiment_fit_does_not_affect_v1_score():
+    """v1 calibration of v2: theory_experiment_fit is stored but does
+    NOT enter the formula. Two ResearchFits identical except for
+    theory_experiment_fit must produce the same score."""
+    from phd_matcher.models import ResearchFit
+    from phd_matcher.scoring.research_fit import research_fit_v2_score
+
+    rf_with = ResearchFit(
+        topic_fit=0.5, method_fit=0.5, system_or_dataset_fit=0.5,
+        theory_experiment_fit=1.0,    # max
+        temporal_fit=0.5, grant_fit=0.5, student_background_fit=0.5,
+    )
+    rf_without = ResearchFit(
+        topic_fit=0.5, method_fit=0.5, system_or_dataset_fit=0.5,
+        theory_experiment_fit=0.0,    # min
+        temporal_fit=0.5, grant_fit=0.5, student_background_fit=0.5,
+    )
+    rf_none = ResearchFit(
+        topic_fit=0.5, method_fit=0.5, system_or_dataset_fit=0.5,
+        # theory_experiment_fit defaults to None
+        temporal_fit=0.5, grant_fit=0.5, student_background_fit=0.5,
+    )
+    assert research_fit_v2_score(rf_with) == research_fit_v2_score(rf_without)
+    assert research_fit_v2_score(rf_with) == research_fit_v2_score(rf_none)
+
+
+def test_research_fit_v2_weights_sum_to_one():
+    """Sanity: the 6 weighted axes sum to 1.0 so the score lives in [0,1]."""
+    from phd_matcher.scoring.research_fit import (
+        W_BACKGROUND,
+        W_GRANT,
+        W_METHOD,
+        W_SYSTEM,
+        W_TEMPORAL,
+        W_TOPIC,
+    )
+    total = W_TOPIC + W_METHOD + W_SYSTEM + W_TEMPORAL + W_GRANT + W_BACKGROUND
+    assert total == pytest.approx(1.0)
+
+
 def test_explainer_filters_sources_per_claim():
     """Per fourth-pass review: an item supporting only small_team should
     NOT appear after the big_collab claim in the explanation."""

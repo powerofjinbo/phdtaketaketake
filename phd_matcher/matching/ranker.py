@@ -32,6 +32,9 @@ from phd_matcher.scoring import (
     program,
     pub,
 )
+from phd_matcher.scoring import (
+    research_fit as research_fit_module,
+)
 
 # A-dimension (Advisor influence) signals. Each needs an EvidenceEntry
 # whose items list `<field>` in `supports_fields`.
@@ -249,18 +252,28 @@ def evidence_coverage(
                 has_ev=_entry_has_evidence_for(ev, ns_name, strict=strict),
             )
 
-    # Research fit (roadmap #4) — tie-breaker, not a pillar. Counted in
-    # coverage ONLY when the agent actually computed a score; an absent
-    # research_fit (None) must NOT widen the confidence band, otherwise
-    # it would indirectly move risk_adjusted_strength and break the
-    # tie-breaker-only invariant. When set, evidence is required (strict
-    # mode rejects unsourced; default mode flags it in unsourced_names).
-    if candidate.research_fit_score is not None:
-        rf_ev = candidate.evidence.get("research_fit") if candidate.evidence else None
+    # Research fit (roadmap #4 / Sprint-2-c3) — tie-breaker, not a
+    # pillar. Counted in coverage ONLY when the agent actually computed
+    # a score; an absent research_fit (None) must NOT widen the
+    # confidence band. Sprint-2-c3: structured `research_fit:
+    # ResearchFit` overrides the legacy `research_fit_score` field;
+    # either being set triggers coverage. Evidence may live in either
+    # `candidate.evidence["research_fit"]` (legacy) or
+    # `candidate.research_fit.evidence["research_fit"]` (v2 location)
+    # — both verify in strict mode.
+    rf_effective = research_fit_module.effective_research_fit_score(candidate)
+    if rf_effective is not None:
+        legacy_ev = (
+            candidate.evidence.get("research_fit") if candidate.evidence else None
+        )
+        has_ev = _entry_has_evidence_for(legacy_ev, "research_fit", strict=strict)
+        if not has_ev and candidate.research_fit is not None:
+            v2_ev = candidate.research_fit.evidence.get("research_fit")
+            has_ev = _entry_has_evidence_for(v2_ev, "research_fit", strict=strict)
         _record(
             cov, "research_fit",
             is_set=True,
-            has_ev=_entry_has_evidence_for(rf_ev, "research_fit", strict=strict),
+            has_ev=has_ev,
         )
 
     # Program profile (roadmap #5) — same opt-in pattern as research_fit.
@@ -542,7 +555,10 @@ def compute_match(
         difficulty_adjusted_strength=round(diff_adj, 2),
         difficulty_reasons=difficulty_reasons,
         field_profile_id=(field_profile.id if field_profile else None),
-        research_fit_score=candidate.research_fit_score,
+        # Sprint-2-c3: structured research_fit takes precedence over legacy
+        # research_fit_score field. effective_research_fit_score resolves
+        # the priority.
+        research_fit_score=research_fit_module.effective_research_fit_score(candidate),
         research_fit_summary=candidate.research_fit_summary,
         research_fit_axes=dict(candidate.research_fit_axes),
         o_score=(round(o_score, 2) if o_score is not None else None),
@@ -585,8 +601,10 @@ def rank_advisors(
 
     def sort_key(r: MatchResult):
         rel = direction_relevance(student.research_direction, r.candidate.research_areas)
-        # None research_fit_score sorts last among ties (with reverse=True
-        # below, the smallest goes last; -1.0 puts it strictly below 0.0).
+        # MatchResult.research_fit_score is already the resolved effective
+        # value (post-Sprint-2-c3): ResearchFit v2 → legacy score → None.
+        # None sorts last among ties (with reverse=True below, the smallest
+        # goes last; -1.0 puts it strictly below 0.0).
         rf = r.research_fit_score if r.research_fit_score is not None else -1.0
         return (
             r.difficulty_adjusted_strength,
