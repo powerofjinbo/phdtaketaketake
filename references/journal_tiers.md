@@ -2,8 +2,25 @@
 
 The tier scale (S / 1–5 / 0) is universal across STEM. The journals are
 field-specific. This page is a cross-field digest. Bundled YAMLs at
-`data/journals/<field>.yaml` cover physics + MSE in detail; for other fields,
+`data/journals/<field>.yaml` cover **physics + MSE** in detail; for other fields,
 use this page + your domain knowledge.
+
+⚠️ **Field-specific caveats** (the scoring system was originally calibrated
+for physics + MSE; treat other fields with appropriate skepticism):
+
+- **CS** is **conference-first**, not journal-first. Treat top conferences
+  as journal-equivalent. Different tier balance (most CS PhDs apply with
+  conference papers, not journals).
+- **Biology** has **co-first authorship** and **co-corresponding** conventions.
+  When the user says "shared first author" or there's an asterisk on the
+  byline, treat as 1st-author position. Co-corresponding for senior author —
+  not relevant for grad applicants.
+- **Math** has a longer publication pipeline (1–3y is normal); preprints on
+  arXiv often count more like papers. Top venues (Annals, Inventiones, JAMS)
+  publish far fewer papers / yr than physics flagships.
+- **Clinical / medical** uses RCT-driven prestige hierarchies (NEJM, Lancet,
+  JAMA). The 5+ author rule applies to large multi-center trials similarly
+  to HEP big-collab papers.
 
 ## Tier baselines
 

@@ -50,6 +50,9 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "B", "UP"]
+# Allow compact `if x: return y` style — used in the scoring tables for
+# readability (each branch is a single dictionary-like lookup rule).
+ignore = ["E701"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

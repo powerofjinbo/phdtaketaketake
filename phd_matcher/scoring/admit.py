@@ -1,4 +1,10 @@
-"""Match score and admission likelihood — per Scoring Design v0.3 §6, §7."""
+"""Match score and application strength index — per Scoring Design v0.3.
+
+Renamed `admit_likelihood` → `application_strength`. The score is on a 4.0
+scale and represents relative fit / competitiveness, NOT a probability —
+there is no historical admission data to calibrate against. See README and
+docs/scoring.md for the rationale.
+"""
 
 # ---- Tier-adaptive weights (§6) ------------------------------------------
 
@@ -11,72 +17,78 @@ TIER_WEIGHTS: dict[str, dict[str, float]] = {
 
 
 def match_score(c: float, p: float, e: float, g: float, school_tier: str) -> float:
-    """Weighted combination → 4.0."""
     if school_tier not in TIER_WEIGHTS:
         raise ValueError(f"Unknown school tier: {school_tier!r}. Valid: {list(TIER_WEIGHTS)}")
     w = TIER_WEIGHTS[school_tier]
     return w["C"] * c + w["P"] * p + w["E"] * e + w["G"] * g
 
 
-# ---- Admission likelihood (§7) -------------------------------------------
+# ---- Application-strength adjustments ------------------------------------
 
 # School competitiveness adjustment (lower tier = easier admit at same match).
-# Calibrated to reflect realistic admission rate ratios (top 10 PhD programs
-# admit ~5–10% of applicants; top 60+ admit ~25–35% — a 4–8x gap).
-TIER_ADMIT_ADJ: dict[str, float] = {
-    "top_10":      -1.0,    # MIT / Stanford / Princeton / Berkeley etc — brutal
+# Calibrated to top-10 PhD admit rate ~5–10%, top-60+ ~25–35% (4–8× gap).
+TIER_ADJ: dict[str, float] = {
+    "top_10":      -1.0,
     "top_11_30":   -0.5,
     "top_31_60":    0.0,
     "top_60_plus": +0.4,
 }
 
-# PI recruiting signal adjustment
+# PI recruiting signal adjustment.
 PI_ADJ: dict[str, float] = {
-    "strong":     +0.2,    # >=2 new PhDs/year, last 3 years
-    "normal":      0.0,    # 1–2/year
-    "shrinking":  -0.4,    # <1/year
-    "missing":    -0.1,    # data unavailable (slight conservative)
+    "strong":     +0.2,
+    "normal":      0.0,
+    "shrinking":  -0.4,
+    "missing":    -0.1,
 }
 
 NOT_RECRUITING_SIGNAL = "not_recruiting"
 
 
-def confidence_band(missing_signals: int) -> float:
-    """Confidence width on 4.0 scale based on data completeness."""
-    if missing_signals <= 0: return 0.3
-    if missing_signals == 1: return 0.5
-    return 0.7
+# ---- Confidence band based on evidence coverage --------------------------
+
+def confidence_band_from_unverified(unverified_count: int) -> float:
+    """Wider band when more signals lack source citations.
+
+    "Unverified" includes: missing PI signal, field-strength signals at
+    default values without sources, empty / unsourced paths to advisors.
+    The matcher's caller (ranker) computes the count.
+    """
+    if unverified_count <= 0: return 0.2
+    if unverified_count <= 2: return 0.4
+    if unverified_count <= 4: return 0.6
+    return 0.8
 
 
-def admit_likelihood(
+def application_strength(
     match: float,
     school_tier: str,
     pi_signal: str = "missing",
-    missing_signals: int = 0,
+    unverified_count: int = 0,
 ) -> tuple[float, float]:
-    """Returns (admit_likelihood on 4.0, confidence_band on 4.0).
+    """Returns (application_strength on 4.0, confidence_band on 4.0).
 
-    pi_signal == 'not_recruiting' → admit_likelihood is forced to 0.
+    pi_signal == 'not_recruiting' → strength is forced to 0.
     """
-    band = confidence_band(missing_signals)
+    band = confidence_band_from_unverified(unverified_count)
 
     if pi_signal == NOT_RECRUITING_SIGNAL:
         return (0.0, band)
 
-    if school_tier not in TIER_ADMIT_ADJ:
+    if school_tier not in TIER_ADJ:
         raise ValueError(f"Unknown school tier: {school_tier!r}")
 
-    pi_a = PI_ADJ.get(pi_signal, PI_ADJ["missing"])
-    raw = match + TIER_ADMIT_ADJ[school_tier] + pi_a
-    likelihood = max(0.0, min(4.0, raw))
-    return (likelihood, band)
+    pi = PI_ADJ.get(pi_signal, PI_ADJ["missing"])
+    raw = match + TIER_ADJ[school_tier] + pi
+    strength = max(0.0, min(4.0, raw))
+    return (strength, band)
 
 
-# ---- 5-tier label (§7.3) -------------------------------------------------
+# ---- Strength label (§7.3) -----------------------------------------------
 
-def likelihood_label(likelihood: float) -> str:
-    if likelihood >= 3.5: return "Safe"
-    if likelihood >= 3.0: return "Match"
-    if likelihood >= 2.5: return "Target"
-    if likelihood >= 2.0: return "Reach"
+def strength_label(strength: float) -> str:
+    if strength >= 3.5: return "Safe"
+    if strength >= 3.0: return "Match"
+    if strength >= 2.5: return "Target"
+    if strength >= 2.0: return "Reach"
     return "Far Reach"

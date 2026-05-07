@@ -1,6 +1,6 @@
 ---
 name: phdtaketaketake
-description: Score a PhD applicant's profile and rank candidate advisors using a connection-first 4.0-scale scoring system. Works for any STEM discipline — physics, chemistry, biology, materials, CS, math, EE, ChemE, earth science, etc. Use when the user wants to evaluate their PhD application chances, find matching advisors at top US programs, score a CV for graduate school, or compare candidate professors. Also triggers when the user mentions phdtaketaketake or its connection-first philosophy of valuing advisor network over h-index.
+description: Score a PhD applicant's profile and rank candidate advisors using a connection-first 4.0-scale scoring system. Best-supported for physics / HEP and materials science (MSE), with the scoring engine extensible to chemistry, biology, CS, math, EE, ChemE, earth science (each with field-specific caveats — see references/journal_tiers.md). Use when the user wants to evaluate their PhD application chances, find matching advisors at top US programs, score a CV for graduate school, or compare candidate professors. Also triggers when the user mentions phdtaketaketake or its connection-first philosophy of valuing advisor network over h-index.
 ---
 
 # phdtaketaketake — Connection-first PhD advisor matcher
@@ -52,7 +52,7 @@ Instead, the split:
   whatever tools you have to find candidates and verify connection edges.
 - **`scripts/match.py`** — pure Python. Takes the profile + candidates you
   built and runs the deterministic scoring (Pub/GPA/Experience/Connection
-  combination, tier-adaptive weights, admit likelihood with confidence band).
+  combination, tier-adaptive weights, application_strength with confidence band).
 
 This makes the skill universal across STEM fields and always-fresh.
 
@@ -132,7 +132,12 @@ user's `current_advisors`. **Re-read the cardinal rule above** — every
 edge must be backed by an actual web-search result, with a URL you can
 cite. No guessing from training memory.
 
-**Direct co-authorship** (strongest signal). Search **at least one** of:
+**Direct co-authorship — DIFFERENTIATE small-team vs big-collab.** This
+distinction matters: co-authoring a 5-person condensed-matter paper is
+real evidence of working together; co-name on an alphabetical 3000-author
+ATLAS paper is just shared collaboration membership.
+
+Search **at least one** of:
 
 ```
 - Google Scholar:  "<advisor full name>" "<candidate full name>"
@@ -146,9 +151,38 @@ cite. No guessing from training memory.
 - Semantic Scholar: for CS pairs
 ```
 
-Count **distinct papers in last 5 years** where both names appear as
-authors → `coauthor_papers_5y` (integer). **Record which database you
-used** so you can cite it in the explanation.
+For each co-authored paper found, **check author count** before tallying:
+
+- ≤ 10 authors → counts toward `small_team_coauthor_5y` (full strength)
+- > 10 authors → counts toward `big_collab_papers_5y` (heavily discounted)
+
+If the candidate-advisor relationship is in a big-collab field (HEP, large
+clinical trials, BICEP / LIGO, etc.) and you find shared papers but they're
+all big-collab, look for **stronger evidence** before claiming connection:
+- `same_working_group: true` if both are documented members of the same
+  ATLAS subgroup / convener team (verify via INSPIRE-HEP or working-group
+  page)
+- `analysis_contact_overlap: true` if both are listed as analysis contacts
+  on a specific paper / internal note (verify via published authorship page
+  or paper-specific contact list)
+
+**Record sources for every edge** in the edges dict's `sources` list:
+
+```jsonc
+"paths_to_advisors": {
+  "adv_001": {
+    "small_team_coauthor_5y": 3,
+    "big_collab_papers_5y": 12,
+    "same_working_group": true,
+    "sources": [
+      "https://scholar.google.com/citations?user=<advisor_id>&...",
+      "https://inspirehep.net/authors/<candidate>/...",
+      "https://atlas-glance.cern.ch/atlas/analysis/<group>/conveners"
+    ],
+    "note": "3 small-team co-authored papers (2022-2024); 12 ATLAS bulk papers; both H→cc subgroup conveners 2021-2023"
+  }
+}
+```
 
 **Joint big-collaboration** (ATLAS, CMS, BICEP, LIGO, multi-institution
 clinical trials, large genome consortia):
@@ -217,7 +251,7 @@ Read the current-students list, "join the lab" page, or "applying" notes:
 - `"normal"` — 1–2/yr based on listed timeline
 - `"shrinking"` — <1/yr, or many recent graduations without new admits
 - `"missing"` — page didn't load, didn't have a students list, or status unclear
-- `"not_recruiting"` — explicitly stated on the page. Forces admit_likelihood = 0.
+- `"not_recruiting"` — explicitly stated on the page. Forces application_strength = 0.
 
 **Default to `"missing"` whenever you didn't actually fetch and read the
 page.** The matcher penalizes missing data slightly (−0.1) but never
@@ -235,7 +269,7 @@ python scripts/match.py \
 ```
 
 Output is a JSON list of MatchResult records (candidate, c/p/e/g sub-scores,
-match_score, admit_likelihood, confidence_band, label, explanation).
+match_score, application_strength, confidence_band, label, explanation).
 
 ### Step 8 — Present results
 
@@ -245,10 +279,13 @@ Format conversationally:
 Top N matches for <field>:
 
 #1  Prof. <Name> — <Institution>  [<Label>]
-    Match: <X>/4.0 · Admit: <Y>/4.0 (±<band>)
+    Match: <X>/4.0 · Strength: <Y>/4.0 (±<band>)
     C: <c>  P: <p>  E: <e>  G: <g>
     <explanation, with sources cited inline>
 ```
+
+`Strength` is `application_strength` — a relative-fit index, **not a probability**.
+Mention this explicitly in the result presentation if a user asks "what's my chance?"
 
 **Every factual claim in the explanation must include its source.** This is
 a hard requirement — students will use these rankings for real decisions.

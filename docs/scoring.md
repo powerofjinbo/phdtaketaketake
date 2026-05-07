@@ -111,10 +111,16 @@ match = w_C · C + w_P · P + w_E · E + w_G · G
 | Top 31–60 | 0.35 | 0.25 | 0.20 | 0.20 |
 | Top 60+ | 0.30 | 0.20 | 0.20 | 0.30 |
 
-### Admission likelihood
+### Application strength
+
+> **Important**: `application_strength` is **NOT a probability**. It's a
+> 4.0-scale relative-fit index. There's no historical admission data behind
+> it — calibration is qualitative, based on realistic admission-rate ratios
+> across school tiers. The label (Reach / Target / Match / Safe / Far Reach)
+> communicates relative competitiveness, not literal odds.
 
 ```
-admit_likelihood = clip(match + tier_adj + pi_adj, 0, 4.0)
+application_strength = clip(match + tier_adj + pi_adj, 0, 4.0)
 ```
 
 | School tier | tier_adj |
@@ -126,7 +132,7 @@ admit_likelihood = clip(match + tier_adj + pi_adj, 0, 4.0)
 
 These reflect realistic admission-rate ratios (top-10 PhD programs admit
 ~5–10%; top-60+ admit ~25–35% — a 4–8× gap). A perfect 4.0 candidate at MIT
-lands at admit_likelihood ~ 3.0 (`Match`), not `Safe` — which is honest:
+lands at application_strength ~ 3.0 (`Match`), not `Safe` — which is honest:
 even a flawless profile is uncertain at the most selective programs.
 
 | PI signal | pi_adj |

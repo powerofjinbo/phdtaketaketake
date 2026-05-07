@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Union
 
 import yaml
 
 
-def load_journal_tiers(data_dir: Union[str, Path], field: str) -> dict:
+def load_journal_tiers(data_dir: str | Path, field: str) -> dict:
     """Load journal tier YAML for a field.
 
     The YAML is the project's authoritative opinion on what counts as tier 1

@@ -37,7 +37,7 @@ Agent 会：
 
 ### 每个候选的输出
 
-- **Match score**（0–4.0）+ **录取可能性**（0–4.0），带置信区间 ±
+- **Match score**（0–4.0）+ **application_strength**（0–4.0，**不是概率**），带置信区间 ±
 - **5 档定性标签**：Reach · Target · Match · Safe · Far Reach
 - **分项分**：Connection / Publication / Experience / GPA
 - **匹配原因** —— 引用真实搜索来源：例如 *"与 Prof. Wang 在 2022–2024 合著 4 篇（per Google Scholar）· 自 2017 年起同属 ATLAS"*
@@ -58,7 +58,19 @@ Agent 会：
 
 完整的允许来源列表和禁止行为列在 [`references/data_integrity.md`](references/data_integrity.md)。
 
-支持**任何 STEM 领域、任何细分子方向、任何学校** —— 质量随 agent 检索能力 scale，数据永远新鲜。
+## 覆盖范围
+
+打分引擎本身领域无关；但**校准**对设计时考虑的领域更准：
+
+| | 覆盖度 |
+|--|--------|
+| 🟢 **Best-supported** | 物理 / HEP、材料 (MSE) —— `data/journals/<field>.yaml` 有 bundled tier 表；打分系统最初就是针对这些子领域校准的 |
+| 🟡 **可扩展** | 化学、生物、CS、数学、EE、化工、地学 —— agent 用 [`references/journal_tiers.md`](references/journal_tiers.md) 跨领域指引 + 训练知识；置信区间更宽 |
+| ⚠️ **领域特殊性** | CS 顶会优先（venue 分布不同）、生物有 co-first authorship 惯例、数学论文节奏慢、医学走 multi-center RCT 体系 —— 详见 `references/journal_tiers.md` |
+
+agent 检索质量决定结果质量 —— 数据永远新鲜（没有缓存）。
+
+为新领域加 tier YAML：见 [CONTRIBUTING.md](CONTRIBUTING.md)。欢迎 PR。
 
 ## 跟其他工具对比
 
@@ -79,7 +91,7 @@ Agent 会：
 - **Experience (E)** —— 实验室声誉 × 时长 × 产出，产出主导（50%）
 - **GPA (G)** —— 直接 4.0 制；百分制 / 4.3 / 4.5 / 英制 honours 自动转换
 
-`admit_likelihood = match_score + tier_adjustment + pi_recruiting_signal`，clip 到 [0, 4.0]。
+`application_strength = match_score + tier_adjustment + pi_recruiting_signal`，clip 到 [0, 4.0]。
 
 完整公式：[docs/scoring.md](docs/scoring.md) · Skill 指令：[SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema：[references/profile_schema.md](references/profile_schema.md)。
 

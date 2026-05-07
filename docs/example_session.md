@@ -147,7 +147,7 @@ intended flow. Real agent responses will vary in phrasing.
 > - E = 3.25 (Wang lab tier 3.5, 18 mo → 3.5, honors_thesis output → 3.0)
 > - G = 3.85 (direct 4.0 GPA → 3.85)
 > - match = 0.45·4.0 + 0.30·3.30 + 0.15·3.25 + 0.10·3.85 = 3.71
-> - admit_likelihood = 3.71 + (top_10 = -0.4) + (strong recruiting = +0.0
+> - application_strength = 3.71 + (top_10 = -0.4) + (strong recruiting = +0.0
 >   — actually it was already pi_signal=normal, +0.0) = 3.31
 >
 > Caveat: this is one paper-author combination away from the actual

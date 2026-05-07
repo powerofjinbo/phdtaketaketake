@@ -37,7 +37,7 @@ The agent will:
 
 ### Output per candidate
 
-- **Match score** (0–4.0) + **admit likelihood** (0–4.0) with ±confidence band
+- **Match score** (0–4.0) + **application_strength** (0–4.0, *not* a probability) with ±confidence band
 - **5-tier label**: Reach · Target · Match · Safe · Far Reach
 - **Per-dimension**: Connection / Publication / Experience / GPA
 - **Why matched** — cited from real searches: e.g., *"co-authored 4 papers with Prof. Wang in 2022–2024 (per Google Scholar) · same ATLAS collaboration since 2017"*
@@ -58,7 +58,19 @@ Every connection edge, every candidate fact must trace back to a real source the
 
 Allowed sources + forbidden behaviors are enumerated in [`references/data_integrity.md`](references/data_integrity.md).
 
-This architecture works for any STEM field, any subdiscipline, any school — quality scales with the agent's retrieval quality, and data is always fresh.
+## Coverage
+
+The scoring engine itself is field-agnostic, but the **calibration** is best-supported for fields the project was designed against.
+
+| | Coverage |
+|--|----------|
+| 🟢 **Best-supported** | physics / HEP, materials science (MSE) — bundled `data/journals/<field>.yaml` tier files; the scoring system was originally calibrated against these subcultures |
+| 🟡 **Extensible** | chemistry, biology, CS, math, EE, chemical engineering, earth science — the agent uses [`references/journal_tiers.md`](references/journal_tiers.md) cross-field guidance + its training knowledge; the confidence band is wider |
+| ⚠️ **Field-specific caveats** | CS is conference-first (different venue hierarchy); biology has co-first authorship conventions; math has a slower publication pace; clinical fields use multi-center RCT-driven prestige | see `references/journal_tiers.md` for guidance |
+
+Quality of agent retrieval scales the result quality — and data is always fresh, since nothing is cached.
+
+Adding a tier YAML for a new field: see [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.
 
 ## How it differs
 
@@ -79,7 +91,7 @@ Four dimensions, all on a 4.0 scale (matching GPA), tier-adaptively weighted by 
 - **Experience (E)** — lab × duration × output, output-weighted (50%)
 - **GPA (G)** — direct on 4.0; percentage / 4.3 / 4.5 / UK honours all normalized
 
-`admit_likelihood = match_score + tier_adjustment + pi_recruiting_signal`, clipped to [0, 4.0].
+`application_strength = match_score + tier_adjustment + pi_recruiting_signal`, clipped to [0, 4.0].
 
 Full formulas: [docs/scoring.md](docs/scoring.md) · Skill instructions: [SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema: [references/profile_schema.md](references/profile_schema.md).
 

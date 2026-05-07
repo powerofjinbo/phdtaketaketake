@@ -168,11 +168,11 @@ honest-but-missing over present-but-fabricated.**
 
 The matcher handles missing data:
 - Empty `paths_to_advisors` → C falls back to field strength only
-- `pi_signal = "missing"` → admit_likelihood penalized −0.1
+- `pi_signal = "missing"` → application_strength penalized −0.1
 - Many missing signals → confidence band widens to ±0.7
 
-A candidate ranked at admit_likelihood = 2.8 (±0.7) on **real** data is far
-more useful than admit_likelihood = 3.4 (±0.3) on **fabricated** data.
+A candidate ranked at application_strength = 2.8 (±0.7) on **real** data is far
+more useful than application_strength = 3.4 (±0.3) on **fabricated** data.
 
 ## Why this matters
 

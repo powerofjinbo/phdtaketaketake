@@ -1,19 +1,17 @@
-"""Publication score (P) — per Scoring Design v0.3 §2."""
+"""Publication score (P) — per Scoring Design v0.3, with paper-status weight."""
 
-from typing import Union
 
 # Journal tier baseline scores (4.0 scale)
-TIER_BASELINE: dict[Union[int, str], float] = {
-    "S": 4.0,    # cross-disciplinary top (Nature / Science / Cell)
-    1: 4.0,      # field flagship
-    2: 3.7,      # field upper tier
-    3: 3.3,      # field mid tier
-    4: 2.8,      # general SCI
-    5: 2.3,      # weak / workshop
-    0: 0.0,      # retracted / predatory
+TIER_BASELINE: dict[int | str, float] = {
+    "S": 4.0,
+    1: 4.0,
+    2: 3.7,
+    3: 3.3,
+    4: 2.8,
+    5: 2.3,
+    0: 0.0,
 }
 
-# Absolute decrement per author position (1-indexed)
 POSITION_DECREMENT: dict[int, float] = {
     1: 0.0,
     2: 0.10,
@@ -21,48 +19,60 @@ POSITION_DECREMENT: dict[int, float] = {
     4: 0.45,
 }
 
-# 5+ author rule: paper_score = min(BIG_COLLAB_FLOOR, 4-author-score)
 BIG_COLLAB_FLOOR = 3.5
-
-# No-paper floor
 NO_PAPER_FLOOR = 3.0
 
+# Paper-status weights (per code review #8). Applied multiplicatively to the
+# tier × position score. The user's earlier "all CV papers count fully" rule
+# is preserved as the default (status="published"=1.0), but submitted /
+# preprint / in-prep get partial credit so they don't game the score.
+STATUS_WEIGHT: dict[str, float] = {
+    "published":  1.0,
+    "accepted":   1.0,
+    "in_press":   1.0,
+    "submitted":  0.7,
+    "preprint":   0.7,
+    "in_prep":    0.3,
+}
 
-def journal_baseline(tier: Union[int, str]) -> float:
+
+def journal_baseline(tier: int | str) -> float:
     if tier not in TIER_BASELINE:
-        raise ValueError(f"Unknown journal tier: {tier!r}. Valid: {sorted(TIER_BASELINE.keys(), key=str)}")
+        raise ValueError(
+            f"Unknown journal tier: {tier!r}. Valid: {sorted(TIER_BASELINE.keys(), key=str)}"
+        )
     return TIER_BASELINE[tier]
 
 
-def paper_score(journal_tier: Union[int, str], author_position: int) -> float:
-    """Score a single paper.
+def status_weight(status: str) -> float:
+    return STATUS_WEIGHT.get(status, 1.0)
 
-    Position 1-4: baseline - decrement.
-    Position 5+: min(3.5, 4-author-score) — handles big-collab papers
-    (ATLAS/CMS) without inverting low-tier journals.
-    """
+
+def paper_score(
+    journal_tier: int | str,
+    author_position: int,
+    status: str = "published",
+) -> float:
+    """Score a single paper. Position 1-4 uses absolute decrement; 5+ uses
+    `min(3.5, 4-author-score)` for big-collab credit without tier inversion.
+    Result is then multiplied by the paper-status weight."""
     if author_position < 1:
         raise ValueError(f"author_position must be >= 1, got {author_position}")
 
     baseline = journal_baseline(journal_tier)
-    if baseline == 0.0:  # retracted
+    if baseline == 0.0:
         return 0.0
 
     if author_position <= 4:
-        return baseline - POSITION_DECREMENT[author_position]
-    # 5+ rule
-    fourth_score = baseline - POSITION_DECREMENT[4]
-    return min(BIG_COLLAB_FLOOR, fourth_score)
+        base = baseline - POSITION_DECREMENT[author_position]
+    else:
+        base = min(BIG_COLLAB_FLOOR, baseline - POSITION_DECREMENT[4])
+
+    return base * status_weight(status)
 
 
 def aggregate_papers(scores: list[float]) -> float:
-    """Top-3 weighted aggregation.
-
-    - 0 papers: NO_PAPER_FLOOR (3.0)
-    - 1 paper: that paper's score
-    - 2 papers: 0.7 * best + 0.3 * 2nd
-    - 3+ papers: 0.5 * best + 0.3 * 2nd + 0.2 * 3rd (only top-3 used)
-    """
+    """Top-3 weighted aggregation."""
     if not scores:
         return NO_PAPER_FLOOR
 
@@ -77,9 +87,10 @@ def aggregate_papers(scores: list[float]) -> float:
 
 
 def pub_score(papers: list[dict]) -> float:
-    """Compute Pub Score (P) on 4.0 scale.
-
-    Each paper dict needs: journal_tier, author_position.
-    """
-    paper_scores = [paper_score(p["journal_tier"], p["author_position"]) for p in papers]
+    """Compute Pub Score (P) on 4.0 scale. Each paper dict needs at least
+    journal_tier + author_position; status defaults to 'published'."""
+    paper_scores = [
+        paper_score(p["journal_tier"], p["author_position"], p.get("status", "published"))
+        for p in papers
+    ]
     return aggregate_papers(paper_scores)

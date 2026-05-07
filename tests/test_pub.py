@@ -4,7 +4,6 @@ import pytest
 
 from phd_matcher.scoring.pub import aggregate_papers, paper_score, pub_score
 
-
 # ---- Single paper, position decay ----
 
 def test_top_tier_first_author():
@@ -126,4 +125,54 @@ def test_pub_score_atlas_paper():
     ]
     # best=3.5, 2nd=2.85
     expected = 0.7 * 3.5 + 0.3 * 2.85
+    assert pub_score(papers) == pytest.approx(expected)
+
+
+# ---- Paper status weight (post-review) ----
+
+def test_paper_status_published_full_credit():
+    s = paper_score(1, 1, status="published")
+    assert s == pytest.approx(4.0)
+
+
+def test_paper_status_accepted_full_credit():
+    s = paper_score(1, 1, status="accepted")
+    assert s == pytest.approx(4.0)
+
+
+def test_paper_status_submitted_partial_credit():
+    s = paper_score(1, 1, status="submitted")
+    assert s == pytest.approx(4.0 * 0.7)
+
+
+def test_paper_status_preprint_partial_credit():
+    s = paper_score(2, 1, status="preprint")
+    assert s == pytest.approx(3.7 * 0.7)
+
+
+def test_paper_status_in_prep_low_credit():
+    s = paper_score(1, 1, status="in_prep")
+    assert s == pytest.approx(4.0 * 0.3)
+
+
+def test_pub_score_mixes_statuses():
+    """Mixed-status portfolio aggregates with weighted scores."""
+    papers = [
+        {"journal_tier": 1, "author_position": 1, "status": "published"},  # 4.0
+        {"journal_tier": 1, "author_position": 1, "status": "submitted"},  # 4.0 * 0.7 = 2.8
+    ]
+    # best=4.0 (published), 2nd=2.8 (submitted)
+    expected = 0.7 * 4.0 + 0.3 * 2.8
+    assert pub_score(papers) == pytest.approx(expected)
+
+
+def test_pub_score_in_prep_dominated_by_published():
+    """An in-prep top-tier paper (4.0 * 0.3 = 1.2) shouldn't out-rank a
+    published mid-tier paper (3.3) in the top-1 slot."""
+    papers = [
+        {"journal_tier": 3, "author_position": 1, "status": "published"},   # 3.3
+        {"journal_tier": 1, "author_position": 1, "status": "in_prep"},     # 1.2
+    ]
+    # Sorted desc: [3.3, 1.2]. Aggregated as 2 papers.
+    expected = 0.7 * 3.3 + 0.3 * 1.2
     assert pub_score(papers) == pytest.approx(expected)

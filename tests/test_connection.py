@@ -1,28 +1,45 @@
-"""Tests for connection scoring (Scoring Design v0.3 §5)."""
+"""Tests for connection scoring (Scoring Design v0.3, post-review big-collab fix)."""
 
 import pytest
 
 from phd_matcher.scoring.connection import (
-    coauthor_strength,
+    big_collab_paper_strength,
     collaboration_strength,
     connection_score,
     field_strength,
     genealogy_strength,
     path_strength,
     raw_to_4_0,
+    small_team_coauthor_strength,
 )
 
 
-def test_coauthor_strength_capped_at_1():
-    assert coauthor_strength(10) == 1.0
+def test_small_team_capped_at_1():
+    assert small_team_coauthor_strength(10) == 1.0
 
 
-def test_coauthor_strength_zero():
-    assert coauthor_strength(0) == 0.0
+def test_small_team_zero():
+    assert small_team_coauthor_strength(0) == 0.0
 
 
-def test_coauthor_strength_partial():
-    assert coauthor_strength(2) == pytest.approx(0.4)
+def test_small_team_partial():
+    assert small_team_coauthor_strength(2) == pytest.approx(0.4)
+
+
+def test_big_collab_capped_at_0_4():
+    """Even 50 ATLAS papers shouldn't saturate to 1.0 — alphabetical author
+    list bulk doesn't imply working relationship."""
+    assert big_collab_paper_strength(50) == 0.4
+
+
+def test_big_collab_well_below_small_team_at_same_count():
+    """5 papers in a small team is much stronger than 5 papers as a big-collab
+    co-name. This is the core fix from the code review."""
+    small = small_team_coauthor_strength(5)
+    big = big_collab_paper_strength(5)
+    assert small > big
+    assert small == 1.0
+    assert big == pytest.approx(0.2)
 
 
 def test_genealogy_same_advisor():
@@ -50,13 +67,36 @@ def test_collaboration_zero():
 
 
 def test_path_strength_takes_max_no_stack():
-    # Co-author 4 papers → 0.8; same advisor genealogy → 1.0
-    # Should take MAX, not sum
     edges = {
-        "coauthor_papers_5y": 4,
+        "small_team_coauthor_5y": 4,
         "genealogy_relation": "same_advisor",
     }
     assert path_strength(edges) == 1.0
+
+
+def test_path_strength_legacy_coauthor_field_still_works():
+    """Backward compat: old 'coauthor_papers_5y' aliases to small_team."""
+    edges = {"coauthor_papers_5y": 5}
+    assert path_strength(edges) == 1.0
+
+
+def test_path_strength_big_collab_alone_is_weak():
+    """100 ATLAS papers gives only 0.4 path strength — it's *one PhD-relevant
+    edge of evidence*, not a working relationship."""
+    edges = {"big_collab_papers_5y": 100}
+    assert path_strength(edges) == 0.4
+
+
+def test_path_strength_working_group_overrides_big_collab():
+    """When the agent finds verified working-group / convener overlap, that
+    beats raw big-collab co-authorship."""
+    edges = {"big_collab_papers_5y": 50, "same_working_group": True}
+    assert path_strength(edges) == 0.7
+
+
+def test_path_strength_analysis_contact_strongest_in_big_collab_field():
+    edges = {"analysis_contact_overlap": True}
+    assert path_strength(edges) == 0.95
 
 
 def test_path_strength_empty():
@@ -88,7 +128,6 @@ def test_connection_score_no_advisor_uses_field_only():
         "grad_placement_quality": 1.0,
         "paths_to_advisors": {},
     }
-    # field_strength = 0.4 + 0.3 + 0.3 = 1.0 → 4.0
     assert connection_score([], cand) == 4.0
 
 
@@ -98,10 +137,30 @@ def test_connection_score_with_strong_path():
         "collab_with_nas": False,
         "grad_placement_quality": 0.5,
         "paths_to_advisors": {
-            "adv_001": {"coauthor_papers_5y": 5},  # → 1.0 path
+            "adv_001": {"small_team_coauthor_5y": 5},
         },
     }
-    # c_path = 1.0; c_field = 0.4*0.5 + 0 + 0.3*0.5 = 0.35
-    # c_raw = 0.6*1.0 + 0.4*0.35 = 0.74 → 3.7 bucket
     advisors = [{"id": "adv_001", "name": "Adv"}]
     assert connection_score(advisors, cand) == 3.7
+
+
+def test_connection_score_big_collab_only_weaker_than_small_team():
+    """Two candidates: same field strength, one with 5 small-team papers,
+    one with 5 big-collab papers. Small-team should rank higher."""
+    base_cand = {
+        "normalized_collab_top20pct": 0.5,
+        "collab_with_nas": False,
+        "grad_placement_quality": 0.5,
+    }
+    small_team_cand = {
+        **base_cand,
+        "paths_to_advisors": {"adv_001": {"small_team_coauthor_5y": 5}},
+    }
+    big_collab_cand = {
+        **base_cand,
+        "paths_to_advisors": {"adv_001": {"big_collab_papers_5y": 5}},
+    }
+    advisors = [{"id": "adv_001", "name": "Adv"}]
+    assert connection_score(advisors, small_team_cand) > connection_score(
+        advisors, big_collab_cand
+    )

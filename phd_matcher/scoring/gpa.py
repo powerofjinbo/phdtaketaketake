@@ -1,6 +1,5 @@
 """GPA score (G) — per Scoring Design v0.3 §3."""
 
-from typing import Union
 
 
 def percentage_to_4_0(percent: float) -> float:
@@ -28,7 +27,7 @@ def uk_class_to_4_0(uk_class: str) -> float:
     return UK_HONOURS_TO_4_0.get(uk_class.lower().strip(), 2.0)
 
 
-def gpa_score(raw: Union[float, str], scale: str = "4.0") -> float:
+def gpa_score(raw: float | str, scale: str = "4.0") -> float:
     """Normalize GPA to 4.0 scale.
 
     scale ∈ {'4.0', '4.3', '4.5', '100', 'uk'}.

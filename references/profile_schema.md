@@ -1,9 +1,9 @@
 # Profile + CandidateAdvisor JSON schema
 
-Canonical shapes of the inputs the matcher expects. See `phd_matcher/models.py`
-for the Pydantic source of truth; this file is the human-readable reference.
+Canonical shapes of the matcher's inputs. See `phd_matcher/models.py` for the
+Pydantic source of truth; this file is the human-readable reference.
 
-## StudentProfile (input to the matcher)
+## StudentProfile
 
 ```jsonc
 {
@@ -21,11 +21,11 @@ for the Pydantic source of truth; this file is the human-readable reference.
 }
 ```
 
-`field` accepts any string (e.g., `"physics"`, `"chemistry"`, `"biology"`,
-`"mse"`, `"cs"`, `"math"`, `"ee"`, `"chemical_engineering"`, `"earth_science"`).
-Bundled candidate cache exists for `physics` and `mse`; for other fields
-generate candidates via `--candidates-json` (see
-[`SKILL.md`](../SKILL.md) for the workflow).
+`field` accepts any string. **No bundled candidate cache** for any field —
+the agent generates candidates per query (see SKILL.md). The bundled
+`data/journals/<field>.yaml` exists only for **physics + mse** as the project's
+authoritative tier opinion; for other fields the agent uses its training
+knowledge anchored on `references/journal_tiers.md`.
 
 ### `gpa_scale` enum
 
@@ -41,14 +41,11 @@ generate candidates via `--candidates-json` (see
 
 ```jsonc
 {
-  "id": "adv_001",                       // generate sequentially
+  "id": "adv_001",
   "name": "Prof. Lisa Wang",
   "institution": "Tsinghua University"
 }
 ```
-
-The `id` is what the matcher uses to look up `paths_to_advisors[id]` on each
-candidate.
 
 ### `papers[]`
 
@@ -58,20 +55,32 @@ candidate.
   "journal": "Physical Review D",
   "journal_tier": 3,                     // REQUIRED — 0 | "S" | 1 | 2 | 3 | 4 | 5
   "author_position": 312,                // REQUIRED — 1-indexed; ATLAS/CMS papers can be 100+
+  "status": "published",                 // see status enum
   "year": 2024,                          // optional
   "doi": null                            // optional
 }
 ```
 
-Tier mapping is universal across STEM — see
-[`references/journal_tiers.md`](journal_tiers.md).
+#### `status` enum (post-review)
 
-**Paper inclusion convention**: list every paper the user expects to have on
-their CV by the PhD application deadline. The skill does **not** distinguish
-between `published` / `accepted` / `in press` / `submitted` / `in prep`. This
-is intentional simplification — the user is responsible for only listing
-papers they're confident will appear by application time, and the matcher
-trusts that listing.
+| Value | Weight | Meaning |
+|-------|--------|---------|
+| `"published"` | 1.0 | Already in print / online with DOI |
+| `"accepted"` | 1.0 | Editor's accept letter received |
+| `"in_press"` | 1.0 | Production stage |
+| `"submitted"` | 0.7 | Under review at the named journal |
+| `"preprint"` | 0.7 | On arXiv / bioRxiv etc., not yet under review or pre-submission |
+| `"in_prep"` | 0.3 | Drafting; not yet a real submission |
+
+The weight multiplies the tier × position score. Default is `"published"` —
+match the assumption that the user lists papers they expect on their CV by
+application time. Use the lower weights honestly when the user says "I'm
+submitting in October" or "we're still drafting".
+
+Tier mapping is universal across STEM — see
+[`references/journal_tiers.md`](journal_tiers.md), with field-specific caveats
+(CS is conference-driven, biology has co-first conventions, math journals have
+different pace, etc.).
 
 ### `experiences[]`
 
@@ -79,126 +88,107 @@ trusts that listing.
 {
   "lab_pi_name": "Prof. Lisa Wang",
   "lab_tier": "strong_us_or_top_cn",     // see lab_tiers.md
-  "duration_months": 18,                 // integer; convert any duration to months
-  "output_type": "honors_thesis"         // see enum below
+  "duration_months": 18,
+  "output_type": "honors_thesis"
 }
 ```
-
-`lab_tier` enum: see [`references/lab_tiers.md`](lab_tiers.md).
 
 `output_type` enum:
+- `"paper"` (already counted in pub_score; carries 3.7 here so experience isn't penalized)
+- `"conference_oral"` (3.7) / `"conference_poster"` (3.3)
+- `"honors_thesis"` (3.0) / `"participation_only"` (2.5)
 
-| Value | Notes |
-|-------|-------|
-| `"paper"` | already counted in pub_score; assign 3.7 here so experience isn't penalized |
-| `"conference_oral"` | invited or contributed talk |
-| `"conference_poster"` | poster |
-| `"honors_thesis"` | undergrad thesis / project report |
-| `"participation_only"` | RA without measurable output |
-
-The matcher takes the **strongest single experience** (no stacking) — the user's
-best lab × duration × output combination drives E.
-
-### Minimal valid example
-
-```jsonc
-{
-  "field": "biology",
-  "undergrad_institution": "Some University",
-  "gpa_raw": 3.5,
-  "gpa_scale": "4.0",
-  "research_direction": "single-cell transcriptomics in cancer immunology"
-}
-```
-
-This works. Pub / experience / connection will all use defaults (no-paper
-floor, base experience, field-only connection). For a meaningful match,
-include at least one current advisor and one paper.
-
-### Full examples
-
-See `data/samples/sample_student_physics.json` and
-`data/samples/sample_student_mse.json` in the repo.
+The matcher takes the **strongest single experience** (no stacking).
 
 ---
 
-## CandidateAdvisor (input via `--candidates-json` for non-bundled fields)
-
-When you (Claude) generate candidates for a field outside the bundled cache
-(physics, mse), each candidate is a JSON object of this shape:
+## CandidateAdvisor (always agent-generated via web research)
 
 ```jsonc
 {
-  "id": "cand_001",                          // any unique string
+  "id": "cand_001",
   "name": "Prof. Jane Doe",
   "institution": "Stanford University",
-  "school_tier": "top_10",                   // top_10 | top_11_30 | top_31_60 | top_60_plus
-  "field": "chemistry",                      // must match student.field
-  "research_areas": [                        // 3–5 short tags
-    "homogeneous catalysis",
-    "C-H activation",
-    "transition metal complexes"
-  ],
-  "recent_papers": [],                       // optional; can leave empty
+  "school_tier": "top_10",                  // top_10 | top_11_30 | top_31_60 | top_60_plus
+  "field": "chemistry",
+  "research_areas": ["catalysis", "C-H activation"],
 
-  "paths_to_advisors": {                     // KEY field — see below
+  "paths_to_advisors": {                    // KEY — see edge schema below
     "adv_001": {
-      "coauthor_papers_5y": 3,
-      "collaboration_overlap_years": 4
+      "small_team_coauthor_5y": 3,
+      "sources": [
+        "https://scholar.google.com/citations?user=...",
+        "https://api.openalex.org/works?filter=..."
+      ],
+      "note": "3 co-authored papers in 2022–2024 per Scholar"
     }
   },
 
-  "normalized_collab_top20pct": 0.6,         // 0–1 — fraction of candidate's collaborators that are top-20% PIs in field
-  "collab_with_nas": false,                  // true if candidate has co-authored with NAS / HHMI member
-  "grad_placement_quality": 0.7,             // 0–1 — quality of recent PhD graduates' placements
+  "normalized_collab_top20pct": 0.65,
+  "collab_with_nas": false,
+  "grad_placement_quality": 0.7,
 
-  "pi_signal": "normal",                     // strong | normal | shrinking | missing | not_recruiting
-  "recent_phd_count": 4                      // optional; integer or null
+  "pi_signal": "normal",
+  "recent_phd_count": 4,
+
+  "evidence": {                             // sources for the field-strength signals
+    "normalized_collab_top20pct": {
+      "sources": ["https://scholar.google.com/citations?user=..."],
+      "note": "h_index=42 (Google Scholar, checked 2026-05-06)"
+    },
+    "pi_signal": {
+      "sources": ["https://lab.stanford.edu/people"],
+      "note": "Lab page lists 4 current PhDs joined 2023–2024"
+    }
+  },
+
+  "searched_sources": [                     // auditability — what was checked, even if empty
+    "https://www.genealogy.math.ndsu.nodak.edu/?id=...",
+    "https://www.nasonline.org/member-directory/..."
+  ]
 }
 ```
 
-### `paths_to_advisors` — the connection graph edges
+### Connection edges (`paths_to_advisors[advisor_id]`)
 
-Keys are the `id`s of the student's `current_advisors`. Values are dicts with
-any subset of these edge types (the matcher takes the **max strength**, no
-stacking):
+The matcher reads from these keys (any subset). **All edges should be backed
+by entries in the dict's `sources` list per the data-integrity policy** — the
+matcher can compute scores without sources, but the confidence band widens
+significantly (see `count_unverified_signals` in `phd_matcher/matching/ranker.py`).
 
-| Edge field | Type | Meaning |
-|------------|------|---------|
-| `coauthor_papers_5y` | int | How many papers the student's advisor and the candidate co-authored in the last 5 years |
-| `genealogy_relation` | string | `"same_advisor"` (siblings) / `"uncle_nephew"` / `"two_hop"` |
-| `collaboration_overlap_years` | float | Years they've been jointly in the same big collaboration / consortium |
-| `committee_co_member` | bool | Whether they sit / sat on the same editorial board / NSF panel / PC |
-| `same_period` | bool | If `committee_co_member` is true: whether they overlapped in time |
+| Edge field | Type | Strength | When to record |
+|------------|------|----------|----------------|
+| `small_team_coauthor_5y` | int | `min(1.0, n/5)` | Distinct co-authored papers in last 5y with **≤10 authors** (real working relationship) |
+| `big_collab_papers_5y` | int | `min(0.4, n/25)` | Papers with **>10 authors** where both names appear (alphabetical author list bulk; significantly weaker — co-membership ≠ working relationship) |
+| `same_working_group` | bool | 0.7 | Verified subgroup / convener overlap within a larger collaboration |
+| `analysis_contact_overlap` | bool | 0.95 | Both listed as analysis contacts on a specific paper / note |
+| `genealogy_relation` | string | `same_advisor`=1.0 / `uncle_nephew`=0.7 / `two_hop`=0.4 | Verified via Math Genealogy or faculty bio |
+| `collaboration_overlap_years` | float | ≥5y=1.0 / 1–5y=0.6 / <1y=0.3 | Generic shared-collab overlap when finer signals not available |
+| `committee_co_member` | bool + `same_period` bool | 0.8 / 0.3 | Documented editorial board / NSF panel / PC overlap |
+| `sources` | list[str] | — | URLs backing the above edges |
+| `note` | str | — | Freeform — what was searched, what was found |
 
-**For uncovered fields where you (Claude) are generating candidates**: only
-fill `paths_to_advisors` if you have specific knowledge that the user's
-advisor and the candidate are connected. **Don't fabricate edges.** Empty
-`paths_to_advisors: {}` is fine — the C score will reduce to field strength
-only, and the explanation will surface that.
+The matcher takes **max** across these (no stacking).
 
-### Field-strength fields (estimate from your knowledge)
+### Field-strength fields (with `evidence`)
 
-| Field | Range | Estimation guidance |
-|-------|-------|---------------------|
-| `normalized_collab_top20pct` | 0–1 | What fraction of this PI's collaborators are top-20% PIs in their field? Famous PI: 0.7+. Mid-career: 0.4–0.6. Junior: 0.2–0.4. |
-| `collab_with_nas` | bool | Has co-authored with NAS / HHMI / equivalent within last ~5 years |
-| `grad_placement_quality` | 0–1 | Where do their recent PhD graduates end up? Top faculty placements: 0.8+. Industry top labs: 0.7. Mixed: 0.5–0.6. Mostly post-docs: 0.4. |
+| Field | Range | Estimation |
+|-------|-------|------------|
+| `normalized_collab_top20pct` | 0–1 | Proxy: `min(1.0, h_index / 50)`. Look up h-index on Google Scholar / OpenAlex. |
+| `collab_with_nas` | bool | Set `true` only if you found a specific recent NAS / HHMI co-author and verified them in the official directory. |
+| `grad_placement_quality` | 0–1 | Read the lab's alumni page. Top faculty placements: 0.8+, mix academia+industry: 0.5–0.7, mostly post-docs: 0.4. |
 
-### `pi_signal`
+Each should have an entry in `candidate.evidence` with sources.
 
-How actively the PI is recruiting PhD students:
+### `pi_signal` enum
 
-| Value | Meaning | Adjustment |
-|-------|---------|------------|
-| `strong` | ≥2 new PhDs/yr in last 3 yr | +0.2 |
-| `normal` | 1–2 new PhDs/yr | 0 |
-| `shrinking` | <1 new PhDs/yr | −0.4 |
-| `missing` | unknown / data not available | −0.1 |
-| `not_recruiting` | explicitly not taking students | force admit_likelihood = 0 |
-
-**For uncovered fields**: default to `"missing"` unless you specifically know
-the PI's recent recruiting pattern.
+| Value | Adjustment | When to use |
+|-------|------------|-------------|
+| `"strong"` | +0.2 | ≥2 new PhDs/yr last 3y per lab page |
+| `"normal"` | 0 | 1–2/yr per lab page |
+| `"shrinking"` | −0.4 | <1/yr OR many recent graduations without admits |
+| `"missing"` | −0.1 | Page didn't load / didn't have a students list / status unclear (default — never guess) |
+| `"not_recruiting"` | force application_strength = 0 | Explicitly stated |
 
 ### Minimal valid CandidateAdvisor
 
@@ -213,7 +203,30 @@ the PI's recent recruiting pattern.
 }
 ```
 
-The rest default to safe values: empty paths, 0 field-strength signals,
-`pi_signal: "missing"`. The result will rank low (no connection signal, no
-NAS, no placement signal) — for a useful ranking, populate the field-strength
-fields with your best estimates.
+Other fields default to safe values (empty paths, 0 / false / "missing"
+signals). The matcher will rank this candidate low because so many signals
+are unverified — the confidence band will be ≥ ±0.6.
+
+---
+
+## MatchResult (output)
+
+```jsonc
+{
+  "candidate": { ... },
+  "c_score": 3.70,
+  "p_score": 3.30,
+  "e_score": 3.25,
+  "g_score": 3.85,
+  "match_score": 3.53,
+  "application_strength": 2.53,        // renamed from admit_likelihood
+  "confidence_band": 0.40,
+  "strength_label": "Target",          // renamed from likelihood_label
+  "explanation": "co-authored 3 small-team paper(s) with Prof. Wang in last 5y [https://scholar.google.com/...] · research: catalysis, C-H activation · ...",
+  "unverified_signals": 2
+}
+```
+
+`application_strength` is **NOT a probability**. It's a 4.0-scale relative-fit
+index combining match_score with school competitiveness and PI recruiting
+signal. See [`docs/scoring.md`](../docs/scoring.md) for the formula.
