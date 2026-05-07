@@ -1,0 +1,8 @@
+{
+  "id": "Smith J",
+  "name": "Dr. Smith",
+  "institutions": ["Harvard"],
+  "profile_url": "https://pubmed.ncbi.nlm.nih.gov/?term=Smith+J%5Bau%5D",
+  "h_index": 50,
+  "concepts": ["CRISPR", "gene editing", "cancer biology"]
+}

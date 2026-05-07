@@ -114,6 +114,35 @@ the URL backs.
 **Deferred to Sprint-3-c3**: PubMed / DBLP / Semantic Scholar adapters
 for field-aware enrichment beyond OpenAlex.
 
+## Adapters (Sprint-3-c3 multi-source)
+
+| Adapter | Source | Live API | Default for fields |
+|---------|--------|----------|--------------------|
+| `openalex` | OpenAlex | api.openalex.org (no key, polite-pool via `--mailto`) | physics, mse, chemistry |
+| `pubmed` | NCBI E-utilities | eutils.ncbi.nlm.nih.gov (optional API key) | biology |
+| `dblp` | DBLP | dblp.org (live recent_works/coauthored deferred to c5) | — |
+| `semantic_scholar` | Semantic Scholar Graph | api.semanticscholar.org (optional `x-api-key`) | cs, math |
+
+Choose explicitly with `--source <name>`, or let the field default
+pick. `default_adapter_for_field` is the field→adapter mapping in
+`phd_matcher/sources/__init__.py`.
+
+```bash
+# Explicit source
+python scripts/collect_evidence.py \
+  --profile-file p.json --candidates-file c.json \
+  --field cs --source semantic_scholar --live --api-key <key>
+
+# Per-field default (picks pubmed for biology)
+python scripts/collect_evidence.py \
+  --profile-file p.json --candidates-file c.json \
+  --field biology --live --api-key <key>
+```
+
+All adapters share the same `FixtureLookup` layout (per-source
+subdirectory under `<fixture_dir>/`). Fixture files use the same
+`AuthorRecord` / `WorkRecord` JSON shape regardless of source.
+
 ## Adapter interface
 
 ```python

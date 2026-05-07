@@ -12,7 +12,9 @@ Each adapter wraps either a live HTTP source or a fixture directory
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -85,3 +87,57 @@ class SourceAdapter:
     ) -> list[WorkRecord]:
         """Return works co-authored by both author ids in the given window."""
         return []
+
+
+# ---- Shared fixture-layout helper ---------------------------------------
+
+class FixtureLookup:
+    """Standard fixture file layout shared across adapters.
+
+    `<fixture_dir>/<source_name>/find_author/<sanitized_name>(__<inst>)?.json`
+    `<fixture_dir>/<source_name>/recent_works/<sanitized_author_id>.json`
+    `<fixture_dir>/<source_name>/coauthored/<a>__<b>.json`   (both orderings tried)
+    """
+
+    def __init__(self, source_name: str, fixture_dir: Path) -> None:
+        self.source_name = source_name
+        self.fixture_dir = fixture_dir
+
+    @staticmethod
+    def sanitize(s: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
+
+    def find_author_path(
+        self, name: str, institution: str | None = None,
+    ) -> Path | None:
+        base = self.fixture_dir / self.source_name / "find_author"
+        candidates: list[Path] = []
+        if institution:
+            candidates.append(
+                base / f"{self.sanitize(name)}__{self.sanitize(institution)}.json"
+            )
+        candidates.append(base / f"{self.sanitize(name)}.json")
+        for p in candidates:
+            if p.exists():
+                return p
+        return None
+
+    def recent_works_path(self, author_id: str) -> Path | None:
+        p = (
+            self.fixture_dir / self.source_name / "recent_works"
+            / f"{self.sanitize(author_id)}.json"
+        )
+        return p if p.exists() else None
+
+    def coauthored_path(
+        self, author_id_a: str, author_id_b: str,
+    ) -> Path | None:
+        keys = [
+            f"{self.sanitize(author_id_a)}__{self.sanitize(author_id_b)}",
+            f"{self.sanitize(author_id_b)}__{self.sanitize(author_id_a)}",
+        ]
+        for key in keys:
+            p = self.fixture_dir / self.source_name / "coauthored" / f"{key}.json"
+            if p.exists():
+                return p
+        return None

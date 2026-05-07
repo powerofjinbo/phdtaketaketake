@@ -1,0 +1,7 @@
+{
+  "id": "https://dblp.org/pid/12/3456",
+  "name": "Dr. Chen",
+  "institutions": ["CMU"],
+  "profile_url": "https://dblp.org/pid/12/3456",
+  "concepts": ["reinforcement learning", "robotics", "MARL"]
+}

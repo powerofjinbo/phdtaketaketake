@@ -1,0 +1,9 @@
+{
+  "id": "S2_LEE_001",
+  "name": "Dr. Lee",
+  "institutions": ["Stanford"],
+  "profile_url": "https://www.semanticscholar.org/author/S2_LEE_001",
+  "h_index": 30,
+  "works_count": 60,
+  "concepts": ["large language models", "NLP", "transformers"]
+}

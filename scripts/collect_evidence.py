@@ -65,7 +65,11 @@ sys.path.insert(0, str(REPO_ROOT))
 from phd_matcher.data.loaders import load_field_profile  # noqa: E402
 from phd_matcher.matching.evidence_collector import EvidenceCollector  # noqa: E402
 from phd_matcher.models import CandidateAdvisor, StudentProfile  # noqa: E402
-from phd_matcher.sources.openalex import OpenAlexAdapter  # noqa: E402
+from phd_matcher.sources import (  # noqa: E402
+    ADAPTER_CLASSES,
+    default_adapter_for_field,
+    select_adapter,
+)
 
 
 def _load_profile(args: argparse.Namespace) -> dict:
@@ -88,19 +92,26 @@ def _load_candidates(args: argparse.Namespace) -> list[CandidateAdvisor]:
     return [CandidateAdvisor(**c) for c in data]
 
 
-def _build_adapter(args: argparse.Namespace) -> tuple[OpenAlexAdapter, str]:
-    """Return (adapter, mode_string)."""
+def _build_adapter(
+    args: argparse.Namespace, field_profile_id: str | None,
+):
+    """Construct the adapter selected by `--source` (or per-field default)
+    and return ``(adapter, mode_string, source_name)``."""
+    source_name = args.source or default_adapter_for_field(field_profile_id)
+
     if args.fixture_dir:
-        return (
-            OpenAlexAdapter(fixture_dir=args.fixture_dir),
-            "fixture",
+        adapter = select_adapter(source_name, fixture_dir=args.fixture_dir)
+        mode = "fixture"
+    elif args.live:
+        adapter = select_adapter(
+            source_name, live=True,
+            mailto=args.mailto, api_key=args.api_key,
         )
-    if args.live:
-        return (
-            OpenAlexAdapter(live=True, mailto=args.mailto),
-            "live",
-        )
-    return (OpenAlexAdapter(), "offline")
+        mode = "live"
+    else:
+        adapter = select_adapter(source_name)
+        mode = "offline"
+    return adapter, mode, source_name
 
 
 def main() -> int:
@@ -146,6 +157,21 @@ def main() -> int:
             "live mode)"
         ),
     )
+    ap.add_argument(
+        "--source", type=str, choices=sorted(ADAPTER_CLASSES.keys()),
+        help=(
+            "Source adapter to use. Defaults to the per-field choice "
+            "(openalex for physics/mse/chemistry; pubmed for biology; "
+            "semantic_scholar for cs/math)."
+        ),
+    )
+    ap.add_argument(
+        "--api-key", type=str,
+        help=(
+            "Optional API key for sources that support one (PubMed "
+            "NCBI, Semantic Scholar). OpenAlex is keyless; use --mailto."
+        ),
+    )
     args = ap.parse_args()
 
     try:
@@ -178,7 +204,9 @@ def main() -> int:
     if field_profile and student.field != field_profile.id:
         student.field = field_profile.id
 
-    adapter, mode = _build_adapter(args)
+    adapter, mode, source_name = _build_adapter(
+        args, field_profile.id if field_profile else None,
+    )
     collector = EvidenceCollector(
         adapter, field_profile=field_profile,
     )
@@ -189,6 +217,7 @@ def main() -> int:
         "input_field": args.field,
         "field_profile_id": field_profile.id if field_profile else None,
         "adapter": adapter.name,
+        "source": source_name,
         "mode": mode,
         "candidates": [c.model_dump(mode="json") for c in candidates],
         "collection_summary": collector.summary(),
