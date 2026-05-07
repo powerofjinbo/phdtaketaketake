@@ -61,6 +61,17 @@ Every connection edge, every candidate fact must trace back to a real source the
 
 Allowed sources + forbidden behaviors are enumerated in [`references/data_integrity.md`](references/data_integrity.md).
 
+## Design charter
+
+The full design goals — what this skill is for, what it explicitly is not,
+and the roadmap — live in [`docs/DESIGN.md`](docs/DESIGN.md). One-line
+mission:
+
+> **Generate auditable, discipline-calibrated, connection-first US PhD
+> advisor / program rankings for STEM applicants — to support school and
+> advisor selection, without pretending to be an admission-probability
+> predictor.**
+
 ## Coverage
 
 The scoring engine itself is field-agnostic, but the **calibration** is best-supported for fields the project was designed against.

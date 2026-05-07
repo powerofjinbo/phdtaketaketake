@@ -61,6 +61,12 @@ Agent 会：
 
 完整的允许来源列表和禁止行为列在 [`references/data_integrity.md`](references/data_integrity.md)。
 
+## 设计 Charter
+
+完整设计目标 / 非目标 / roadmap 在 [`docs/DESIGN.md`](docs/DESIGN.md)。一句话使命：
+
+> **为 STEM 申请者生成"可审计、学科校准、connection-first"的美国 PhD advisor/program 排名，用来辅助选校选导师，但不伪装成录取概率预测器。**
+
 ## 覆盖范围
 
 打分引擎本身领域无关；但**校准**对设计时考虑的领域更准：
