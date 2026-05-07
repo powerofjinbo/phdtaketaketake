@@ -12,6 +12,11 @@ dist/
 .eggs/
 pip-wheel-metadata/
 
+# uv lockfile — this repo ships as a skill + library, not a locked-runtime
+# app; the lockfile gets generated locally when contributors run `uv run`
+# and shouldn't churn the tree.
+uv.lock
+
 # Virtualenv
 .venv/
 venv/

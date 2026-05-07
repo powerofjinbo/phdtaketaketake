@@ -42,9 +42,12 @@ def _bare_candidate():
 def test_unverified_count_all_missing():
     """Brand-new candidate with no evidence → max unverified count.
 
-    Total signals per 1-advisor case (post-roadmap-#3 with A signals):
+    Total signals per 1-advisor case (post-roadmap-#4):
     1 path + 1 school_tier + 1 research_areas + 4 advisor-influence
-    (normalized_collab + nas + placement + active_funding) + 1 pi = 8
+    (normalized_collab + nas + placement + active_funding) + 1 pi = 8.
+    research_fit is **not** counted when `research_fit_score is None` —
+    that's the tie-breaker-only invariant: a missing fit must NOT widen
+    the band and indirectly move risk_adjusted_strength.
     """
     student = _student_with_advisor()
     cand = _bare_candidate()
@@ -68,6 +71,7 @@ def test_unverified_count_all_verified():
     cand.grad_placement_quality = 0.8
     cand.active_funding_quality = 0.7
     cand.pi_signal = "normal"
+    cand.research_fit_score = 0.85
     cand.evidence = {
         "normalized_collab_top20pct": EvidenceEntry(sources=["https://scholar.google.com/..."]),
         "collab_with_nas": EvidenceEntry(sources=["https://www.nasonline.org/..."]),
@@ -76,6 +80,7 @@ def test_unverified_count_all_verified():
         "pi_signal": EvidenceEntry(sources=["https://lab.mit.edu/people"]),
         "school_tier": EvidenceEntry(sources=["https://www.usnews.com/..."]),
         "research_areas": EvidenceEntry(sources=["https://lab.mit.edu/research"]),
+        "research_fit": EvidenceEntry(sources=["https://scholar.google.com/papers"]),
     }
     assert count_unverified_signals(student, cand) == 0
 
@@ -87,7 +92,8 @@ def test_unverified_path_without_sources_counts():
     cand.paths_to_advisors = {
         "adv_001": PathEdge(small_team_coauthor_5y=3),  # no sources
     }
-    # 1 path (unsourced) + 1 school + 1 research + 4 advisor-influence + 1 pi = 8
+    # 1 path (unsourced) + 1 school + 1 research + 4 advisor + 1 pi = 8
+    # (research_fit not counted; score is None.)
     assert count_unverified_signals(student, cand) == 8
 
 
@@ -107,7 +113,7 @@ def test_unverified_pi_signal_non_missing_with_sources_is_verified():
     cand.evidence = {
         "pi_signal": EvidenceEntry(sources=["https://lab.mit.edu/openings"]),
     }
-    # 1 path + 1 school + 1 research + 4 advisor + 0 pi(verified) = 7
+    # 1 path + 1 school + 1 research + 4 advisor + 0 pi(verified) = 7 unverified
     assert count_unverified_signals(student, cand) == 7
 
 
@@ -115,7 +121,7 @@ def test_unverified_field_strength_default_value_without_sources():
     """Per #1: even default values count as unverified without sources."""
     student = _student_with_advisor()
     cand = _bare_candidate()
-    # All defaults; school + research_areas + 4 advisor + pi + path = 8
+    # All defaults; path + school + research + 4 advisor + pi = 8
     assert count_unverified_signals(student, cand) == 8
 
 
@@ -182,7 +188,7 @@ def test_well_evidenced_lower_strength_outranks_loose_higher():
         pi_signal="strong",     # +0.2 over normal
     )
 
-    # Tight: pi_signal=normal but everything sourced (all 8 signals incl. active_funding).
+    # Tight: pi_signal=normal but everything sourced (all 9 signals incl. research_fit).
     #   strength loss: 0 (normal recruiting baseline)
     #   band benefit: ±0.2 (0 unverified)
     tight = CandidateAdvisor(
@@ -194,6 +200,7 @@ def test_well_evidenced_lower_strength_outranks_loose_higher():
         grad_placement_quality=0.6,
         active_funding_quality=0.6,
         pi_signal="normal",
+        research_fit_score=0.7,
         evidence={
             "school_tier":                EvidenceEntry(sources=["https://www.usnews.com/..."]),
             "research_areas":             EvidenceEntry(sources=["https://lab.berkeley.edu/research"]),
@@ -202,6 +209,7 @@ def test_well_evidenced_lower_strength_outranks_loose_higher():
             "grad_placement_quality":     EvidenceEntry(sources=["https://lab.berkeley.edu/alumni"]),
             "active_funding_quality":     EvidenceEntry(sources=["https://reporter.nih.gov/..."]),
             "pi_signal":                  EvidenceEntry(sources=["https://lab.berkeley.edu/people"]),
+            "research_fit":               EvidenceEntry(sources=["https://scholar.google.com/papers"]),
         },
     )
 
@@ -229,13 +237,14 @@ def test_evidence_coverage_splits_missing_vs_unsourced():
     cand.collab_with_nas = True   # additional unsourced claim
 
     cov = evidence_coverage(student, cand)
-    # 1 path + 1 school_tier + 1 research_areas + 4 advisor-influence + 1 pi = 8
+    # 1 path + 1 school + 1 research + 4 advisor + 1 pi = 8
+    # (research_fit not counted; score is None.)
     assert cov.total == 8
     # Unsourced: school_tier (always set) + collab_with_nas (set, no ev) = 2
     assert cov.unsourced == 2
     assert "school_tier" in cov.unsourced_names
     assert "collab_with_nas" in cov.unsourced_names
-    # Missing: 1 path + 1 research_areas (empty) + 3 other advisor signals + 1 pi = 6
+    # Missing: 1 path + 1 research_areas + 3 advisor None + 1 pi = 6
     assert cov.missing == 6
 
 
@@ -308,10 +317,19 @@ def test_evidence_coverage_all_verified_via_items():
         supports_fields=["active_funding_quality"],
     )])
 
+    # Add research_fit too (post-roadmap-#4 — also required for full coverage)
+    cand.research_fit_score = 0.8
+    cand.evidence["research_fit"] = EvidenceEntry(items=[EvidenceSource(
+        url="https://scholar.google.com/papers",
+        source_type="google_scholar",
+        claim="6 of 10 recent papers in same subfield as student",
+        supports_fields=["research_fit"],
+    )])
+
     cov = evidence_coverage(student, cand)
     assert cov.unverified == 0
     assert cov.verified == cov.total
-    assert cov.total == 8
+    assert cov.total == 9
 
 
 # ---- EvidenceSource model validation ----
@@ -652,6 +670,301 @@ def test_strong_connection_beats_strong_advisor_strength():
         f"connection-first invariant violated: high_c.match={r_c.match_score}, "
         f"high_a.match={r_a.match_score}"
     )
+
+
+# ---- Roadmap-#4: Research fit as tie-breaker ----
+
+def test_research_fit_breaks_tie_when_risk_adjusted_strength_equal():
+    """Two candidates at the same risk_adjusted_strength: the one with
+    higher research_fit_score ranks first."""
+    from phd_matcher.matching.ranker import compute_match, rank_advisors
+    from phd_matcher.models import CandidateAdvisor, StudentProfile
+
+    student = StudentProfile(
+        field="physics",
+        undergrad_institution="Tsinghua",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS Higgs",
+    )
+
+    base = dict(
+        institution="MIT", school_tier="top_10", field="physics",
+        research_areas=["physics"],
+    )
+
+    fit_high = CandidateAdvisor(id="fit_high", name="A", **base, research_fit_score=0.9)
+    fit_low = CandidateAdvisor(id="fit_low", name="B", **base, research_fit_score=0.3)
+
+    # Both candidates have identical scoring inputs except research_fit_score
+    # → identical risk_adjusted_strength → fit breaks the tie.
+    r_high = compute_match(student, fit_high)
+    r_low = compute_match(student, fit_low)
+    assert r_high.risk_adjusted_strength == r_low.risk_adjusted_strength
+
+    ranked = rank_advisors(student, [fit_low, fit_high], top_k=2)
+    assert ranked[0].candidate.id == "fit_high"
+    assert ranked[1].candidate.id == "fit_low"
+
+
+def test_research_fit_cannot_beat_clearly_stronger_risk_adjusted():
+    """Research fit is a tie-breaker, NOT a pillar: a candidate with
+    higher risk_adjusted_strength always outranks a peer with much higher
+    research_fit_score but lower strength. The connection-first thesis
+    is preserved."""
+    from phd_matcher.matching.ranker import compute_match, rank_advisors
+    from phd_matcher.models import (
+        CandidateAdvisor,
+        CurrentAdvisor,
+        EvidenceSource,
+        PathEdge,
+        StudentProfile,
+    )
+
+    student = StudentProfile(
+        field="physics",
+        undergrad_institution="Tsinghua",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS Higgs",
+        current_advisors=[CurrentAdvisor(id="adv_001", name="X", institution="Y")],
+    )
+
+    # Strong-but-low-fit: real connection (C=4.0), no research_fit_score
+    strong_low_fit = CandidateAdvisor(
+        id="strong_low_fit", name="A",
+        institution="MIT", school_tier="top_10", field="physics",
+        research_areas=["physics"],
+        paths_to_advisors={
+            "adv_001": PathEdge(
+                small_team_coauthor_5y=5,
+                items=[EvidenceSource(
+                    url="https://scholar.google.com/...",
+                    source_type="google_scholar",
+                    claim="5 small-team papers",
+                    supports_fields=["small_team_coauthor_5y"],
+                )],
+            ),
+        },
+        research_fit_score=None,  # didn't compute
+    )
+
+    # Weak-but-perfect-fit: no path, but research_fit_score = 1.0
+    weak_perfect_fit = CandidateAdvisor(
+        id="weak_perfect_fit", name="B",
+        institution="MIT", school_tier="top_10", field="physics",
+        research_areas=["physics"],
+        paths_to_advisors={},
+        research_fit_score=1.0,  # perfect fit
+    )
+
+    r_strong = compute_match(student, strong_low_fit)
+    r_weak = compute_match(student, weak_perfect_fit)
+    # The strong candidate must have a higher risk_adjusted_strength —
+    # research_fit is irrelevant to that comparison.
+    assert r_strong.risk_adjusted_strength > r_weak.risk_adjusted_strength
+
+    ranked = rank_advisors(student, [weak_perfect_fit, strong_low_fit], top_k=2)
+    assert ranked[0].candidate.id == "strong_low_fit"
+
+
+def test_research_fit_with_no_score_sorts_below_with_score():
+    """When risk_adjusted_strength ties, a candidate with research_fit_score
+    set ranks above one with None (None → -inf in sort key)."""
+    from phd_matcher.matching.ranker import rank_advisors
+    from phd_matcher.models import CandidateAdvisor, StudentProfile
+
+    student = StudentProfile(
+        field="physics",
+        undergrad_institution="Tsinghua",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS",
+    )
+
+    base = dict(
+        institution="MIT", school_tier="top_10", field="physics",
+        research_areas=["physics"],
+    )
+
+    has_fit = CandidateAdvisor(id="has_fit", name="A", **base, research_fit_score=0.05)
+    no_fit = CandidateAdvisor(id="no_fit", name="B", **base, research_fit_score=None)
+
+    ranked = rank_advisors(student, [no_fit, has_fit], top_k=2)
+    assert ranked[0].candidate.id == "has_fit"
+
+
+def test_research_fit_strict_evidence_requires_supports_fields():
+    """Strict mode: a non-None research_fit_score without
+    `supports_fields=['research_fit']` evidence is unsourced."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.research_fit_score = 0.7   # claim without evidence
+    cov_strict = evidence_coverage(student, cand, strict=True)
+    assert "research_fit" in cov_strict.unsourced_names
+
+
+def test_research_fit_strict_evidence_passes_with_correct_supports_fields():
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.research_fit_score = 0.7
+    cand.evidence = {
+        "research_fit": EvidenceEntry(items=[EvidenceSource(
+            url="https://scholar.google.com/papers",
+            source_type="google_scholar",
+            claim="6 of 10 recent papers in subfield",
+            supports_fields=["research_fit"],
+        )]),
+    }
+    cov_strict = evidence_coverage(student, cand, strict=True)
+    assert "research_fit" not in cov_strict.unsourced_names
+
+
+def test_research_fit_none_does_not_appear_in_coverage():
+    """Mechanism check for the tie-breaker-only invariant: when
+    `research_fit_score is None`, `research_fit` must not appear in
+    coverage at all — not in `total`, not in `missing_names`, not in
+    `unsourced_names`. Otherwise it would feed back into the band."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    # research_fit_score defaults to None
+    cov = evidence_coverage(student, cand)
+    assert "research_fit" not in cov.missing_names
+    assert "research_fit" not in cov.unsourced_names
+    cov_strict = evidence_coverage(student, cand, strict=True)
+    assert "research_fit" not in cov_strict.missing_names
+    assert "research_fit" not in cov_strict.unsourced_names
+
+
+def test_research_fit_none_does_not_widen_band():
+    """Consequence check: two otherwise-identical candidates — one with
+    research_fit_score sourced, one with None — must produce the same
+    `confidence_band` and `risk_adjusted_strength`. If `None` had been
+    folded into coverage as a missing signal, the no-fit candidate would
+    have one extra unverified signal, get a wider band, and a lower
+    risk_adjusted_strength — which would let the tie-breaker indirectly
+    move the main sort key."""
+    from phd_matcher.matching.ranker import compute_match
+    student = _student_with_advisor()
+
+    sourced = {
+        "school_tier": EvidenceEntry(items=[EvidenceSource(
+            url="https://www.usnews.com/...", source_type="us_news",
+            claim="MIT physics top 10", supports_fields=["school_tier"])]),
+        "research_areas": EvidenceEntry(items=[EvidenceSource(
+            url="https://lab.mit.edu/research", source_type="lab_page",
+            claim="research focus", supports_fields=["research_areas"])]),
+        "normalized_collab_top20pct": EvidenceEntry(items=[EvidenceSource(
+            url="https://scholar.google.com/...", source_type="google_scholar",
+            claim="h_index", supports_fields=["normalized_collab_top20pct"])]),
+        "collab_with_nas": EvidenceEntry(items=[EvidenceSource(
+            url="https://www.nasonline.org/...", source_type="nas",
+            claim="NAS member", supports_fields=["collab_with_nas"])]),
+        "grad_placement_quality": EvidenceEntry(items=[EvidenceSource(
+            url="https://lab.mit.edu/alumni", source_type="lab_page",
+            claim="placement record", supports_fields=["grad_placement_quality"])]),
+        "active_funding_quality": EvidenceEntry(items=[EvidenceSource(
+            url="https://reporter.nih.gov/...", source_type="nih_reporter",
+            claim="active R01", supports_fields=["active_funding_quality"])]),
+        "pi_signal": EvidenceEntry(items=[EvidenceSource(
+            url="https://lab.mit.edu/people", source_type="lab_page",
+            claim="recruiting", supports_fields=["pi_signal"])]),
+    }
+    common_path = {"adv_001": PathEdge(
+        small_team_coauthor_5y=3,
+        items=[EvidenceSource(
+            url="https://scholar.google.com/...",
+            source_type="google_scholar",
+            claim="3 small-team papers",
+            supports_fields=["small_team_coauthor_5y"],
+        )],
+    )}
+    base = dict(
+        institution="MIT", school_tier="top_10", field="physics",
+        research_areas=["ATLAS", "Higgs"],
+        normalized_collab_top20pct=0.7, collab_with_nas=True,
+        grad_placement_quality=0.6, active_funding_quality=0.6,
+        pi_signal="normal", paths_to_advisors=common_path,
+    )
+
+    fit_none = CandidateAdvisor(
+        id="fit_none", name="A", **base,
+        research_fit_score=None,
+        evidence=sourced,
+    )
+    fit_set_evidence = dict(sourced)
+    fit_set_evidence["research_fit"] = EvidenceEntry(items=[EvidenceSource(
+        url="https://scholar.google.com/papers", source_type="google_scholar",
+        claim="6 of 10 in subfield", supports_fields=["research_fit"])])
+    fit_set = CandidateAdvisor(
+        id="fit_set", name="B", **base,
+        research_fit_score=0.7,
+        evidence=fit_set_evidence,
+    )
+
+    r_none = compute_match(student, fit_none)
+    r_set = compute_match(student, fit_set)
+
+    # Both candidates fully sourced; fit-set has +1 verified signal but
+    # the same 0 unverified count and same band.
+    assert r_none.unverified_signals == 0
+    assert r_set.unverified_signals == 0
+    assert r_none.confidence_band == r_set.confidence_band
+    assert r_none.risk_adjusted_strength == r_set.risk_adjusted_strength
+
+
+def test_research_fit_axes_value_out_of_bounds_rejected():
+    """Pydantic must reject `research_fit_axes` values outside [0, 1] —
+    keeps the tie-breaker numerically meaningful and prevents silent
+    distortion."""
+    with pytest.raises(ValidationError):
+        CandidateAdvisor(
+            id="c1", name="X", institution="MIT",
+            school_tier="top_10", field="physics",
+            research_fit_axes={"subfield": 2.0},
+        )
+    with pytest.raises(ValidationError):
+        CandidateAdvisor(
+            id="c1", name="X", institution="MIT",
+            school_tier="top_10", field="physics",
+            research_fit_axes={"subfield": -0.1},
+        )
+
+
+def test_validate_research_fit_axes_warns_on_unknown_axis_key():
+    """`validate_research_fit_axes` warns when a candidate's axis keys
+    don't match the active FieldProfile — catches drift like a CS-field
+    candidate using a physics-only axis name."""
+    from phd_matcher.matching.ranker import validate_research_fit_axes
+    from phd_matcher.models import FieldProfile
+
+    profile = FieldProfile(
+        id="physics",
+        display_name="Physics",
+        venue_system="journal_first",
+        research_fit_axes=["subfield", "experiment_vs_theory"],
+    )
+    cand_ok = CandidateAdvisor(
+        id="ok", name="A", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_fit_axes={"subfield": 0.8},
+    )
+    cand_bad = CandidateAdvisor(
+        id="bad", name="B", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_fit_axes={"detector": 0.9, "subfield": 0.5},
+    )
+
+    warnings = validate_research_fit_axes([cand_ok, cand_bad], field_profile=profile)
+    assert len(warnings) == 1
+    assert "candidate=bad" in warnings[0]
+    assert "detector" in warnings[0]
+    assert "physics" in warnings[0]
+
+    # No profile / empty axes → no warnings (the axis-key check is opt-in
+    # and only meaningful when the profile declares which axes apply).
+    assert validate_research_fit_axes([cand_bad], field_profile=None) == []
+    profile_no_axes = FieldProfile(
+        id="other", display_name="Other", venue_system="mixed",
+    )
+    assert validate_research_fit_axes([cand_bad], field_profile=profile_no_axes) == []
 
 
 def test_explainer_filters_sources_per_claim():

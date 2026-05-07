@@ -34,6 +34,14 @@ advisor_influence_signals:
   - active NSF / DOE / industrial funding
   - lab placement quality
 
+# Research-fit axes (roadmap #4) — used as tie-breaker, not a pillar.
+research_fit_axes:
+  - material_class
+  - processing
+  - properties
+  - instruments
+  - computation
+
 caveats:
   - "Last (senior) author is typically the PI — clarify with the student which author position they held."
   - "Total-synthesis or nano-fabrication papers may have 6+ authors but a small effective team — ask the student before bucketing."

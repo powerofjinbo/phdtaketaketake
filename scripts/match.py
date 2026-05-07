@@ -45,8 +45,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from phd_matcher.data.loaders import load_field_profile  # noqa: E402
-from phd_matcher.matching.ranker import rank_advisors, strict_validate  # noqa: E402
+from phd_matcher.matching.ranker import (  # noqa: E402
+    rank_advisors,
+    strict_validate,
+    validate_research_fit_axes,
+)
 from phd_matcher.models import CandidateAdvisor, StudentProfile  # noqa: E402
+from phd_matcher.scoring.pub import validate_paper_roles  # noqa: E402
 
 
 def _load_profile(args) -> dict:
@@ -160,6 +165,20 @@ def main() -> int:
             if cand_profile and cand_profile.id == field_profile.id:
                 cand.field = field_profile.id
 
+    # Compute input_warnings BEFORE the strict gate, so they survive a
+    # strict-fail return and the agent can fix profile/candidate inputs in
+    # the same pass it fixes missing evidence. Two sources:
+    #   - paper-role warnings (e.g., co_first used in physics)
+    #   - research-fit-axis warnings (axis key not declared by the
+    #     active FieldProfile)
+    input_warnings = validate_paper_roles(
+        [pp.model_dump() for pp in student.papers],
+        field_profile=field_profile,
+    )
+    input_warnings.extend(
+        validate_research_fit_axes(candidates, field_profile=field_profile)
+    )
+
     # Strict mode: reject any candidate with unsourced claims.
     if args.strict_evidence:
         all_errors: list[str] = []
@@ -167,7 +186,13 @@ def main() -> int:
             all_errors.extend(strict_validate(student, cand))
         if all_errors:
             json.dump(
-                {"error": "strict-evidence: unsourced claims detected", "details": all_errors},
+                {
+                    "error": "strict-evidence: unsourced claims detected",
+                    "details": all_errors,
+                    "input_field": input_field,
+                    "field_profile_id": field_profile.id if field_profile else None,
+                    "input_warnings": input_warnings,
+                },
                 sys.stdout,
                 indent=2,
                 ensure_ascii=False,
@@ -185,6 +210,7 @@ def main() -> int:
         "input_field": input_field,
         "field_profile_id": field_profile.id if field_profile else None,
         "field_caveats": field_profile.caveats if field_profile else [],
+        "input_warnings": input_warnings,
         "results": [r.model_dump(mode="json") for r in results],
     }
     json.dump(output, sys.stdout, indent=2, ensure_ascii=False)

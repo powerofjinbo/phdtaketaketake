@@ -36,6 +36,13 @@ advisor_influence_signals:
   - invited speaker / plenary at ICM (International Congress of Mathematicians)
   - Fields Medal / Abel Prize / Wolf Prize — exceptional cases
 
+# Research-fit axes (roadmap #4) — used as tie-breaker, not a pillar.
+research_fit_axes:
+  - problem_area
+  - method
+  - lineage
+  - recent_preprint_topic
+
 # Math: arXiv preprints carry more weight than the cross-field default 0.7.
 # This is the first activated `paper_status_weight_overrides` — math
 # preprints get 0.9× (vs published's 1.0).

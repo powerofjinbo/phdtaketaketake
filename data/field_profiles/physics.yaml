@@ -35,6 +35,14 @@ advisor_influence_signals:
   - NAS membership
   - convener / spokesperson roles in big-collab experiments
 
+# Research-fit axes (roadmap #4) — used as tie-breaker, not a pillar.
+research_fit_axes:
+  - subfield
+  - experiment_vs_theory
+  - collaboration
+  - detector_or_technique
+  - process_or_topic
+
 caveats:
   - "Big-collab papers (ATLAS / CMS / LIGO / etc.) require analyzer / convener / paper-editor evidence beyond simple author-list overlap. Use same_working_group or analysis_contact_overlap edges for these."
   - "Theory vs experiment matters for advisor matching — check candidate's recent papers."

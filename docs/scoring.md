@@ -209,6 +209,27 @@ These reflect realistic admission-rate ratios (top-10 PhD programs admit
 | 3–4 | ±0.6 |
 | 5+ (mostly unsourced) | ±0.8 |
 
+### Sort order (tie-break ladder, post-roadmap-#4)
+
+The ranker uses this descending priority:
+
+1. `risk_adjusted_strength` (= `application_strength − band/2`) — primary key
+2. `research_fit_score` (None → -∞, ranked last among ties)
+3. `direction_relevance` (keyword overlap fallback)
+4. `application_strength` (raw)
+5. `lower_bound` (final tiebreak — favors narrower band)
+
+Research fit is **not** part of the match formula — it cannot move
+`risk_adjusted_strength`. It only breaks ties when two candidates are
+otherwise equal. The connection-first thesis is preserved.
+
+To make this airtight, `research_fit` is also excluded from evidence
+coverage when `research_fit_score is None` — otherwise a missing fit
+would count as one extra missing signal, widen the band, and indirectly
+lower `risk_adjusted_strength`. Counted only when set; verified when
+sourced; unsourced (and rejected by strict mode) when set without
+`supports_fields=["research_fit"]` evidence.
+
 A signal counts as unverified unless an `EvidenceSource` in
 `EvidenceEntry.items` (or `PathEdge.items`) lists that signal's field
 name in `supports_fields`. Default mode also accepts the legacy
@@ -216,9 +237,15 @@ name in `supports_fields`. Default mode also accepts the legacy
 against:
 - each path to a current advisor (missing entirely or unsourced)
 - `school_tier` (post-review: ranking source must be cited)
-- `normalized_collab_top20pct`, `collab_with_nas`, `grad_placement_quality`
-  (regardless of value — None / default / non-default all need sources)
+- `research_areas` (faculty page or recent paper abstracts)
+- `normalized_collab_top20pct`, `collab_with_nas`,
+  `grad_placement_quality`, `active_funding_quality` (regardless of
+  value — None / default / non-default all need sources)
 - `pi_signal == "missing"` OR non-missing without sources
+- `research_fit` — **only when `research_fit_score` is set** (a null
+  score is not counted at all, so a missing fit cannot widen the band
+  and cannot indirectly move `risk_adjusted_strength`; this preserves
+  the tie-breaker-only invariant)
 
 Default values without sources count the same as `None` — both treated as
 "didn't verify".
@@ -263,7 +290,7 @@ post-review additions:
 | `unverified_signals` | total of missing + unsourced |
 | `missing_signals` | signals where the agent didn't search (information gap) |
 | `unsourced_signals` | signals claimed without claim-level proof (hallucination risk) |
-| `total_signals` | total signals audited per candidate (typically 7 for 1-advisor) |
+| `total_signals` | total signals audited per candidate (8 for 1-advisor; 9 if `research_fit_score` is set) |
 | `missing_signal_names` | which signals are missing |
 | `unsourced_signal_names` | which signals are unsourced |
 | `explanation` | one-string narrative with `Evidence coverage:` line + per-claim source citations |

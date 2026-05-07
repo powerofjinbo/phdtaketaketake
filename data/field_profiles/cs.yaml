@@ -42,6 +42,14 @@ advisor_influence_signals:
   - NSF CAREER award
   - active industry-academic appointment (e.g., Google Brain + Stanford)
 
+# Research-fit axes (roadmap #4) — used as tie-breaker, not a pillar.
+research_fit_axes:
+  - venue_track
+  - task
+  - method
+  - dataset
+  - systems_vs_theory_vs_ml
+
 caveats:
   - "Conferences (NeurIPS, ICML, ICLR, CVPR, ACL, EMNLP, OSDI, SOSP, STOC, FOCS, etc.) ARE the top venues. Don't apply tier 4 default to a top-tier conference paper — they belong in tier 1 or 2."
   - "Co-first authorship is common; treat shared first-author as 1st position equivalent."

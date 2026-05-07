@@ -63,7 +63,7 @@ Every bundled profile in `data/field_profiles/<id>.yaml` declares:
 - `advisor_influence_signals`
 - `paper_status_weight_overrides`
 - `scoring_weight_overrides` (reserved)
-- `research_fit_axes` (planned)
+- `research_fit_axes`
 - `caveats`
 
 The profile must reach the deterministic scoring engine — not just appear in caveats. Currently active: paper-status overrides (math `preprint=0.9`); coauthorship classification; ranking-source guidance.
@@ -210,7 +210,7 @@ Explicitly out of scope:
 | 1 | FieldProfile operationalization | ✅ done (commits `7a6d002` → `1d391a0`) |
 | 2 | Field-aware publication scoring | ✅ done (`1d391a0`) |
 | 3 | Advisor influence as standalone A dimension | ✅ done (`f80c4d9`) |
-| 4 | Research fit as tie-breaker / ≤0.15× adjustment | ⏳ after #3 |
+| 4 | Research fit as tie-breaker / ≤0.15× adjustment | ✅ done — initial form is **pure tie-breaker** in sort key, no pillar weight (`<COMMIT-PENDING>`) |
 | 5 | Program difficulty refinement (per-field ranking source) | partial — Step 2 of SKILL.md is profile-driven; deeper work pending |
 | 6 | Candidate discovery workflow field-aware | partial — Step 4 of SKILL.md uses profile databases; deeper integration pending |
 | 7 | Output explainer as application-strategy report (next-action) | ⏳ |

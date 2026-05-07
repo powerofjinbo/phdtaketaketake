@@ -35,6 +35,13 @@ advisor_influence_signals:
   - Sloan / Packard / Beckman early-career awards
   - active NSF / DOE / NIH funding
 
+# Research-fit axes (roadmap #4) — used as tie-breaker, not a pillar.
+research_fit_axes:
+  - material_or_system
+  - synthesis
+  - characterization
+  - computation
+
 caveats:
   - "Last author = corresponding PI. Mid-author often signals student or postdoc contribution."
   - "Total-synthesis papers may have 6+ authors but a tight working team — confirm with student before bucketing as big-collab."

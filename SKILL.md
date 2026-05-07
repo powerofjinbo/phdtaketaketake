@@ -452,6 +452,77 @@ Read the current-students list, "join the lab" page, or "applying" notes:
 page.** The matcher penalizes missing data slightly (−0.1) but never
 makes up a status.
 
+### Step 6.5 — Research fit (roadmap #4 — tie-breaker, NOT a pillar)
+
+After C / A / P / E / G fields are populated and **before** the matcher
+is invoked, optionally compute a **research_fit_score** per candidate.
+This is a 0–1 alignment between the student's `research_direction` and
+the candidate's actual recent work.
+
+It is **not** part of the match formula — it does not move `match_score`
+or `application_strength`. It only breaks ties in the sort order when
+two candidates land at the same `risk_adjusted_strength`. The connection-
+first thesis is preserved.
+
+The fit fields live on the same `CandidateAdvisor` JSON record alongside
+the other signals, so they must be filled in before piping candidates to
+`scripts/match.py`. Fields:
+
+- `research_fit_score` (0–1, or `null` if you didn't compute one)
+- `research_fit_summary` (short prose, e.g., "5 of last 8 papers on H→cc̄")
+- `research_fit_axes` (per-axis breakdown — see the field-axis table
+  below; values must be in [0, 1] or Pydantic rejects the candidate)
+
+Use the loaded FieldProfile's `research_fit_axes` to decompose the score
+honestly:
+
+| field | axes |
+|-------|------|
+| physics | subfield · experiment_vs_theory · collaboration · detector_or_technique · process_or_topic |
+| cs | venue_track · task · method · dataset · systems_vs_theory_vs_ml |
+| biology | organism · disease · pathway · technique · assay_platform |
+| chemistry | material_or_system · synthesis · characterization · computation |
+| mse | material_class · processing · properties · instruments · computation |
+| math | problem_area · method · lineage · recent_preprint_topic |
+
+If a candidate uses an axis key not declared by the active FieldProfile,
+the matcher emits a warning into `input_warnings` (the score still goes
+through; it just flags the drift).
+
+Schema:
+
+```jsonc
+{
+  "research_fit_score": 0.78,
+  "research_fit_summary": "5 of last 8 papers on H→cc̄, primary detector matches",
+  "research_fit_axes": {
+    "subfield": 0.95,
+    "detector_or_technique": 1.0,
+    "process_or_topic": 0.8,
+    "experiment_vs_theory": 1.0,
+    "collaboration": 0.5
+  },
+  "evidence": {
+    "research_fit": {
+      "items": [{
+        "url": "https://scholar.google.com/citations?user=...",
+        "source_type": "google_scholar",
+        "claim": "5 of last 8 papers in 2022-2024 on H→cc̄ analysis",
+        "supports_fields": ["research_fit"]
+      }]
+    }
+  }
+}
+```
+
+**Strict mode**: `research_fit_score != null` without
+`supports_fields=["research_fit"]` evidence → **rejected**. Leaving
+`research_fit_score` as `null` is allowed and is **not** counted in
+evidence coverage — a null fit does not widen the confidence band; it
+just shows as "not computed" in the result card. Don't write a fake
+0.5 placeholder to "look complete" — that becomes an unsourced claim
+and hurts the candidate.
+
 ### Step 7 — Run matcher
 
 Two modes, depending on what the user is doing:
@@ -497,16 +568,22 @@ Format conversationally — use the **expanded card** that surfaces evidence
 coverage, not just numbers:
 
 ```
-Top N matches for <field> (sorted by risk_adjusted_strength):
+Top N matches for <field> (sorted by risk_adjusted_strength, then research_fit):
 
 #1  Prof. <Name> — <Institution>  [<Label>]
     Strength: <Y>/4.0 (±<band>)  ·  risk-adjusted: <Z>  ·  lower bound: <W>
-    C: <c>  P: <p>  E: <e>  G: <g>
+    C: <c>  A: <a>  P: <p>  E: <e>  G: <g>
+    Research fit: <fit_score>/1.0  (or "not computed" if None)
     Evidence coverage: <verified>/<total> verified · <missing> missing · <unsourced> unsourced
     <inline explanation with cited URLs per claim>
     ⚠️ Missing: <list>     (only if missing > 0)
     ⚠️ Unsourced claims: <list>     (only if unsourced > 0 — high risk)
 ```
+
+If the run output's `input_warnings` is non-empty (e.g., co_first used in
+a field that doesn't recognize the convention), surface them once at the
+top before the candidate list — these are about the user's profile, not
+specific candidates.
 
 The agent should always emphasize:
 - `Strength` is `application_strength` — a relative-fit index, **not a

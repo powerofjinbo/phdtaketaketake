@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Enum types — Literal so typos fail at construction
@@ -360,6 +360,32 @@ class CandidateAdvisor(BaseModel):
     # ERC etc. on a 0–1 quality score (e.g., active R01 + NSF CAREER ≈ 0.85).
     active_funding_quality: float | None = Field(default=None, ge=0.0, le=1.0)
 
+    # ---- Research fit (roadmap #4) -------------------------------------
+    # NOT a 6th pillar in the match formula. Used as a tie-breaker (sort
+    # key) when candidates land at the same risk_adjusted_strength.
+    # Range 0–1; None = "didn't compute".
+    research_fit_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    research_fit_summary: str | None = None
+    # Per-axis breakdown. Axes are field-specific (see
+    # FieldProfile.research_fit_axes). Each value ∈ [0, 1]; out-of-range
+    # fails Pydantic validation. Cross-check against the active
+    # FieldProfile.research_fit_axes happens at pipeline time (see
+    # `validate_research_fit_axes` in `phd_matcher.matching.ranker`).
+    research_fit_axes: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("research_fit_axes")
+    @classmethod
+    def _check_research_fit_axes_bounds(
+        cls, v: dict[str, float]
+    ) -> dict[str, float]:
+        for axis, score in v.items():
+            if not (0.0 <= score <= 1.0):
+                raise ValueError(
+                    f"research_fit_axes['{axis}'] = {score} out of bounds; "
+                    "must be in [0, 1]"
+                )
+        return v
+
     pi_signal: PISignal = "missing"
     recent_phd_count: int | None = Field(default=None, ge=0)
 
@@ -423,6 +449,14 @@ class FieldProfile(BaseModel):
     paper_status_weight_overrides: dict[str, float] = Field(default_factory=dict)
     scoring_weight_overrides: dict[str, dict[str, float]] = Field(default_factory=dict)
 
+    # Roadmap #4 — research-fit axes (field-specific dimensions the agent
+    # scores when computing CandidateAdvisor.research_fit_score). E.g.:
+    #   physics: ["subfield", "experiment_vs_theory", "collaboration",
+    #             "detector_or_technique", "process_or_topic"]
+    #   bio:     ["organism", "disease", "pathway", "technique",
+    #             "assay_platform"]
+    research_fit_axes: list[str] = Field(default_factory=list)
+
     model_config = ConfigDict(extra="forbid")
 
 
@@ -470,5 +504,25 @@ class MatchResult(BaseModel):
 
     # Which FieldProfile (if any) was active for this match — for traceability.
     field_profile_id: str | None = None
+
+    # Roadmap #4 — research fit. Mirrors CandidateAdvisor fields. Used
+    # as a tie-breaker in `rank_advisors` between candidates with the
+    # same `risk_adjusted_strength`; does NOT enter the match formula.
+    research_fit_score: float | None = None
+    research_fit_summary: str | None = None
+    research_fit_axes: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("research_fit_axes")
+    @classmethod
+    def _check_research_fit_axes_bounds(
+        cls, v: dict[str, float]
+    ) -> dict[str, float]:
+        for axis, score in v.items():
+            if not (0.0 <= score <= 1.0):
+                raise ValueError(
+                    f"research_fit_axes['{axis}'] = {score} out of bounds; "
+                    "must be in [0, 1]"
+                )
+        return v
 
     model_config = ConfigDict(extra="forbid")

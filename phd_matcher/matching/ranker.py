@@ -179,6 +179,20 @@ def evidence_coverage(
         has_ev=_entry_has_evidence_for(pi_ev, "pi_signal", strict=strict),
     )
 
+    # Research fit (roadmap #4) — tie-breaker, not a pillar. Counted in
+    # coverage ONLY when the agent actually computed a score; an absent
+    # research_fit (None) must NOT widen the confidence band, otherwise
+    # it would indirectly move risk_adjusted_strength and break the
+    # tie-breaker-only invariant. When set, evidence is required (strict
+    # mode rejects unsourced; default mode flags it in unsourced_names).
+    if candidate.research_fit_score is not None:
+        rf_ev = candidate.evidence.get("research_fit") if candidate.evidence else None
+        _record(
+            cov, "research_fit",
+            is_set=True,
+            has_ev=_entry_has_evidence_for(rf_ev, "research_fit", strict=strict),
+        )
+
     return cov
 
 
@@ -227,6 +241,12 @@ _FIX_HINTS: dict[str, str] = {
         "evidence['pi_signal'].items must include an EvidenceSource citing "
         "the lab's current-students or recruiting page"
     ),
+    "research_fit": (
+        "evidence['research_fit'].items must include an EvidenceSource "
+        "with supports_fields containing 'research_fit' (cite the candidate's "
+        "recent papers, lab page, or open-grant abstract that demonstrates "
+        "alignment with the student's research_direction)"
+    ),
 }
 
 
@@ -246,6 +266,36 @@ def _fix_hint_for(name: str) -> str:
         f"evidence['{name}'].items must include an EvidenceSource "
         f"with supports_fields containing '{name}'",
     )
+
+
+def validate_research_fit_axes(
+    candidates: list[CandidateAdvisor],
+    field_profile: FieldProfile | None,
+) -> list[str]:
+    """Warn on `research_fit_axes` keys that aren't declared by the active
+    FieldProfile. The numeric range [0, 1] is already enforced by Pydantic
+    on `CandidateAdvisor.research_fit_axes`; this catches axis-key drift
+    (e.g., a CS-field candidate using {'detector_or_technique': 0.9},
+    which is a physics-only axis).
+
+    Returns a list of human-readable warning strings — empty when no
+    profile is loaded, the profile declares no axes, or all keys match.
+    """
+    if field_profile is None or not field_profile.research_fit_axes:
+        return []
+    profile_axes = set(field_profile.research_fit_axes)
+    warnings: list[str] = []
+    for cand in candidates:
+        if not cand.research_fit_axes:
+            continue
+        unknown = sorted(a for a in cand.research_fit_axes if a not in profile_axes)
+        if unknown:
+            warnings.append(
+                f"candidate={cand.id}: research_fit_axes contains "
+                f"{unknown!r} which are not in {field_profile.id} "
+                f"FieldProfile.research_fit_axes={sorted(profile_axes)!r}"
+            )
+    return warnings
 
 
 def strict_validate(
@@ -345,6 +395,9 @@ def compute_match(
         risk_adjusted_strength=round(_risk_adjusted(strength, band), 2),
         lower_bound=round(_lower_bound(strength, band), 2),
         field_profile_id=(field_profile.id if field_profile else None),
+        research_fit_score=candidate.research_fit_score,
+        research_fit_summary=candidate.research_fit_summary,
+        research_fit_axes=dict(candidate.research_fit_axes),
     )
 
 
@@ -356,12 +409,24 @@ def rank_advisors(
     *,
     field_profile: FieldProfile | None = None,
 ) -> list[MatchResult]:
-    """Rank candidates by **risk-adjusted strength**. A wider confidence band
-    is a downside discount, so well-evidenced candidates outrank loosely-
-    claimed peers even at lower nominal strength.
+    """Rank candidates by **risk-adjusted strength**, with research-fit as
+    a tie-breaker. A wider confidence band is a downside discount, so
+    well-evidenced candidates outrank loosely-claimed peers even at lower
+    nominal strength.
+
+    Sort key (descending priority, post-roadmap-#4):
+      1. risk_adjusted_strength (= application_strength − band/2)
+      2. research_fit_score (None → -inf, ranked last among ties)
+      3. direction_relevance (keyword overlap fallback)
+      4. application_strength (raw)
+      5. lower_bound (final tiebreak — favors narrower band)
+
+    Research fit *cannot* compete with risk_adjusted_strength — it only
+    breaks ties. Connection-first thesis is preserved.
 
     `field_profile`, when provided, flows into the scoring engine (paper
-    status overrides, author-role) and the result `field_profile_id`."""
+    status overrides, author-role) and the result `field_profile_id`.
+    """
     if field_filter:
         candidates = [c for c in candidates if c.field == student.field]
 
@@ -371,7 +436,16 @@ def rank_advisors(
 
     def sort_key(r: MatchResult):
         rel = direction_relevance(student.research_direction, r.candidate.research_areas)
-        return (r.risk_adjusted_strength, rel, r.application_strength)
+        # None research_fit_score sorts last among ties (with reverse=True
+        # below, the smallest goes last; -1.0 puts it strictly below 0.0).
+        rf = r.research_fit_score if r.research_fit_score is not None else -1.0
+        return (
+            r.risk_adjusted_strength,
+            rf,
+            rel,
+            r.application_strength,
+            r.lower_bound,
+        )
 
     results.sort(key=sort_key, reverse=True)
     return results[:top_k]

@@ -40,6 +40,14 @@ advisor_influence_signals:
   - h-index
   - lab placement (faculty / industry / postdoc mix)
 
+# Research-fit axes (roadmap #4) — used as tie-breaker, not a pillar.
+research_fit_axes:
+  - organism
+  - disease
+  - pathway
+  - technique
+  - assay_platform
+
 caveats:
   - "Co-first authorship is common — treat shared-first as 1st position. Look for asterisks / dagger marks or 'These authors contributed equally' notes on PubMed."
   - "Last author = PI (corresponding). Mid-author position (3rd of 6) is typical for student or postdoc contribution."
