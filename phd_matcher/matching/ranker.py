@@ -346,6 +346,14 @@ _FIX_HINTS: dict[str, str] = {
 }
 
 
+def repair_hint_for(name: str) -> str:
+    """Public API — return a human-readable repair hint for an unsourced
+    or missing signal. Pointed at the right evidence location and the
+    expected `supports_fields` value. Used by `strict_validate` and the
+    `scripts/audit_candidates.py` CLI repair queue."""
+    return _fix_hint_for(name)
+
+
 def _fix_hint_for(name: str) -> str:
     if name.startswith("path:"):
         adv_id = name.split(":", 1)[1]

@@ -571,6 +571,36 @@ just shows as "not computed" in the result card. Don't write a fake
 0.5 placeholder to "look complete" — that becomes an unsourced claim
 and hurts the candidate.
 
+### Step 6.7 — Audit evidence quality (optional, before strict run)
+
+Before invoking the matcher in `--strict-evidence` mode, run
+`scripts/audit_candidates.py` to surface every fixable evidence gap in
+one pass:
+
+```bash
+python scripts/audit_candidates.py \
+  --profile-file /tmp/profile.json \
+  --candidates-file /tmp/cands.json \
+  --field <FIELD> \
+  --strict-evidence
+```
+
+Output JSON has:
+
+- `strict_ready` (bool) — whether strict mode would accept all candidates as-is
+- `blocking_issues` — strict-mode rejection messages with fix hints
+- `repair_queue` — every signal needing work, classified by severity:
+    - `high` (unsourced — set value with no `supports_fields` proof; blocks strict)
+    - `medium` (missing required signal; widens band but doesn't block)
+- `coverage_summary` — portfolio-level rollup (candidates_total /
+  strict_ready / verified_count / missing_count / unsourced_count + per-signal `by_signal` table)
+- `input_warnings` — paper-role conventions and axis-key drift (same as in match output)
+
+Use this when finalizing a school list — fix the `high` severity entries
+first, then medium. The matcher's strict mode also produces these errors,
+but the audit CLI lets the user see the full repair workload before
+deciding whether to fix or fall back to default mode.
+
 ### Step 7 — Run matcher
 
 Two modes, depending on what the user is doing:
