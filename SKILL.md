@@ -826,6 +826,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/connection_v2.md` — expanded network model: shared grants / co-mentored students / committee-or-exam / same center / prior-institution overlap / conference sessions + recency multiplier (post-Sprint-2-c1)
 - `references/publication_v2.md` — recency decay + contribution_role bonus + big-collab guardrail + consortium guardrail + field-aware status weights (post-Sprint-2-c2)
 - `references/research_fit_v2.md` — structured `ResearchFit` submodel + 6-axis weighted formula (topic / method / system / temporal / grant / background); `theory_experiment_fit` stored only (post-Sprint-2-c3)
+- `references/strategy.md` — apply-bucket precedence (drop / only_if_space / reach / target / priority), recommended-action ladder, outreach-angle rules, portfolio summary (post-Sprint-2-c5)
 - `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
 - `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table

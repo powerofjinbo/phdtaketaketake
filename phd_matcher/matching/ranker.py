@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from phd_matcher.matching.direction import direction_relevance
 from phd_matcher.matching.explainer import explain_match
+from phd_matcher.matching.strategy import recommend_strategy
 from phd_matcher.models import (
     CandidateAdvisor,
     EvidenceEntry,
@@ -531,7 +532,7 @@ def compute_match(
 
     explanation = explain_match(student, candidate, cov)
 
-    return MatchResult(
+    result = MatchResult(
         candidate=candidate,
         c_score=round(c, 2),
         a_score=round(a_score, 2),
@@ -564,6 +565,11 @@ def compute_match(
         o_score=(round(o_score, 2) if o_score is not None else None),
         opportunity_adj=round(opp_adj, 2),
     )
+    # Sprint-2-c5: attach strategy recommendation. Pure derivative — does
+    # NOT modify any of the scoring fields above (pinned by
+    # test_strategy_does_not_change_scores).
+    result.strategy = recommend_strategy(result)
+    return result
 
 
 def rank_advisors(

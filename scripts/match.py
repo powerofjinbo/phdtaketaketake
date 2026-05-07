@@ -50,6 +50,7 @@ from phd_matcher.matching.ranker import (  # noqa: E402
     strict_validate,
     validate_research_fit_axes,
 )
+from phd_matcher.matching.strategy import summarize_portfolio  # noqa: E402
 from phd_matcher.models import CandidateAdvisor, StudentProfile  # noqa: E402
 from phd_matcher.scoring.pub import validate_paper_roles  # noqa: E402
 
@@ -206,11 +207,15 @@ def main() -> int:
         top_k=args.top_k,
         field_profile=field_profile,
     )
+    # Sprint-2-c5: portfolio-level strategy summary. Per-candidate
+    # `strategy` field is already attached by `compute_match`.
+    strategy_summary = summarize_portfolio(results)
     output: dict = {
         "input_field": input_field,
         "field_profile_id": field_profile.id if field_profile else None,
         "field_caveats": field_profile.caveats if field_profile else [],
         "input_warnings": input_warnings,
+        "strategy_summary": strategy_summary.model_dump(mode="json"),
         "results": [r.model_dump(mode="json") for r in results],
     }
     json.dump(output, sys.stdout, indent=2, ensure_ascii=False)

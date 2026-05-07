@@ -41,6 +41,23 @@ GPAScale = Literal["4.0", "4.3", "4.5", "100", "uk"]
 
 StrengthLabel = Literal["Far Reach", "Reach", "Target", "Match", "Safe"]
 
+# Sprint-2-c5 — Strategy explainer (post-Roadmap-#7)
+ApplyBucket = Literal[
+    "priority",        # apply with confidence; clean evidence + strong fit
+    "target",          # solid match; apply unless capacity-constrained
+    "reach",           # high difficulty / wide band; apply if you want stretch options
+    "only_if_space",   # marginal; apply only if portfolio has slack
+    "drop",            # don't apply (not recruiting / fundamentally mismatched)
+]
+
+RecommendedAction = Literal[
+    "apply",                # submit application as-is
+    "contact_first",        # email PI first (strong connection or research fit)
+    "investigate_evidence", # fix evidence gaps before deciding
+    "deprioritize",         # only if capacity remains
+    "skip",                 # do not apply
+]
+
 AdmissionModel = Literal[
     "direct_admit",     # PI admits the student directly; the application is to a specific advisor
     "rotation",         # rotation-based; student picks PI after the first 1-2 quarters
@@ -747,6 +764,48 @@ class FieldProfile(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Strategy recommendation (Sprint-2-c5)
+# ---------------------------------------------------------------------------
+
+class StrategyRecommendation(BaseModel):
+    """Per-candidate strategy recommendation derived from `MatchResult`.
+
+    The strategy layer sits **on top** of scoring and is purely
+    derivative — it does NOT change `match_score`,
+    `application_strength`, `risk_adjusted_strength`,
+    `difficulty_adjusted_strength`, or `research_fit_score`. Pinned by
+    `test_strategy_does_not_change_scores`.
+
+    Bucket precedence (hard-risk first; first match wins):
+      drop → only_if_space → reach → target → priority
+    """
+
+    apply_bucket: ApplyBucket
+    recommended_action: RecommendedAction
+    why_this_rank: list[str] = Field(default_factory=list)
+    main_risks: list[str] = Field(default_factory=list)
+    evidence_to_fix: list[str] = Field(default_factory=list)
+    outreach_angle: str | None = None
+    next_steps: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StrategySummary(BaseModel):
+    """Portfolio-level rollup across all candidates."""
+
+    priority_candidates: list[str] = Field(default_factory=list)
+    target_candidates: list[str] = Field(default_factory=list)
+    reach_candidates: list[str] = Field(default_factory=list)
+    only_if_space_candidates: list[str] = Field(default_factory=list)
+    drop_candidates: list[str] = Field(default_factory=list)
+    evidence_fix_queue: list[dict] = Field(default_factory=list)
+    portfolio_notes: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
 # Match result
 # ---------------------------------------------------------------------------
 
@@ -820,6 +879,10 @@ class MatchResult(BaseModel):
     # only (no funding, no recruiting); both moved to O.
     o_score: float | None = None
     opportunity_adj: float = 0.0
+
+    # Sprint-2-c5 — strategy explainer (post-Roadmap-#7). Derived from
+    # the scoring fields above; does NOT modify them.
+    strategy: StrategyRecommendation | None = None
 
     @field_validator("research_fit_axes")
     @classmethod
