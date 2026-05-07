@@ -41,8 +41,8 @@ Nature · Science · Cell · Nature Methods · Nature Biotechnology · Nature Me
 ## Physics
 
 **Tier 1 (4.0)**: PRL · Nature Physics · Science Advances (physics scope)
-**Tier 2 (3.7)**: PRX · JHEP · ApJL · Nature Astronomy · Nature Photonics · Reviews of Modern Physics
-**Tier 3 (3.3)**: PRA / B / C / D / E · ApJ · MNRAS · PLB · EPJC · NJP · A&A · JCAP
+**Tier 2 (3.7)**: PRX · JHEP · PRA / B / C / D / E · ApJL · Nature Astronomy · Nature Photonics · Reviews of Modern Physics
+**Tier 3 (3.3)**: ApJ · MNRAS · PLB · EPJC · NJP · A&A · JCAP
 **Tier 4 (2.8)**: PR Applied / Materials / Fluids · J Phys G · AJP
 
 ## Chemistry
