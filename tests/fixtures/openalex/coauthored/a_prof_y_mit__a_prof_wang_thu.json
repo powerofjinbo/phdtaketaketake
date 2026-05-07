@@ -1,0 +1,32 @@
+[
+  {
+    "id": "W1",
+    "title": "Search for H→cc̄ in ATLAS Run 3",
+    "venue": "Physical Review Letters",
+    "year": 2024,
+    "author_count": 6,
+    "doi": "10.1103/PhysRevLett.132.012345",
+    "url": "https://openalex.org/works/W1",
+    "concepts": ["Higgs boson", "ATLAS"]
+  },
+  {
+    "id": "W2",
+    "title": "Charm Yukawa coupling measurement at LHC",
+    "venue": "Physical Review D",
+    "year": 2023,
+    "author_count": 8,
+    "doi": "10.1103/PhysRevD.108.012345",
+    "url": "https://openalex.org/works/W2",
+    "concepts": ["Higgs boson"]
+  },
+  {
+    "id": "W3",
+    "title": "ATLAS Higgs+jets cross-section",
+    "venue": "Physical Review D",
+    "year": 2022,
+    "author_count": 312,
+    "doi": "10.1103/PhysRevD.106.012345",
+    "url": "https://openalex.org/works/W3",
+    "concepts": ["ATLAS"]
+  }
+]

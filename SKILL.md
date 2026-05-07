@@ -635,6 +635,32 @@ first, then medium. The matcher's strict mode also produces these errors,
 but the audit CLI lets the user see the full repair workload before
 deciding whether to fix or fall back to default mode.
 
+### Step 6.8 — Auto-collect evidence (optional, post-Sprint-3-c1)
+
+Before invoking `audit_candidates.py` and the matcher, run
+`scripts/collect_evidence.py` to auto-fill structured evidence (paths,
+research_areas, most_recent_connection_year) from external sources:
+
+```bash
+# Live OpenAlex enrichment (recommended for real applications):
+python scripts/collect_evidence.py \
+  --profile-file /tmp/profile.json \
+  --candidates-file /tmp/cands.json \
+  --field <FIELD> \
+  --live --mailto <your-email> \
+  --out /tmp/enriched.json
+
+# Then audit + match the enriched JSON:
+python scripts/audit_candidates.py \
+  --candidates-file /tmp/enriched.json \
+  --field <FIELD> --strict-evidence
+```
+
+The collector uses OpenAlex (cross-STEM) and emits structured
+`EvidenceSource` items with `supports_fields` so strict mode passes.
+See [`references/evidence_collection.md`](references/evidence_collection.md)
+for the adapter interface, fixture format, and what v1 fills.
+
 ### Step 7 — Run matcher
 
 Two modes, depending on what the user is doing:
@@ -827,6 +853,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/publication_v2.md` — recency decay + contribution_role bonus + big-collab guardrail + consortium guardrail + field-aware status weights (post-Sprint-2-c2)
 - `references/research_fit_v2.md` — structured `ResearchFit` submodel + 6-axis weighted formula (topic / method / system / temporal / grant / background); `theory_experiment_fit` stored only (post-Sprint-2-c3)
 - `references/strategy.md` — apply-bucket precedence (drop / only_if_space / reach / target / priority), recommended-action ladder, outreach-angle rules, portfolio summary (post-Sprint-2-c5)
+- `references/evidence_collection.md` — source adapter interface, OpenAlex fixture/live modes, `scripts/collect_evidence.py` enriching candidate JSONs with paths_to_advisors / research_areas / most_recent_connection_year (post-Sprint-3-c1)
 - `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
 - `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table

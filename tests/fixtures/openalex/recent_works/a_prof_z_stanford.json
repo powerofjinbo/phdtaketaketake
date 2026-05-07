@@ -1,0 +1,11 @@
+[
+  {"id": "W11", "title": "Effective field theory of dark matter",
+   "venue": "JHEP", "year": 2024, "author_count": 4,
+   "concepts": ["dark matter", "effective field theory", "particle physics"]},
+  {"id": "W12", "title": "Beyond Standard Model EFT review",
+   "venue": "Annual Review", "year": 2023, "author_count": 2,
+   "concepts": ["effective field theory", "Standard Model"]},
+  {"id": "W13", "title": "Light dark matter searches",
+   "venue": "PRD", "year": 2022, "author_count": 3,
+   "concepts": ["dark matter", "particle physics"]}
+]

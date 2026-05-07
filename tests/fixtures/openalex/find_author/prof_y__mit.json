@@ -1,0 +1,9 @@
+{
+  "id": "A_PROF_Y_MIT",
+  "name": "Prof. Y",
+  "institutions": ["Massachusetts Institute of Technology"],
+  "profile_url": "https://openalex.org/authors/A_PROF_Y_MIT",
+  "h_index": 35,
+  "works_count": 87,
+  "concepts": ["Higgs boson", "ATLAS", "particle physics", "collider physics"]
+}
