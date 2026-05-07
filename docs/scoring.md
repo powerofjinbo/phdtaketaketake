@@ -62,67 +62,74 @@ E = 0.20 · lab_prestige + 0.30 · duration + 0.50 · output
 Strongest single experience, no stacking. Lab tiers in
 [`references/lab_tiers.md`](../references/lab_tiers.md).
 
-### 4. Connection Score (C) — per (student, candidate) pair
+### 4. Connection Score (C) — per (student, candidate) pair (v2)
 
-Differentiated edges (post-review #5). The matcher takes **max** strength
-across present edge types — no stacking — to avoid double-counting overlapping
-evidence.
+Sprint-2-c1 expanded the network model. Aggregation is now **strongest
+single edge + 0.10 × second-strongest** (capped at 1.0), then scaled
+by a **recency multiplier** based on `most_recent_connection_year`.
+See [`references/connection_v2.md`](../references/connection_v2.md) for
+the full schema, ladder, guardrails, and v1→v2 calibration shifts.
 
 **Roadmap-#3 split**: C used to mix path strength with the candidate's own
 network signals (h-index proxy / NAS / placement). Those now live in the
 A dimension; C is path-only. Without a `current_advisor`, C falls to the
 lowest bucket (2.3).
 
-**Co-authorship edges:**
-
-| Edge | Strength formula |
-|------|------------------|
-| `small_team_coauthor_5y` (≤10 authors) | `min(1.0, n/5)` |
-| `big_collab_papers_5y` (>10 authors) | `min(0.4, n/25)` — discounted: alphabetical author list ≠ working relationship |
-
-**Subgroup / analysis-level edges** (high-strength big-collab evidence):
+**Edge ladder (v2):**
 
 | Edge | Strength |
 |------|----------|
-| `same_working_group` (verified subgroup / convener overlap) | 0.7 |
-| `analysis_contact_overlap` (shared analysis-contact role) | 0.95 |
+| `small_team_coauthor_5y` (≤threshold authors) | `min(1.0, n/5)` |
+| `co_mentored_student_count` | `min(0.90, n·0.30)` |
+| `shared_grant_count_5y` | `min(0.80, n·0.40)` |
+| `same_working_group` (verified subgroup / convener overlap) | **0.75** |
+| `analysis_contact_overlap` (shared analysis-contact role) | **0.70** |
+| `genealogy_relation: same_advisor` | **0.65** |
+| `genealogy_relation: uncle_nephew` | **0.50** |
+| `committee_or_exam_overlap` (PhD committee / qualifying exam) | 0.45 |
+| `genealogy_relation: two_hop` | 0.40 |
+| `same_center_or_institute` | 0.40 |
+| `prior_institution_overlap_years` | `min(0.35, years/10)` |
+| `conference_session_overlap_5y` | `min(0.20, n·0.10)` |
+| `big_collab_papers_5y` (>threshold authors) | **`min(0.10, n/100)`** — alphabetical author list ≠ working relationship |
+| `collaboration_overlap_years` | ≥5y → 1.0, 1–5y → 0.6, <1y → 0.3 (unchanged from v1) |
+| `committee_co_member` (`same_period: true`) | 0.8 (unchanged) |
+| `committee_co_member` (`same_period: false`) | 0.3 (unchanged) |
 
-**Genealogy:**
-
-| `genealogy_relation` | Strength |
-|---------------------|----------|
-| `same_advisor` (academic siblings) | 1.0 |
-| `uncle_nephew` (advisor's PhD sibling) | 0.7 |
-| `two_hop` (advisors' advisors crossed paths) | 0.4 |
-
-**Other:**
-
-| Edge | Strength |
-|------|----------|
-| `collaboration_overlap_years` (generic shared collab when finer signals unavailable) | ≥5y → 1.0, 1–5y → 0.6, <1y → 0.3 |
-| `committee_co_member` (`same_period: true`) | 0.8 |
-| `committee_co_member` (`same_period: false`) | 0.3 |
-
-**Field strength** (candidate's own network, advisor-independent):
-
+**Aggregation:**
 ```
-C_field = 0.4 · normalized_collab_top20pct
-        + 0.3 · (1.0 if collab_with_nas else 0.0)
-        + 0.3 · grad_placement_quality
+edge_raw = strongest_edge + 0.10 · second_strongest_edge   (cap 1.0)
+edge_raw *= recency_multiplier(most_recent_connection_year)
 ```
 
-Three-state semantics (post-review): each input field can be `None`
-(not checked) — None contributes 0 to scoring (conservative; pushes the
-agent to actually verify).
+**Recency multiplier:**
 
-**Composite (post-roadmap-#3)**:
+| gap (years) | multiplier |
+|-------------|------------|
+| 0–2 | 1.00 |
+| 3–5 | 0.85 |
+| 6–10 | 0.60 |
+| 10+ | 0.35 |
+| `None` | 0.75 (didn't capture year) |
+
+**v1→v2 recalibration shifts** (bold values above changed): same_advisor 1.0→0.65, uncle_nephew 0.7→0.50, analysis_contact 0.95→0.70, same_working_group 0.7→0.75, big_collab cap 0.4→0.10. See [`references/connection_v2.md`](../references/connection_v2.md) for rationale.
+
+**Big-collab threshold** is field-specific via
+`FieldProfile.big_collab_threshold` (physics 10, mse/cs 8,
+biology/chemistry 6, math 4). Use
+`classify_coauthorship(author_count, field_profile)` to bucket.
+
+**Composite (post-Sprint-2-c1)**:
 
 ```
-C_raw = max_path_strength
+C_raw = max(path_strength_v2(edges, current_year) for edges in paths)
 ```
 
-(Field-strength terms moved out to the A dimension.) Without a current
-advisor: `C_raw = 0` → bucket 2.3 (lowest).
+`path_strength_v2` is the aggregation+recency formula above. Without a
+current advisor: `C_raw = 0` → bucket 2.3 (lowest). The candidate's
+intrinsic prestige (h-index proxy / NAS / placement) lives in A
+(post-roadmap-#3); their admit-cycle availability lives in O
+(post-roadmap-#6a).
 
 **0–1 → 4.0 mapping:** ≥0.8 → 4.0, 0.6–0.8 → 3.7, 0.4–0.6 → 3.3, 0.2–0.4 → 2.8, <0.2 → 2.3
 

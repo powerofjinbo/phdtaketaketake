@@ -216,26 +216,37 @@ The matcher takes the **strongest single experience** (no stacking).
 }
 ```
 
-### Connection edges (`paths_to_advisors[advisor_id]`)
+### Connection edges (`paths_to_advisors[advisor_id]`) — Connection v2
 
-The matcher reads from these keys (any subset). **All edges should be backed
-by entries in the dict's `sources` list per the data-integrity policy** — the
-matcher can compute scores without sources, but the confidence band widens
-significantly (see `count_unverified_signals` in `phd_matcher/matching/ranker.py`).
+The matcher reads from these keys (any subset). All edges should be
+backed by `items[]` entries with matching `supports_fields` per the
+data-integrity policy. Aggregation: **strongest single edge + 0.10 ×
+second-strongest (cap 1.0), then × recency multiplier**. See
+[`connection_v2.md`](connection_v2.md) for the full ladder, recency
+table, guardrails, and v1→v2 calibration shifts.
 
 | Edge field | Type | Strength | When to record |
 |------------|------|----------|----------------|
-| `small_team_coauthor_5y` | int | `min(1.0, n/5)` | Distinct co-authored papers in last 5y with **≤10 authors** (real working relationship) |
-| `big_collab_papers_5y` | int | `min(0.4, n/25)` | Papers with **>10 authors** where both names appear (alphabetical author list bulk; significantly weaker — co-membership ≠ working relationship) |
-| `same_working_group` | bool | 0.7 | Verified subgroup / convener overlap within a larger collaboration |
-| `analysis_contact_overlap` | bool | 0.95 | Both listed as analysis contacts on a specific paper / note |
-| `genealogy_relation` | string | `same_advisor`=1.0 / `uncle_nephew`=0.7 / `two_hop`=0.4 | Verified via Math Genealogy or faculty bio |
-| `collaboration_overlap_years` | float | ≥5y=1.0 / 1–5y=0.6 / <1y=0.3 | Generic shared-collab overlap when finer signals not available |
-| `committee_co_member` | bool + `same_period` bool | 0.8 / 0.3 | Documented editorial board / NSF panel / PC overlap |
-| `sources` | list[str] | — | URLs backing the above edges |
+| `small_team_coauthor_5y` | int | `min(1.0, n/5)` | Distinct co-authored papers in last 5y with **≤threshold authors** (real working relationship) |
+| `co_mentored_student_count` | int | `min(0.90, n·0.30)` | Students jointly mentored by both (committee co-mentorship counts) |
+| `shared_grant_count_5y` | int | `min(0.80, n·0.40)` | NSF/NIH/DOE shared grants in last 5y |
+| `same_working_group` | bool | 0.75 | Verified subgroup / convener overlap within a larger collaboration |
+| `analysis_contact_overlap` | bool | 0.70 | Both listed as analysis contacts on a specific paper / note |
+| `genealogy_relation` | string | `same_advisor`=0.65 / `uncle_nephew`=0.50 / `two_hop`=0.40 | Verified via Math Genealogy or faculty bio |
+| `committee_or_exam_overlap` | bool | 0.45 | PhD committee / qualifying exam overlap |
+| `same_center_or_institute` | bool | 0.40 | Both members of NSF ERC / NIH center / DOE lab / institute |
+| `prior_institution_overlap_years` | int | `min(0.35, years/10)` | Years overlapped at the same institution before current roles |
+| `conference_session_overlap_5y` | int | `min(0.20, n·0.10)` | Conferences in last 5y where both presented at same session |
+| `big_collab_papers_5y` | int | `min(0.10, n/100)` | Papers with **>threshold authors** (alphabetical author bulk; very weak alone) |
+| `collaboration_overlap_years` | float | ≥5y=1.0 / 1–5y=0.6 / <1y=0.3 | Generic shared-collab overlap (v1, unchanged) |
+| `committee_co_member` | bool + `same_period` bool | 0.8 / 0.3 | Documented editorial board / NSF panel / PC overlap (v1, unchanged) |
+| `most_recent_connection_year` | int | (recency multiplier) | Year of last direct interaction; None → 0.75 multiplier |
+| `items` | list[EvidenceSource] | — | Per-claim evidence with `supports_fields` |
 | `note` | str | — | Freeform — what was searched, what was found |
 
-The matcher takes **max** across these (no stacking).
+Big-collab threshold is field-specific via
+`FieldProfile.big_collab_threshold` (physics 10, mse/cs 8,
+biology/chemistry 6, math 4).
 
 ### Advisor-influence fields (drive the A pillar — post-roadmap-#6a, reputation-only)
 

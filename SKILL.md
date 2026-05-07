@@ -259,8 +259,20 @@ a fallback. Specifically:
 
 For each co-authored paper found, **check author count** before tallying:
 
-- ≤ 10 authors → counts toward `small_team_coauthor_5y` (full strength)
-- > 10 authors → counts toward `big_collab_papers_5y` (heavily discounted)
+- ≤ field threshold → counts toward `small_team_coauthor_5y` (full strength, max 1.0 at n=5+)
+- > field threshold → counts toward `big_collab_papers_5y` (very weak alone, cap 0.10)
+
+**Sprint-2-c1 added more edge types** beyond co-authorship — record
+when verified: `shared_grant_count_5y` (NSF/NIH/DOE shared grants),
+`co_mentored_student_count` (jointly supervised students),
+`committee_or_exam_overlap` (PhD committee / qualifying exam),
+`same_center_or_institute`, `prior_institution_overlap_years`,
+`conference_session_overlap_5y`. Also set
+`most_recent_connection_year` (year of last interaction) — drives the
+recency multiplier (0–2y → 1.0, 3–5y → 0.85, 6–10y → 0.60, 10y+ →
+0.35, None → 0.75). See
+[`references/connection_v2.md`](references/connection_v2.md) for the
+full ladder, aggregation formula, and per-edge evidence guidance.
 
 If the candidate-advisor relationship is in a big-collab field (HEP, large
 clinical trials, BICEP / LIGO, etc.) and you find shared papers but they're
@@ -789,6 +801,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/research_fit.md` — research_fit_axes per field + tie-breaker semantics
 - `references/program_profile.md` — program difficulty signals + penalty formula (post-roadmap-#5)
 - `references/opportunity.md` — admit-cycle availability + A vs O split + opportunity_adj ladder (post-roadmap-#6a)
+- `references/connection_v2.md` — expanded network model: shared grants / co-mentored students / committee-or-exam / same center / prior-institution overlap / conference sessions + recency multiplier (post-Sprint-2-c1)
 - `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
 - `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table

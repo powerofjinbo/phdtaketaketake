@@ -24,7 +24,7 @@ competitiveness. **C remains the largest pillar in the top three tiers
 
 | Pillar | What it scores |
 |--------|----------------|
-| **C** Connection | Max of co-authorship / genealogy / shared-collab / committee edges per (student-advisor, candidate-advisor) pair. Path-only — candidate's own prestige is in A, not here. |
+| **C** Connection | v2 (Sprint-2-c1): strongest single edge + 0.10·second-strongest (cap 1.0), then × recency multiplier. Edges include: co-authorship, co-mentored students, shared grants, working group, analysis contact, genealogy, committee/exam, same center, prior institution, conference sessions. Path-only — candidate's own prestige is in A. See [`connection_v2.md`](connection_v2.md). |
 | **A** Advisor Influence | Candidate PI's reputation / field standing / placement record. Post-#6a: `0.40·influence_percentile + 0.30·elite_status + 0.30·grad_placement_quality`. Funding and recruiting moved to **O** (Opportunity). |
 | **P** Publication | Field-aware tier × position decay × status-weight, top-3 weighted aggregate. 5+ author rule: `min(3.5, baseline − 0.45)` floor. |
 | **E** Experience | `0.20·lab_prestige + 0.30·duration + 0.50·output`, strongest single experience. |

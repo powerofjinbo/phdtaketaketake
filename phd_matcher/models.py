@@ -230,6 +230,35 @@ class PathEdge(BaseModel):
     committee_co_member: bool = False
     same_period: bool = False
 
+    # ---- v2 (Connection v2 — additive, post-Sprint-2-c1) -----------------
+    # Richer network signals. Each contributes to `path_strength` via the
+    # v2 aggregation: strongest single edge + small secondary bonus,
+    # capped at 1.0, then scaled by `recency_multiplier`.
+    shared_grant_count_5y: int | None = Field(
+        default=None, ge=0,
+        description="NSF/NIH/DOE shared-grant count between advisor and candidate in last 5y",
+    )
+    co_mentored_student_count: int | None = Field(
+        default=None, ge=0,
+        description="Students jointly mentored by advisor and candidate "
+                    "(committee co-mentorship counts)",
+    )
+    committee_or_exam_overlap: bool = False
+    same_center_or_institute: bool = False
+    prior_institution_overlap_years: int | None = Field(
+        default=None, ge=0,
+        description="Years overlapped at the same institution before either's current role",
+    )
+    conference_session_overlap_5y: int | None = Field(
+        default=None, ge=0,
+        description="Conferences in last 5y where both presented at the same session/track",
+    )
+    most_recent_connection_year: int | None = Field(
+        default=None, ge=1900,
+        description="Year of most recent direct interaction. Drives the recency multiplier "
+                    "(0–2y → 1.0, 3–5y → 0.85, 6–10y → 0.60, 10y+ → 0.35, None → 0.75).",
+    )
+
     # ---- Provenance (required for non-default claims) --------------------
     items: list[EvidenceSource] = Field(default_factory=list)  # preferred
     sources: list[str] = Field(default_factory=list)            # legacy
@@ -255,11 +284,23 @@ class PathEdge(BaseModel):
             or self.genealogy_relation is not None
             or self.collaboration_overlap_years is not None
             or self.committee_co_member
+            # v2 additions
+            or self.shared_grant_count_5y is not None
+            or self.co_mentored_student_count is not None
+            or self.committee_or_exam_overlap
+            or self.same_center_or_institute
+            or self.prior_institution_overlap_years is not None
+            or self.conference_session_overlap_5y is not None
         )
 
     def fields_set(self) -> list[str]:
         """Names of edge sub-fields that are at non-default values. Each
-        such field needs evidence (items with matching `supports_fields`)."""
+        such field needs evidence (items with matching `supports_fields`).
+
+        `most_recent_connection_year` is intentionally NOT in this list —
+        it's metadata derived from already-cited evidence (e.g., the year
+        of the last co-authored paper) and doesn't need separate evidence.
+        """
         names: list[str] = []
         if self.small_team_coauthor_5y is not None:
             names.append("small_team_coauthor_5y")
@@ -275,6 +316,19 @@ class PathEdge(BaseModel):
             names.append("collaboration_overlap_years")
         if self.committee_co_member:
             names.append("committee_co_member")
+        # v2 additions
+        if self.shared_grant_count_5y is not None:
+            names.append("shared_grant_count_5y")
+        if self.co_mentored_student_count is not None:
+            names.append("co_mentored_student_count")
+        if self.committee_or_exam_overlap:
+            names.append("committee_or_exam_overlap")
+        if self.same_center_or_institute:
+            names.append("same_center_or_institute")
+        if self.prior_institution_overlap_years is not None:
+            names.append("prior_institution_overlap_years")
+        if self.conference_session_overlap_5y is not None:
+            names.append("conference_session_overlap_5y")
         return names
 
     def has_evidence_for(self, field_name: str, *, strict: bool = False) -> bool:

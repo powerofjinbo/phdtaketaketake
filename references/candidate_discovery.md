@@ -109,6 +109,26 @@ Record evidence per signal with `supports_fields` binding. See
 }
 ```
 
+### Connection-v2 edges (Sprint-2-c1 — additive)
+
+Beyond the v1 edges (small_team / big_collab / working_group / analysis_contact /
+genealogy / collaboration_overlap / committee_co_member), v2 adds:
+
+| Edge | When to set | Cite |
+|------|-------------|------|
+| `shared_grant_count_5y` | NSF/NIH/DOE shared grant in last 5y | NIH RePORTER, NSF Award Search, DOE Office of Science |
+| `co_mentored_student_count` | Both PIs co-supervised a student (committee co-mentorship counts) | dissertation acknowledgements, lab alumni page, committee composition page |
+| `committee_or_exam_overlap` | Both served on the same PhD committee or qualifying exam | dissertation cover page, department exam records |
+| `same_center_or_institute` | Both members of the same NSF ERC / NIH center / DOE national lab / interdisciplinary institute | center website member list, institute affiliations on faculty pages |
+| `prior_institution_overlap_years` | Years both at the same institution before either's current role | CVs, faculty bios |
+| `conference_session_overlap_5y` | Conferences in last 5y where both presented at the same session/track | conference programmes, OpenReview, DBLP author pages |
+| `most_recent_connection_year` | Year of last direct interaction — drives the **recency multiplier** | derived from the year on the strongest cited edge (latest co-authored paper, latest shared grant, etc.) |
+
+Each set field needs evidence with `supports_fields=[<field>]` (or one
+verified-empty `supports_fields=["path:<id>"]`). The recency year is
+metadata derived from already-cited evidence — no separate evidence
+needed.
+
 ### Big-collaboration patterns (HEP, large clinical trials, consortia)
 
 If shared papers are all big-collab (alphabetical), look for stronger
