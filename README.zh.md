@@ -38,9 +38,12 @@ Agent 会：
 ### 每个候选的输出
 
 - **Match score**（0–4.0）+ **application_strength**（0–4.0，**不是概率**），带置信区间 ±
+- **risk_adjusted_strength** = `application_strength − band/2` —— **这是默认排序键**，evidence 充分的候选能压过证据稀薄但 nominal strength 更高的对手
+- **lower_bound** = `application_strength − band` —— 不确定性宽边的保守读数
 - **5 档定性标签**：Reach · Target · Match · Safe · Far Reach
 - **分项分**：Connection / Publication / Experience / GPA
-- **匹配原因** —— 引用真实搜索来源：例如 *"与 Prof. Wang 在 2022–2024 合著 4 篇（per Google Scholar）· 自 2017 年起同属 ATLAS"*
+- **Evidence 分项**：`total_signals` / `verified` / `missing` / `unsourced`（带具体哪些 signal 落在每档）
+- **匹配原因** —— 引用真实搜索来源：例如 *"与 Prof. Wang 2022–2024 合著 4 篇 small-team 论文 (Google Scholar) · 同属 ATLAS H→cc̄ working group (ATLAS Glance)"*
 
 ## 架构：无静态缓存，只用真实数据
 

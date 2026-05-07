@@ -45,7 +45,7 @@ Code: see `phd_matcher/scoring/`.
 
 ## Code standards
 
-- 75 unit tests live in `tests/`. Run `pytest`. Don't drop coverage.
+- 119 unit tests live in `tests/`. Run `pytest`. Don't drop coverage.
 - Lint with `ruff` (config in `pyproject.toml`).
 - Pure stdlib + `pydantic` + `pyyaml`. Don't add deps casually.
 

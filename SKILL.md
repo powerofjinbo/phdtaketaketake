@@ -13,11 +13,25 @@ strictly forbidden — students use these rankings to decide where they spend
 years of their life. Made-up data is worse than no data.
 
 **The contract:**
-- ✅ Verified via web search → record + cite the source URL in the explanation
+- ✅ Verified via web search → record value + structured `EvidenceSource`
+  (URL + source_type + claim + supports_fields)
 - ✅ Searched but found nothing → leave the field empty / set signal to `"missing"`
 - ❌ Guessed from training memory → **NOT ALLOWED**
 - ❌ Inferred from name patterns / school proximity / "feels likely" → **NOT ALLOWED**
 - ❌ Estimated without any web search → **NOT ALLOWED**
+
+**Two enforcement layers:**
+
+1. **Risk-adjusted ranking** — wide confidence bands move candidates
+   *down* the sort order. The agent literally cannot get a top rank with
+   unsourced claims; the band widens and `risk_adjusted_strength = strength
+   − band/2` drops below better-evidenced peers.
+
+2. **`--strict-evidence` flag** — when run with this flag, `scripts/match.py`
+   rejects any candidate that has *unsourced* claims (a value set without an
+   `EvidenceEntry`). Missing signals (no value, no evidence) are still
+   allowed — they're honest "I couldn't verify" states. Use this when the
+   user is making real application decisions.
 
 The matcher's confidence band (±0.2 / 0.4 / 0.6 / 0.8 — see §Confidence
 calibration below) handles missing data gracefully, AND the risk-adjusted
@@ -182,7 +196,8 @@ all big-collab, look for **stronger evidence** before claiming connection:
   on a specific paper / internal note (verify via published authorship page
   or paper-specific contact list)
 
-**Record sources for every edge** in the edges dict's `sources` list:
+**Record sources for every edge.** Use the structured `items` field
+(preferred) so each URL is bound to a specific claim:
 
 ```jsonc
 "paths_to_advisors": {
@@ -190,15 +205,36 @@ all big-collab, look for **stronger evidence** before claiming connection:
     "small_team_coauthor_5y": 3,
     "big_collab_papers_5y": 12,
     "same_working_group": true,
-    "sources": [
-      "https://scholar.google.com/citations?user=<advisor_id>&...",
-      "https://inspirehep.net/authors/<candidate>/...",
-      "https://atlas-glance.cern.ch/atlas/analysis/<group>/conveners"
+    "items": [
+      {
+        "url": "https://scholar.google.com/citations?user=<id>&...",
+        "source_type": "google_scholar",
+        "claim": "3 co-authored papers in 2022-2024 with ≤10 authors",
+        "supports_fields": ["small_team_coauthor_5y"]
+      },
+      {
+        "url": "https://inspirehep.net/authors/<candidate>/...",
+        "source_type": "inspire",
+        "claim": "12 ATLAS publications co-authored 2020-2024",
+        "supports_fields": ["big_collab_papers_5y"]
+      },
+      {
+        "url": "https://atlas-glance.cern.ch/atlas/analysis/<group>/conveners",
+        "source_type": "lab_page",
+        "claim": "both listed as H→cc̄ working group conveners 2021-2023",
+        "supports_fields": ["same_working_group"]
+      }
     ],
-    "note": "3 small-team co-authored papers (2022-2024); 12 ATLAS bulk papers; both H→cc subgroup conveners 2021-2023"
+    "note": "3 small-team co-authored papers, 12 ATLAS bulk, both H→cc̄ conveners"
   }
 }
 ```
+
+The legacy `sources: list[str]` (bare URLs) is still accepted for
+backward compatibility but **prefer the structured `items` form** — it
+makes claims auditable: each URL is bound to a specific `supports_fields`
+list, so a reviewer can verify each claim individually rather than
+guessing which URL backs which signal.
 
 **Joint big-collaboration** (ATLAS, CMS, BICEP, LIGO, multi-institution
 clinical trials, large genome consortia):
@@ -291,19 +327,28 @@ match_score, application_strength, confidence_band, label, explanation).
 
 ### Step 8 — Present results
 
-Format conversationally:
+Format conversationally — use the **expanded card** that surfaces evidence
+coverage, not just numbers:
 
 ```
-Top N matches for <field>:
+Top N matches for <field> (sorted by risk_adjusted_strength):
 
 #1  Prof. <Name> — <Institution>  [<Label>]
-    Match: <X>/4.0 · Strength: <Y>/4.0 (±<band>)
+    Strength: <Y>/4.0 (±<band>)  ·  risk-adjusted: <Z>  ·  lower bound: <W>
     C: <c>  P: <p>  E: <e>  G: <g>
-    <explanation, with sources cited inline>
+    Evidence coverage: <verified>/<total> verified · <missing> missing · <unsourced> unsourced
+    <inline explanation with cited URLs per claim>
+    ⚠️ Missing: <list>     (only if missing > 0)
+    ⚠️ Unsourced claims: <list>     (only if unsourced > 0 — high risk)
 ```
 
-`Strength` is `application_strength` — a relative-fit index, **not a probability**.
-Mention this explicitly in the result presentation if a user asks "what's my chance?"
+The agent should always emphasize:
+- `Strength` is `application_strength` — a relative-fit index, **not a
+  probability**.
+- `risk_adjusted_strength` is what drives the ranking — narrower band wins.
+- `lower_bound = strength − band`. Mention this when a candidate has wide
+  band: "even at the wide edge of my uncertainty, this is at least <W>".
+- Unsourced claims are a **hallucination risk** — flag explicitly.
 
 **Every factual claim in the explanation must include its source.** This is
 a hard requirement — students will use these rankings for real decisions.

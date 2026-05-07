@@ -41,24 +41,78 @@ GPAScale = Literal["4.0", "4.3", "4.5", "100", "uk"]
 
 StrengthLabel = Literal["Far Reach", "Reach", "Target", "Match", "Safe"]
 
+EvidenceSourceType = Literal[
+    "lab_page",
+    "faculty_page",
+    "google_scholar",
+    "openalex",
+    "inspire",
+    "pubmed",
+    "europe_pmc",
+    "semantic_scholar",
+    "arxiv",
+    "us_news",
+    "nas",
+    "hhmi",
+    "genealogy",
+    "paper",
+    "cv",
+    "other",
+]
+
 
 # ---------------------------------------------------------------------------
 # Evidence — provenance for any claim the agent makes
 # ---------------------------------------------------------------------------
 
-class EvidenceEntry(BaseModel):
-    """Sources backing a specific signal value, with audit trail.
+class EvidenceSource(BaseModel):
+    """A single, structured piece of evidence for one or more claims.
 
-    Used in CandidateAdvisor.evidence (keyed by field name). Empty `sources`
-    means the agent didn't verify this claim — the matcher counts the signal
-    as unverified, widening the confidence band accordingly.
+    Goes inside `EvidenceEntry.items` (preferred over the legacy bare-URL
+    `sources` list). A URL alone doesn't tell the matcher *what* it
+    supports; this structure binds a URL to a human-readable claim and
+    the field name(s) it backs, so an audit can verify each claim
+    individually.
     """
 
+    url: str
+    source_type: EvidenceSourceType
+    claim: str
+    supports_fields: list[str] = Field(default_factory=list)
+    quote_or_snippet: str | None = None
+    last_checked: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EvidenceEntry(BaseModel):
+    """Sources backing a signal, with audit trail.
+
+    Two formats:
+      - `items` (preferred): list of structured `EvidenceSource` records,
+        each binding a URL to a specific claim and supports_fields list.
+      - `sources` (legacy): list of bare URLs. Kept for back-compat — the
+        matcher accepts either as proof of verification, but new code
+        should prefer `items`.
+
+    Empty both means the agent didn't verify this claim → matcher counts
+    it as unverified.
+    """
+
+    items: list[EvidenceSource] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     note: str | None = None
     last_checked: str | None = None
 
     model_config = ConfigDict(extra="forbid")
+
+    @property
+    def has_evidence(self) -> bool:
+        return bool(self.items or self.sources)
+
+    @property
+    def is_empty(self) -> bool:
+        return not (self.items or self.sources)
 
 
 # ---------------------------------------------------------------------------
@@ -103,10 +157,29 @@ class PathEdge(BaseModel):
     same_period: bool = False
 
     # ---- Provenance (required for non-default claims) --------------------
-    sources: list[str] = Field(default_factory=list)
+    items: list[EvidenceSource] = Field(default_factory=list)  # preferred
+    sources: list[str] = Field(default_factory=list)            # legacy
     note: str | None = None
 
     model_config = ConfigDict(extra="forbid")
+
+    @property
+    def has_evidence(self) -> bool:
+        return bool(self.items or self.sources)
+
+    @property
+    def has_any_edge(self) -> bool:
+        """True if any edge field is at non-default — used by the matcher
+        to distinguish 'verified-empty' from 'asserted'."""
+        return bool(
+            self.small_team_coauthor_5y is not None
+            or self.big_collab_papers_5y is not None
+            or self.same_working_group
+            or self.analysis_contact_overlap
+            or self.genealogy_relation is not None
+            or self.collaboration_overlap_years is not None
+            or self.committee_co_member
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -227,11 +300,25 @@ class MatchResult(BaseModel):
     strength_label: StrengthLabel
 
     explanation: str | None = None
+
+    # ---- Evidence coverage (split into clean categories) ----
+    # `unverified_signals` = `missing_signals` + `unsourced_signals` (kept
+    # for back-compat). The split distinguishes data-absent from
+    # claim-without-proof — different risks.
     unverified_signals: int = Field(default=0, ge=0)
+    missing_signals: int = Field(default=0, ge=0)
+    unsourced_signals: int = Field(default=0, ge=0)
+    total_signals: int = Field(default=0, ge=0)
+    missing_signal_names: list[str] = Field(default_factory=list)
+    unsourced_signal_names: list[str] = Field(default_factory=list)
 
     # Risk-adjusted strength used as the primary sort key — penalizes wide
     # confidence bands so a candidate with sparse evidence can't outrank a
     # better-sourced peer simply by claiming a higher strength.
     risk_adjusted_strength: float = 0.0
+
+    # Conservative lower-bound reading: even at the wide edge of uncertainty,
+    # the application strength is at least this (within the matcher's band).
+    lower_bound: float = 0.0
 
     model_config = ConfigDict(extra="forbid")

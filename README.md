@@ -38,9 +38,12 @@ The agent will:
 ### Output per candidate
 
 - **Match score** (0–4.0) + **application_strength** (0–4.0, *not* a probability) with ±confidence band
+- **risk_adjusted_strength** = `application_strength − band/2` — **this is the default sort key**, so well-evidenced candidates outrank loosely-claimed peers even at lower nominal strength
+- **lower_bound** = `application_strength − band` — conservative reading at the wide edge of uncertainty
 - **5-tier label**: Reach · Target · Match · Safe · Far Reach
 - **Per-dimension**: Connection / Publication / Experience / GPA
-- **Why matched** — cited from real searches: e.g., *"co-authored 4 papers with Prof. Wang in 2022–2024 (per Google Scholar) · same ATLAS collaboration since 2017"*
+- **Evidence breakdown**: `total_signals` / `verified` / `missing` / `unsourced` (with names of which signals fall in each)
+- **Why matched** — cited from real searches: e.g., *"co-authored 4 small-team papers with Prof. Wang in 2022–2024 (Google Scholar) · same ATLAS H→cc̄ working group (ATLAS Glance)"*
 
 ## Architecture: no static cache, real data only
 

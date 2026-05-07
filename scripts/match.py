@@ -22,6 +22,14 @@ Three invocation styles:
     cat profile.json | python scripts/match.py \\
         --candidates-file cands.json --field biology
 
+Strict mode:
+
+    python scripts/match.py ... --strict-evidence
+
+Strict mode rejects any candidate that has *unsourced* claims (a value set
+without an EvidenceEntry). Missing signals are still allowed — that's a
+legitimate "I couldn't verify this" state. See SKILL.md for full rules.
+
 Output: JSON list of MatchResult records to stdout.
 Errors: JSON object { "error": "..." } to stdout, non-zero exit code.
 """
@@ -36,7 +44,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from phd_matcher.matching.ranker import rank_advisors  # noqa: E402
+from phd_matcher.matching.ranker import rank_advisors, strict_validate  # noqa: E402
 from phd_matcher.models import CandidateAdvisor, StudentProfile  # noqa: E402
 
 
@@ -69,8 +77,7 @@ def _load_candidates(args) -> list[CandidateAdvisor]:
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=(
-            "Run the phdtaketaketake matcher and print ranked candidates as JSON. "
-            "Both profile and candidates must be provided — there is no static cache."
+            "Run the phdtaketaketake matcher and print ranked candidates as JSON."
         )
     )
     ap.add_argument("--profile-file", type=Path, help="Path to a profile JSON file")
@@ -90,6 +97,15 @@ def main() -> int:
         "--candidates-json",
         type=str,
         help="Inline JSON array of CandidateAdvisor records",
+    )
+    ap.add_argument(
+        "--strict-evidence",
+        action="store_true",
+        help=(
+            "Reject any candidate with unsourced claims (value set without "
+            "evidence). Missing signals (no value, no evidence) are still "
+            "allowed — they're honest 'I couldn't verify' states."
+        ),
     )
     args = ap.parse_args()
 
@@ -119,6 +135,21 @@ def main() -> int:
     if not candidates:
         json.dump({"error": "candidates list is empty"}, sys.stdout)
         return 1
+
+    # Strict mode: reject any candidate with unsourced claims.
+    if args.strict_evidence:
+        all_errors: list[str] = []
+        for cand in candidates:
+            all_errors.extend(strict_validate(student, cand))
+        if all_errors:
+            json.dump(
+                {"error": "strict-evidence: unsourced claims detected", "details": all_errors},
+                sys.stdout,
+                indent=2,
+                ensure_ascii=False,
+            )
+            sys.stdout.write("\n")
+            return 2
 
     results = rank_advisors(student, candidates, top_k=args.top_k)
     output = [r.model_dump(mode="json") for r in results]
