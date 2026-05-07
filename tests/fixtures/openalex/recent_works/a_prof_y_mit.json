@@ -1,0 +1,14 @@
+[
+  {"id": "W1", "title": "Search for H to cc-bar in ATLAS Run 3",
+   "venue": "Physical Review Letters", "year": 2024, "author_count": 6,
+   "url": "https://openalex.org/works/W1",
+   "concepts": ["Higgs boson", "ATLAS", "particle physics"]},
+  {"id": "W4", "title": "Charm Yukawa coupling at colliders",
+   "venue": "JHEP", "year": 2024, "author_count": 5,
+   "url": "https://openalex.org/works/W4",
+   "concepts": ["Higgs boson"]},
+  {"id": "W5", "title": "Detector calibration paper",
+   "venue": "JINST", "year": 2023, "author_count": 4,
+   "url": "https://openalex.org/works/W5",
+   "concepts": ["calibration", "instrumentation"]}
+]

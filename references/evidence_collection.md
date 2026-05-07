@@ -71,14 +71,21 @@ python scripts/collect_evidence.py \
 }
 ```
 
-## What v1 fills
+## What v1 + c2 fills
 
-The collector currently attempts these fields (in order, per candidate):
+The collector attempts these fields (in order, per candidate):
 
 1. **`research_areas`** — from the candidate-author's top concepts
    (OpenAlex `x_concepts`) or aggregated from recent works'
    concept tags. Capped at 5. Skipped if already set by the agent.
-2. **`paths_to_advisors[<adv.id>]`** — from coauthored works between
+
+2. **`normalized_collab_top20pct`** (Sprint-3-c2) — derived from
+   `author.h_index` via `min(1.0, h_index/50)`. Evidence cites the
+   author profile URL with the formula in the claim. Skipped if the
+   agent already set the value or if the adapter doesn't return
+   `h_index`.
+
+3. **`paths_to_advisors[<adv.id>]`** — from coauthored works between
    the candidate and each `student.current_advisors` entry:
    - `small_team_coauthor_5y` = count of coauthored works with
      `author_count ≤ field threshold`
@@ -89,12 +96,23 @@ The collector currently attempts these fields (in order, per candidate):
    - Skipped if the agent already populated this advisor's path with
      any edge field
 
+4. **`research_fit` evidence** (Sprint-3-c2) — items only, NOT a score.
+   Pulls recent papers (last 3y) and finds those whose title or
+   concepts overlap the student's `research_direction` tokens.
+   Attaches up to 3 papers as `EvidenceSource` items with
+   `supports_fields=["research_fit"]`. Skipped if research_fit
+   evidence already exists on the candidate.
+
+   **The collector NEVER sets `research_fit_score`.** That stays an
+   agent decision per per-field axes (see `research_fit_v2.md`).
+   Pinned by `test_collect_evidence_does_not_compute_research_fit_score`.
+
 Each filled field comes with a structured `EvidenceSource` whose
 `source_type="openalex"` and `supports_fields` list the field name(s)
 the URL backs.
 
-**Deferred to Sprint-3-c2/c3**: recent_papers (needs author_position
-guessing logic), opportunity_signal data, deeper research_fit evidence.
+**Deferred to Sprint-3-c3**: PubMed / DBLP / Semantic Scholar adapters
+for field-aware enrichment beyond OpenAlex.
 
 ## Adapter interface
 

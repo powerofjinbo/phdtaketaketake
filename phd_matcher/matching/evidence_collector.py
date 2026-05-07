@@ -92,10 +92,12 @@ class EvidenceCollector:
         Order:
           1. Find the candidate's author record.
           2. Fill `research_areas` from concepts (when empty).
-          3. Fill `paths_to_advisors[<adv.id>]` from coauthored works
+          3. Fill `normalized_collab_top20pct` from h_index (Sprint-3-c2).
+          4. Fill `paths_to_advisors[<adv.id>]` from coauthored works
              (per advisor; when not already set).
-          4. (recent_papers / contribution / etc. deferred to later
-             sprints — Sprint-3-c1 focuses on the highest-leverage edges.)
+          5. Fill `research_fit` evidence items from recent paper
+             concept overlap (Sprint-3-c2). Score itself stays an
+             agent decision.
         """
         cand_author = self.adapter.find_author(
             candidate.name, candidate.institution,
@@ -109,12 +111,15 @@ class EvidenceCollector:
             return candidate
 
         self._fill_research_areas(candidate, cand_author)
+        self._fill_normalized_collab_top20pct(candidate, cand_author)
 
         # Per-advisor path enrichment
         for advisor in student.current_advisors:
             self._fill_path_to_advisor(
                 candidate, cand_author.id, advisor,
             )
+
+        self._fill_research_fit_evidence(candidate, cand_author, student)
 
         return candidate
 
@@ -166,6 +171,155 @@ class EvidenceCollector:
         self._record_filled(
             candidate.id, "research_areas",
             f"set from {self.adapter.name} concepts",
+        )
+
+    def _fill_normalized_collab_top20pct(
+        self, candidate: CandidateAdvisor, cand_author,
+    ) -> None:
+        """Sprint-3-c2: derive `normalized_collab_top20pct` from h_index.
+
+        Formula (per references/candidate_discovery.md):
+            normalized_collab_top20pct = min(1.0, h_index / 50)
+
+        Skipped if the agent already set the value or if the adapter
+        didn't return an h_index.
+        """
+        signal = "normalized_collab_top20pct"
+        self._entries.append(CollectionEntry(
+            candidate_id=candidate.id, field=signal, status="attempted",
+        ))
+
+        if candidate.normalized_collab_top20pct is not None:
+            self._record_filled(
+                candidate.id, signal, "skipped: already set by agent",
+            )
+            return
+
+        if cand_author.h_index is None:
+            self._record_unresolved(
+                candidate.id, signal,
+                f"adapter={self.adapter.name} did not return h_index",
+            )
+            return
+
+        value = min(1.0, cand_author.h_index / 50.0)
+        candidate.normalized_collab_top20pct = round(value, 3)
+        candidate.evidence[signal] = EvidenceEntry(items=[
+            EvidenceSource(
+                url=cand_author.profile_url or "",
+                source_type=(
+                    "openalex" if self.adapter.name == "openalex"
+                    else "other"
+                ),
+                claim=(
+                    f"h_index={cand_author.h_index} → "
+                    f"min(1.0, {cand_author.h_index}/50) = {value:.3f}"
+                ),
+                supports_fields=[signal],
+            ),
+        ])
+        self._record_filled(
+            candidate.id, signal,
+            f"h_index={cand_author.h_index} → {value:.3f}",
+        )
+
+    def _fill_research_fit_evidence(
+        self,
+        candidate: CandidateAdvisor,
+        cand_author,
+        student: StudentProfile,
+    ) -> None:
+        """Sprint-3-c2: add `research_fit` evidence items derived from
+        the candidate's recent paper concepts that overlap the student's
+        research_direction.
+
+        **The collector does NOT compute `research_fit_score`.** That's
+        the agent's deterministic judgment per per-field axes (see
+        references/research_fit_v2.md). The collector only attaches
+        URL evidence the agent can cite when filling in the score.
+
+        Skipped if the agent already attached `research_fit` evidence
+        on the candidate (legacy or v2 location).
+        """
+        signal = "research_fit"
+        self._entries.append(CollectionEntry(
+            candidate_id=candidate.id, field=signal, status="attempted",
+        ))
+
+        # Skip if evidence already exists (legacy candidate.evidence OR
+        # v2 candidate.research_fit.evidence locations).
+        legacy_ev = candidate.evidence.get(signal)
+        v2_ev = (
+            candidate.research_fit.evidence.get(signal)
+            if candidate.research_fit is not None
+            else None
+        )
+        if legacy_ev is not None or v2_ev is not None:
+            self._record_filled(
+                candidate.id, signal,
+                "skipped: agent already attached research_fit evidence",
+            )
+            return
+
+        # Pull recent works (last 3y) and find concept overlap with the
+        # student's research direction. Simple word-token match on
+        # research_direction is enough for v1 — the agent can validate.
+        since = self.current_year - 3
+        works = self.adapter.recent_works(
+            cand_author.id, since_year=since, limit=10,
+        )
+        if not works:
+            self._record_unresolved(
+                candidate.id, signal,
+                f"adapter={self.adapter.name} returned 0 recent works "
+                f"({since}-{self.current_year})",
+            )
+            return
+
+        direction_tokens = {
+            t.lower().strip(",.;:")
+            for t in (student.research_direction or "").split()
+            if len(t) >= 4
+        }
+
+        matching: list[WorkRecord] = []
+        for w in works:
+            title_tokens = {
+                t.lower().strip(",.;:")
+                for t in (w.title or "").split()
+                if len(t) >= 4
+            }
+            concept_tokens = {c.lower() for c in (w.concepts or [])}
+            if direction_tokens & (title_tokens | concept_tokens):
+                matching.append(w)
+
+        if not matching:
+            self._record_unresolved(
+                candidate.id, signal,
+                f"none of the {len(works)} recent works overlap the "
+                f"student's research_direction tokens",
+            )
+            return
+
+        items = [
+            EvidenceSource(
+                url=w.url or "",
+                source_type=(
+                    "openalex" if self.adapter.name == "openalex"
+                    else "other"
+                ),
+                claim=(
+                    f"recent paper '{w.title}' ({w.year}) "
+                    f"overlaps research_direction"
+                ),
+                supports_fields=[signal],
+            )
+            for w in matching[:3]
+        ]
+        candidate.evidence[signal] = EvidenceEntry(items=items)
+        self._record_filled(
+            candidate.id, signal,
+            f"{len(matching)}/{len(works)} recent papers overlap research_direction",
         )
 
     def _fill_path_to_advisor(

@@ -206,36 +206,50 @@ def test_collect_evidence_unresolved_when_author_not_found():
 # ---- Strategy/scoring invariant -----------------------------------------
 
 def test_collect_evidence_does_not_modify_scores():
-    """The collector adds evidence but does NOT change scores. Re-running
-    compute_match on enriched candidates produces consistent scores
-    derived from the (now richer) inputs."""
+    """The collector NEVER directly writes scoring outputs. It only fills
+    *input* fields (research_areas, normalized_collab_top20pct, paths,
+    research_fit evidence) that the deterministic scorer reads. Pinned
+    via two checks:
+
+      1. If the agent has fully set every input the collector would
+         otherwise fill, scores must be identical before/after collection.
+      2. Collector never sets `research_fit_score` directly.
+    """
     student = _student_with_advisor()
-    cand_pre = _bare_candidate()
-    cand_pre.research_areas = ["physics"]    # set so collector skips this field
     physics = load_field_profile(DATA_DIR, "physics")
 
-    # Score BEFORE enrichment — only path missing.
-    r_before = compute_match(student, cand_pre, field_profile=physics)
+    # Build a candidate where every collector-fillable input is already
+    # set by the agent. The collector should be a no-op for scoring.
+    from phd_matcher.models import PathEdge
 
-    # Enrich (collector fills paths_to_advisors)
+    fully_set = _bare_candidate()
+    fully_set.research_areas = ["physics", "ATLAS"]
+    fully_set.normalized_collab_top20pct = 0.55   # agent's manual value
+    fully_set.paths_to_advisors["adv_001"] = PathEdge(
+        small_team_coauthor_5y=99,    # agent-set, won't be overwritten
+    )
+
+    # Snapshot scores BEFORE collection
+    r_before = compute_match(student, fully_set, field_profile=physics)
+
     collector = EvidenceCollector(
         OpenAlexAdapter(fixture_dir=FIXTURES),
         current_year=2026, field_profile=physics,
     )
-    collector.collect_for_candidate(student, cand_pre)
-    r_after = compute_match(student, cand_pre, field_profile=physics)
+    collector.collect_for_candidate(student, fully_set)
+    r_after = compute_match(student, fully_set, field_profile=physics)
 
-    # The collector adds path data (which legitimately raises C),
-    # but does NOT invent any score directly. Verify via the structural
-    # invariant: scores are determined by inputs through the existing
-    # scoring pipeline. Specifically, the collector did NOT touch any
-    # of the scoring sub-components directly.
-    # C must change because the path is now populated; A / G should not.
+    # All scoring outputs identical — collector is purely additive on
+    # inputs the agent didn't already fill, and never writes scores.
+    assert r_after.c_score == r_before.c_score
     assert r_after.a_score == r_before.a_score
-    assert r_after.g_score == r_before.g_score
     assert r_after.p_score == r_before.p_score
-    # And c_score should reflect the newly-populated path
-    assert r_after.c_score >= r_before.c_score
+    assert r_after.e_score == r_before.e_score
+    assert r_after.g_score == r_before.g_score
+    assert r_after.match_score == r_before.match_score
+    assert r_after.application_strength == r_before.application_strength
+    # research_fit_score must remain None (collector never computes it)
+    assert r_after.research_fit_score is None
 
 
 # ---- Summary correctness -----------------------------------------------
@@ -356,6 +370,194 @@ def test_cli_offline_mode_returns_unresolved(tmp_path):
     # author_lookup unresolvable → at least 1 unresolved entry
     assert cs["fields_unresolved"] >= 1
 
+
+# ---- Sprint-3-c2: h_index → normalized_collab_top20pct ------------------
+
+def test_collect_evidence_fills_normalized_collab_from_h_index():
+    """Sprint-3-c2: h_index from OpenAlex is mapped to
+    normalized_collab_top20pct via min(1.0, h/50)."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()    # h_index unset
+    physics = load_field_profile(DATA_DIR, "physics")
+
+    collector = EvidenceCollector(
+        OpenAlexAdapter(fixture_dir=FIXTURES),
+        current_year=2026, field_profile=physics,
+    )
+    collector.collect_for_candidate(student, cand)
+
+    # Fixture has h_index=35 → 35/50 = 0.7
+    assert cand.normalized_collab_top20pct == 0.7
+    assert "normalized_collab_top20pct" in cand.evidence
+    items = cand.evidence["normalized_collab_top20pct"].items
+    assert items
+    assert items[0].source_type == "openalex"
+    assert "normalized_collab_top20pct" in items[0].supports_fields
+    assert "h_index" in items[0].claim
+
+
+def test_collect_evidence_normalized_collab_capped_at_1():
+    """A high h_index (≥50) should cap at 1.0 per the formula."""
+    # Build a fixture-overriding adapter inline by writing a temp fixture
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        fixt = Path(d) / "openalex" / "find_author"
+        fixt.mkdir(parents=True)
+        (fixt / "prof_huge__mit.json").write_text(
+            '{"id": "A_HUGE", "name": "Prof. Huge", "h_index": 200,'
+            '"profile_url": "https://openalex.org/...", "concepts": []}'
+        )
+        student = _student_with_advisor()
+        cand = _bare_candidate(cid="huge", name="Prof. Huge")
+        physics = load_field_profile(DATA_DIR, "physics")
+        collector = EvidenceCollector(
+            OpenAlexAdapter(fixture_dir=Path(d)),
+            current_year=2026, field_profile=physics,
+        )
+        collector.collect_for_candidate(student, cand)
+        assert cand.normalized_collab_top20pct == 1.0
+
+
+def test_collect_evidence_skips_normalized_collab_when_already_set():
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.normalized_collab_top20pct = 0.55   # agent's manual value
+    physics = load_field_profile(DATA_DIR, "physics")
+    collector = EvidenceCollector(
+        OpenAlexAdapter(fixture_dir=FIXTURES),
+        current_year=2026, field_profile=physics,
+    )
+    collector.collect_for_candidate(student, cand)
+    # Agent's value preserved
+    assert cand.normalized_collab_top20pct == 0.55
+
+
+def test_collect_evidence_normalized_collab_unresolved_when_no_h_index():
+    """If the adapter returns no h_index, the field is unresolved."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        fixt = Path(d) / "openalex" / "find_author"
+        fixt.mkdir(parents=True)
+        (fixt / "prof_noh__mit.json").write_text(
+            '{"id": "A_NOH", "name": "Prof. NoH",'
+            '"profile_url": "https://openalex.org/...", "concepts": []}'
+        )
+        student = _student_with_advisor()
+        cand = _bare_candidate(cid="noh", name="Prof. NoH")
+        physics = load_field_profile(DATA_DIR, "physics")
+        collector = EvidenceCollector(
+            OpenAlexAdapter(fixture_dir=Path(d)),
+            current_year=2026, field_profile=physics,
+        )
+        collector.collect_for_candidate(student, cand)
+        assert cand.normalized_collab_top20pct is None
+        s = collector.summary()
+        assert any(
+            e["signal"] == "normalized_collab_top20pct"
+            for e in s["unresolved_repair_queue"]
+        )
+
+
+# ---- Sprint-3-c2: research_fit evidence (NOT score) ---------------------
+
+def test_collect_evidence_attaches_research_fit_evidence_on_concept_overlap():
+    """Sprint-3-c2: when recent paper concepts/title overlap the
+    student's research_direction tokens, attach evidence items —
+    score itself stays an agent decision."""
+    student = _student_with_advisor()    # research_direction "ATLAS Higgs"
+    cand = _bare_candidate()
+    physics = load_field_profile(DATA_DIR, "physics")
+
+    collector = EvidenceCollector(
+        OpenAlexAdapter(fixture_dir=FIXTURES),
+        current_year=2026, field_profile=physics,
+    )
+    collector.collect_for_candidate(student, cand)
+
+    # research_fit_score must NOT be set by the collector
+    assert cand.research_fit_score is None
+    # Evidence should be attached
+    assert "research_fit" in cand.evidence
+    items = cand.evidence["research_fit"].items
+    assert items
+    assert all("research_fit" in i.supports_fields for i in items)
+
+
+def test_collect_evidence_skips_research_fit_when_evidence_exists():
+    """If the agent already attached research_fit evidence (legacy or
+    v2 location), the collector does not overwrite."""
+    from phd_matcher.models import EvidenceEntry, EvidenceSource
+
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.evidence["research_fit"] = EvidenceEntry(items=[
+        EvidenceSource(
+            url="https://agent-supplied/source",
+            source_type="paper",
+            claim="agent-supplied",
+            supports_fields=["research_fit"],
+        ),
+    ])
+    physics = load_field_profile(DATA_DIR, "physics")
+    collector = EvidenceCollector(
+        OpenAlexAdapter(fixture_dir=FIXTURES),
+        current_year=2026, field_profile=physics,
+    )
+    collector.collect_for_candidate(student, cand)
+    items = cand.evidence["research_fit"].items
+    # Single agent-supplied item preserved; no items appended
+    assert len(items) == 1
+    assert items[0].url == "https://agent-supplied/source"
+
+
+def test_collect_evidence_research_fit_unresolved_when_no_overlap():
+    """Recent papers exist but none of their concepts/titles overlap
+    the student's research_direction → no evidence attached, signal
+    enters unresolved queue."""
+    student = StudentProfile(
+        field="physics",
+        undergrad_institution="X",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="cosmology dark energy supernovae",
+        current_advisors=[CurrentAdvisor(
+            id="adv_001", name="Prof. Wang",
+            institution="Tsinghua University",
+        )],
+    )
+    cand = _bare_candidate()    # Prof. Y has Higgs/ATLAS papers — no overlap
+    physics = load_field_profile(DATA_DIR, "physics")
+    collector = EvidenceCollector(
+        OpenAlexAdapter(fixture_dir=FIXTURES),
+        current_year=2026, field_profile=physics,
+    )
+    collector.collect_for_candidate(student, cand)
+    assert "research_fit" not in cand.evidence
+    s = collector.summary()
+    assert any(
+        e["signal"] == "research_fit"
+        for e in s["unresolved_repair_queue"]
+    )
+
+
+def test_collect_evidence_does_not_compute_research_fit_score():
+    """Architectural invariant: collector must NEVER set
+    research_fit_score. Even with strong concept overlap, the score
+    field stays None and the agent has the decision."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    physics = load_field_profile(DATA_DIR, "physics")
+    collector = EvidenceCollector(
+        OpenAlexAdapter(fixture_dir=FIXTURES),
+        current_year=2026, field_profile=physics,
+    )
+    collector.collect_for_candidate(student, cand)
+    assert cand.research_fit_score is None
+    assert cand.research_fit is None
+    # But evidence IS attached
+    assert "research_fit" in cand.evidence
+
+
+# ---- CLI ----------------------------------------------------------------
 
 def test_cli_errors_on_empty_candidates(tmp_path):
     profile = {
