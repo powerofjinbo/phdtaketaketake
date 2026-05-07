@@ -57,6 +57,13 @@ FundingStructure = Literal[
     "unknown",          # default
 ]
 
+ContactPolicy = Literal[
+    "email_first",            # PI explicitly invites prospective applicants to email
+    "apply_through_program",  # PI directs all interest through admissions
+    "do_not_contact",         # PI explicitly says no individual emails
+    "unknown",                # default — agent didn't verify
+]
+
 EvidenceSourceType = Literal[
     "lab_page",
     "faculty_page",
@@ -393,6 +400,54 @@ class ProgramProfile(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# OpportunitySignal — admit-cycle availability (post-roadmap-#6a)
+# ---------------------------------------------------------------------------
+
+class OpportunitySignal(BaseModel):
+    """Time-sensitive admit-cycle availability (post-roadmap-#6a).
+
+    The A pillar (Advisor Influence) is reputation / standing / placement.
+    OpportunitySignal is the orthogonal "is this PI taking students this
+    cycle, with active funding, with reasonable lab capacity, and is the
+    application path open?" question.
+
+    `pi_signal` and `active_funding_quality` mirror legacy fields on
+    `CandidateAdvisor` for migration; the matcher applies a **field-by-
+    field merge** (opportunity_signal value wins iff explicitly set,
+    otherwise falls back to the legacy top-level value). This avoids
+    losing data when an agent fills in only some opportunity fields and
+    leaves the rest on the legacy schema.
+
+    Each non-default field that contributes to `opportunity_score` needs
+    a matching entry in `evidence` with
+    `supports_fields=["opportunity:<field>"]` for strict mode. Strict
+    mode also accepts the legacy top-level `evidence["pi_signal"]` /
+    `evidence["active_funding_quality"]` form for back-compat.
+    """
+
+    # Recruiting (mirrors legacy CandidateAdvisor.pi_signal — wins iff != "missing")
+    pi_signal: PISignal = "missing"
+
+    # Lab capacity / availability (new opt-in)
+    lab_open_positions: int | None = Field(default=None, ge=0)
+    current_student_count: int | None = Field(default=None, ge=0)
+    recent_phd_graduations: int | None = Field(default=None, ge=0)
+
+    # Funding (mirrors legacy CandidateAdvisor.active_funding_quality — wins iff not None)
+    active_funding_quality: float | None = Field(default=None, ge=0.0, le=1.0)
+    grant_end_years: int | None = Field(default=None, ge=0)
+
+    # PI accessibility
+    sabbatical_or_admin_load: bool | None = None
+    application_contact_policy: ContactPolicy = "unknown"
+
+    # Provenance — supports_fields uses the "opportunity:<field>" namespace
+    evidence: dict[str, EvidenceEntry] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
 # Candidate advisor (always agent-generated via web research)
 # ---------------------------------------------------------------------------
 
@@ -446,8 +501,21 @@ class CandidateAdvisor(BaseModel):
                 )
         return v
 
+    # ---- Legacy recruiting / funding (post-roadmap-#6a) ---------------
+    # `pi_signal` and `active_funding_quality` are now driven by
+    # OpportunitySignal (post-#6a). They are kept on the top-level for
+    # back-compat: pure legacy candidates with no `opportunity_signal`
+    # use these directly via the legacy PI_ADJ path; candidates that
+    # opt into the richer model still have these as field-by-field
+    # merge fallbacks (opportunity_signal value wins iff explicitly set).
     pi_signal: PISignal = "missing"
     recent_phd_count: int | None = Field(default=None, ge=0)
+
+    # ---- Opportunity (roadmap #6a) -------------------------------------
+    # Time-sensitive admit-cycle availability. When present, drives the
+    # `opportunity_adj` term in `application_strength` (replacing the
+    # legacy `pi_adj` derivation). See `phd_matcher.scoring.opportunity`.
+    opportunity_signal: OpportunitySignal | None = None
 
     # ---- Program difficulty (roadmap #5) -------------------------------
     # Replaces tier_adj as the school-difficulty signal. When present,
@@ -591,6 +659,15 @@ class MatchResult(BaseModel):
     research_fit_score: float | None = None
     research_fit_summary: str | None = None
     research_fit_axes: dict[str, float] = Field(default_factory=dict)
+
+    # Roadmap #6a — opportunity. `o_score` is the 0–1 composite from
+    # `phd_matcher.scoring.opportunity` (None when the candidate has no
+    # `opportunity_signal` and the legacy PI_ADJ path is used instead).
+    # `opportunity_adj` is the ±0.x adjustment that replaces the v1
+    # `pi_adj` term inside `application_strength`. A is now reputation-
+    # only (no funding, no recruiting); both moved to O.
+    o_score: float | None = None
+    opportunity_adj: float = 0.0
 
     @field_validator("research_fit_axes")
     @classmethod

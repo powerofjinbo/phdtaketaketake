@@ -126,29 +126,63 @@ advisor: `C_raw = 0` → bucket 2.3 (lowest).
 
 **0–1 → 4.0 mapping:** ≥0.8 → 4.0, 0.6–0.8 → 3.7, 0.4–0.6 → 3.3, 0.2–0.4 → 2.8, <0.2 → 2.3
 
-### 4b. Advisor Influence Score (A) — per candidate, post-roadmap-#3
+### 4b. Advisor Influence Score (A) — post-roadmap-#6a (reputation-only)
 
-The A dimension answers "is this PI strong, active, and a good place to
-invest 5–6 years?" — separate from C, which answers "do I have a real
-connection to them?".
+A answers "is this PI strong, well-known, and good for placement?" —
+the multi-year reputation question. Recruiting health and active
+funding moved out to **Opportunity (O)** in roadmap #6a, so A no longer
+reads `pi_signal` or `active_funding_quality`.
 
 ```
-A_raw = 0.30 · influence_percentile  (h-index proxy)
-      + 0.20 · elite_status          (NAS / HHMI / NAE / field-specific fellow)
-      + 0.20 · active_funding_quality
-      + 0.20 · grad_placement_quality
-      + 0.10 · recruiting_health     (from pi_signal: strong=1.0, normal=0.7,
-                                       shrinking=0.3, missing=0.5,
-                                       not_recruiting=0.0)
+A_raw = 0.40 · influence_percentile  (h-index proxy)
+      + 0.30 · elite_status          (NAS / HHMI / NAE / field-specific fellow)
+      + 0.30 · grad_placement_quality
 ```
 
-`A` then maps 0–1 → 4.0 via the same `raw_to_4_0` buckets as C.
+`A` then maps 0–1 → 4.0 via the same `raw_to_4_0` buckets as C. A new
+PI without placement record will score lower on A — by design. Their
+strengths (active grants, growing lab, recruiting openings) belong in
+O.
 
-`pi_signal` feeds two distinct uses (NOT double-counting):
-- A's `recruiting_health` term (lab health signal)
-- `application_strength`'s `pi_adj` (admit-cycle availability)
+### 4c. Opportunity (O) — admit-cycle availability, post-roadmap-#6a
 
-These ask different questions — same input, separate outputs.
+O is the orthogonal "is this PI taking students this cycle, with
+funding, with capacity, with an open application path?" question.
+**O is NOT in `match_score`** — it does not enter CAPEG. Instead, O
+derives `opportunity_adj` which **replaces the v1 `pi_adj` term**
+inside `application_strength`:
+
+```
+v1: application_strength = clip(match + pi_adj, 0, 4.0)
+v2: application_strength = clip(match + opportunity_adj, 0, 4.0)
+```
+
+```
+O_raw = clip(
+    0.30 · recruiting_health(pi_signal)
+  + 0.30 · active_funding_quality
+  + 0.20 · lab_capacity(open_positions, current_count, recent_grads)
+  + 0.10 · funding_timing(grant_end_years)
+  + 0.10 · availability(sabbatical_or_admin_load)
+, 0, 1)
+```
+
+`opportunity_adj` ladder (replaces pi_adj):
+
+| condition | adj |
+|-----------|-----|
+| `not_recruiting` | force application_strength = 0 |
+| O ≥ 0.70 | +0.2 |
+| O ≥ 0.50 |  0.0 |
+| O ≥ 0.30 | −0.2 |
+| O < 0.30 | −0.4 |
+
+Pure-legacy candidates (no `opportunity_signal`) use the v1 PI_ADJ
+table verbatim — preserving exact old behavior. Candidates with
+`opportunity_signal` get the field-by-field-merged O score → adj.
+
+See [`references/opportunity.md`](../references/opportunity.md) for the
+full schema, sub-component formulas, and migration semantics.
 
 ## Final scores
 
@@ -178,7 +212,7 @@ get to dilute the connection-first thesis.
 > it — calibration is qualitative.
 
 ```
-application_strength = clip(match + pi_adj, 0, 4.0)
+application_strength = clip(match + opportunity_adj, 0, 4.0)
 ```
 
 Post-roadmap-#5: school-tier difficulty no longer enters
@@ -188,16 +222,22 @@ component, and the matcher now exposes
 `difficulty_adjusted_strength = risk_adjusted_strength − penalty` as
 the primary sort key. See [`references/program_profile.md`](../references/program_profile.md).
 
-| PI signal | pi_adj |
-|-----------|--------|
+Post-roadmap-#6a: `pi_adj` is replaced by `opportunity_adj`, derived
+from the new Opportunity (O) score (see §4c above). `not_recruiting`
+still forces `application_strength = 0`. Pure-legacy candidates
+(no `opportunity_signal`) use the v1 PI_ADJ table verbatim:
+
+| PI signal (legacy) | pi_adj (preserved) |
+|--------------------|--------------------|
 | strong (≥2 new PhDs/yr) | +0.2 |
 | normal (1–2/yr) | 0 |
 | shrinking (<1/yr) | −0.4 |
 | missing data | −0.1 |
-| not recruiting | force to 0 |
+| not_recruiting | force to 0 |
 
-`pi_adj` stays inside `application_strength` for v2 commit 1; commit 2
-(Opportunity / A refactor) will reorganize this boundary.
+Migrated candidates with `opportunity_signal` get the richer
+`opportunity_adj` derived from the full O composite — see
+[`references/opportunity.md`](../references/opportunity.md).
 
 ### Confidence band (driven by evidence coverage)
 

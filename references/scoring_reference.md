@@ -25,32 +25,68 @@ competitiveness. **C remains the largest pillar in the top three tiers
 | Pillar | What it scores |
 |--------|----------------|
 | **C** Connection | Max of co-authorship / genealogy / shared-collab / committee edges per (student-advisor, candidate-advisor) pair. Path-only — candidate's own prestige is in A, not here. |
-| **A** Advisor Influence | Candidate PI's intrinsic standing: 0.30·influence_percentile + 0.20·elite_status + 0.20·active_funding + 0.20·grad_placement + 0.10·recruiting_health. |
+| **A** Advisor Influence | Candidate PI's reputation / field standing / placement record. Post-#6a: `0.40·influence_percentile + 0.30·elite_status + 0.30·grad_placement_quality`. Funding and recruiting moved to **O** (Opportunity). |
 | **P** Publication | Field-aware tier × position decay × status-weight, top-3 weighted aggregate. 5+ author rule: `min(3.5, baseline − 0.45)` floor. |
 | **E** Experience | `0.20·lab_prestige + 0.30·duration + 0.50·output`, strongest single experience. |
 | **G** GPA | Direct on 4.0; 4.3/4.5/100/UK normalized. |
+| **O** Opportunity (NOT in match_score) | Time-sensitive admit-cycle availability — recruiting + funding + capacity + accessibility. Feeds `application_strength` via `opportunity_adj` (replaces v1 `pi_adj`). See [`opportunity.md`](opportunity.md). |
 
 ## Application strength
 
 ```
-application_strength = clip(match_score + pi_adj, 0, 4.0)
+application_strength = clip(match_score + opportunity_adj, 0, 4.0)
 ```
 
-Post-roadmap-#5: `tier_adj` removed from `application_strength`. Its
-admit-rate role moved to `program_difficulty_penalty` (see below).
+- Post-roadmap-#5: `tier_adj` removed (school-tier difficulty moved to
+  `program_difficulty_penalty`).
+- Post-roadmap-#6a: `pi_adj` replaced by `opportunity_adj`, derived from
+  the new Opportunity score (see below). `not_recruiting` still forces
+  application_strength=0.
 
-PI signal adjustments:
+Pure-legacy candidates (no `opportunity_signal`) use the v1 PI_ADJ
+table verbatim:
 
-| pi_signal | pi_adj |
-|-----------|--------|
-| strong (≥2 new PhDs/yr) | +0.2 |
-| normal (1–2/yr) | 0 |
-| shrinking (<1/yr) | −0.4 |
+| pi_signal | adj (legacy + v2 mapping) |
+|-----------|---------------------------|
+| strong | +0.2 |
+| normal | 0 |
+| shrinking | −0.4 |
 | missing | −0.1 |
 | not_recruiting | force application_strength = 0 |
 
+Migrated candidates with `opportunity_signal` get the richer adj from
+the full O composite.
+
 > `application_strength` is **NOT a probability**. It's a 4.0-scale
 > relative-fit index. There is no historical admit data behind it.
+
+## Opportunity (roadmap #6a)
+
+```
+O_raw = clip(
+    0.30 · recruiting_health(pi_signal)
+  + 0.30 · active_funding_quality
+  + 0.20 · lab_capacity(open_positions, current_count, recent_grads)
+  + 0.10 · funding_timing(grant_end_years)
+  + 0.10 · availability(sabbatical_or_admin_load)
+, 0, 1)
+```
+
+Ladder (replaces pi_adj):
+
+| O range | opportunity_adj |
+|---------|-----------------|
+| ≥ 0.70 | +0.2 |
+| ≥ 0.50 | 0.0 |
+| ≥ 0.30 | −0.2 |
+| < 0.30 | −0.4 |
+
+`not_recruiting` (effective via field-by-field merge) → force
+application_strength=0.
+
+`o_score` and `opportunity_adj` are exposed on `MatchResult`. See
+[`opportunity.md`](opportunity.md) for sub-component formulas, the
+A vs O split, and migration rules.
 
 ## Program difficulty (roadmap #5)
 

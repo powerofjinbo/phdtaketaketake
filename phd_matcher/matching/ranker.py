@@ -22,7 +22,16 @@ from phd_matcher.models import (
     PathEdge,
     StudentProfile,
 )
-from phd_matcher.scoring import admit, advisor, connection, experience, gpa, program, pub
+from phd_matcher.scoring import (
+    admit,
+    advisor,
+    connection,
+    experience,
+    gpa,
+    opportunity,
+    program,
+    pub,
+)
 
 # A-dimension (Advisor influence) signals. Each needs an EvidenceEntry
 # whose items list `<field>` in `supports_fields`.
@@ -42,6 +51,34 @@ def _entry_has_evidence_for(
     if entry is None:
         return False
     return entry.has_evidence_for(field_name, strict=strict)
+
+
+def _opportunity_legacy_has_evidence_for(
+    candidate: CandidateAdvisor, field_name: str, *, strict: bool
+) -> bool:
+    """For legacy-required opportunity fields (`pi_signal`,
+    `active_funding_quality`), evidence may live in EITHER:
+
+      - `candidate.evidence[field_name]` with `supports_fields=[field_name]`
+        (legacy form — accepted for migration)
+      - `candidate.opportunity_signal.evidence[field_name]` with
+        `supports_fields=["opportunity:" + field_name]` (preferred)
+
+    Either location verifies. Strict mode applies to both lookups but
+    bare URL lists still fail strict per `EvidenceEntry.has_evidence_for`.
+    """
+    legacy_ev = (
+        candidate.evidence.get(field_name) if candidate.evidence else None
+    )
+    if _entry_has_evidence_for(legacy_ev, field_name, strict=strict):
+        return True
+    if candidate.opportunity_signal is not None:
+        new_ev = candidate.opportunity_signal.evidence.get(field_name)
+        if _entry_has_evidence_for(
+            new_ev, f"opportunity:{field_name}", strict=strict,
+        ):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -154,14 +191,15 @@ def evidence_coverage(
         has_ev=_entry_has_evidence_for(ra_ev, "research_areas", strict=strict),
     )
 
-    # A-dimension (Advisor influence) signals
-    advisor_pairs = [
+    # A-dimension (Advisor influence) signals — post-roadmap-#6a, A is
+    # reputation-only. `active_funding_quality` is now an Opportunity
+    # signal but kept on this top-level for legacy fallback.
+    a_signals = [
         ("normalized_collab_top20pct", candidate.normalized_collab_top20pct),
-        ("collab_with_nas", candidate.collab_with_nas),
-        ("grad_placement_quality", candidate.grad_placement_quality),
-        ("active_funding_quality", candidate.active_funding_quality),
+        ("collab_with_nas",            candidate.collab_with_nas),
+        ("grad_placement_quality",     candidate.grad_placement_quality),
     ]
-    for sig, val in advisor_pairs:
+    for sig, val in a_signals:
         is_set = val is not None
         ev = candidate.evidence.get(sig) if candidate.evidence else None
         _record(
@@ -170,14 +208,46 @@ def evidence_coverage(
             has_ev=_entry_has_evidence_for(ev, sig, strict=strict),
         )
 
-    # PI signal
-    is_pi_set = candidate.pi_signal != "missing"
-    pi_ev = candidate.evidence.get("pi_signal") if candidate.evidence else None
+    # Legacy-required Opportunity signals (`pi_signal`,
+    # `active_funding_quality`). `is_set` uses the field-by-field merged
+    # effective value — opportunity_signal.X wins iff explicitly set.
+    # Evidence may live in either the legacy `candidate.evidence[X]` or
+    # the new namespaced `opportunity_signal.evidence[X]`.
+    eff_pi = opportunity.effective_pi_signal(candidate)
     _record(
         cov, "pi_signal",
-        is_set=is_pi_set,
-        has_ev=_entry_has_evidence_for(pi_ev, "pi_signal", strict=strict),
+        is_set=eff_pi != "missing",
+        has_ev=_opportunity_legacy_has_evidence_for(
+            candidate, "pi_signal", strict=strict,
+        ),
     )
+
+    eff_funding = opportunity.effective_active_funding_quality(candidate)
+    _record(
+        cov, "active_funding_quality",
+        is_set=eff_funding is not None,
+        has_ev=_opportunity_legacy_has_evidence_for(
+            candidate, "active_funding_quality", strict=strict,
+        ),
+    )
+
+    # New opt-in Opportunity signals — only counted when the agent
+    # actually set them on `opportunity_signal`. Coverage name uses the
+    # `opportunity:<field>` namespace and the evidence must use
+    # `supports_fields=["opportunity:<field>"]` (no legacy fallback for
+    # these — they didn't exist pre-#6a).
+    if candidate.opportunity_signal is not None:
+        opp = candidate.opportunity_signal
+        for field_name in opportunity.OPT_IN_OPPORTUNITY_FIELDS:
+            if not opportunity.opt_in_signal_is_set(opp, field_name):
+                continue
+            ev = opp.evidence.get(field_name)
+            ns_name = f"opportunity:{field_name}"
+            _record(
+                cov, ns_name,
+                is_set=True,
+                has_ev=_entry_has_evidence_for(ev, ns_name, strict=strict),
+            )
 
     # Research fit (roadmap #4) — tie-breaker, not a pillar. Counted in
     # coverage ONLY when the agent actually computed a score; an absent
@@ -252,13 +322,20 @@ _FIX_HINTS: dict[str, str] = {
         "EvidenceSource citing the lab's alumni / former-students page"
     ),
     "active_funding_quality": (
-        "evidence['active_funding_quality'].items must include an "
-        "EvidenceSource citing active grant records "
-        "(NIH RePORTER / NSF Award Search / DOE Office of Science / ERC)"
+        "either evidence['active_funding_quality'].items (legacy) OR "
+        "opportunity_signal.evidence['active_funding_quality'].items "
+        "must include an EvidenceSource citing active grant records "
+        "(NIH RePORTER / NSF Award Search / DOE Office of Science / ERC). "
+        "Use supports_fields=['active_funding_quality'] for the legacy "
+        "form or supports_fields=['opportunity:active_funding_quality'] "
+        "for the new form."
     ),
     "pi_signal": (
-        "evidence['pi_signal'].items must include an EvidenceSource citing "
-        "the lab's current-students or recruiting page"
+        "either evidence['pi_signal'].items (legacy) OR "
+        "opportunity_signal.evidence['pi_signal'].items must include an "
+        "EvidenceSource citing the lab's current-students or recruiting "
+        "page. Use supports_fields=['pi_signal'] for the legacy form or "
+        "supports_fields=['opportunity:pi_signal'] for the new form."
     ),
     "research_fit": (
         "evidence['research_fit'].items must include an EvidenceSource "
@@ -288,6 +365,14 @@ def _fix_hint_for(name: str) -> str:
             f"(cite the department's admissions / cohort / funding page, an "
             f"alumni report, or a faculty-listing page that backs the "
             f"specific program signal)"
+        )
+    if name.startswith("opportunity:"):
+        field = name.split(":", 1)[1]
+        return (
+            f"opportunity_signal.evidence['{field}'].items must include an "
+            f"EvidenceSource with supports_fields containing "
+            f"'opportunity:{field}' (cite the lab page / grant record / "
+            f"recruiting note that backs the specific opportunity signal)"
         )
     return _FIX_HINTS.get(
         name,
@@ -404,8 +489,14 @@ def compute_match(
 
     cov = evidence_coverage(student, candidate)
 
-    strength, band = admit.application_strength(
-        m, candidate.school_tier, candidate.pi_signal, unverified_count=cov.unverified
+    # Opportunity (post-roadmap-#6a): replaces the v1 pi_adj derivation
+    # inside application_strength. Pure-legacy candidates (no
+    # opportunity_signal) get the v1 PI_ADJ table verbatim, preserving
+    # exact old behavior. Candidates with opportunity_signal get the
+    # field-by-field merged O score → opportunity_adj.
+    o_score, opp_adj, force_zero = opportunity.compute_opportunity_state(candidate)
+    strength, band = admit.application_strength_from_adj(
+        m, opp_adj, force_zero=force_zero, unverified_count=cov.unverified,
     )
     risk_adj = _risk_adjusted(strength, band)
 
@@ -446,6 +537,8 @@ def compute_match(
         research_fit_score=candidate.research_fit_score,
         research_fit_summary=candidate.research_fit_summary,
         research_fit_axes=dict(candidate.research_fit_axes),
+        o_score=(round(o_score, 2) if o_score is not None else None),
+        opportunity_adj=round(opp_adj, 2),
     )
 
 

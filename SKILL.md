@@ -437,6 +437,35 @@ the JSON without sources counts as unverified — same as `null` without
 sources — but pretends to be a real signal. The matcher's confidence band
 will widen either way; honesty in the JSON helps the user read the result.
 
+### Step 5.5 — Opportunity signal (roadmap #6a — replaces pi_adj in app_strength)
+
+After A's reputation signals are gathered, **optionally** fill
+`candidate.opportunity_signal` with the time-sensitive admit-cycle
+availability data. The matcher derives `opportunity_adj` from this and
+uses it in place of the v1 `pi_adj` term inside `application_strength`.
+
+Critical: post-roadmap-#6a, A is **reputation-only**. `active_funding_quality`
+and `pi_signal` no longer feed A — they live on `OpportunitySignal`.
+
+`opportunity_signal` fields:
+
+- `pi_signal` (mirrors legacy top-level — wins via field-by-field merge if !=`"missing"`)
+- `lab_open_positions`, `current_student_count`, `recent_phd_graduations` (lab capacity)
+- `active_funding_quality` (mirrors legacy — wins iff explicitly set)
+- `grant_end_years` (years of guaranteed funding remaining)
+- `sabbatical_or_admin_load` (PI on sabbatical/chair/dean)
+- `application_contact_policy` (`email_first` / `apply_through_program` / `do_not_contact` / `unknown`)
+
+Set fields need evidence with `supports_fields=["opportunity:<field>"]`
+in `opportunity_signal.evidence[<field>]`. Legacy
+`evidence["pi_signal"]` and `evidence["active_funding_quality"]`
+forms still satisfy strict mode for migration.
+
+When `opportunity_signal` is omitted entirely, the matcher takes the
+v1 PI_ADJ legacy path on the top-level `pi_signal` only — preserving
+exact old behavior. Full schema, formula, and ladder in
+[`references/opportunity.md`](references/opportunity.md).
+
 ### Step 6 — Recruiting signal (`pi_signal`)
 
 **Fetch** the candidate's lab / faculty page (don't assume from memory).
@@ -593,6 +622,7 @@ Top N matches for <field> (sorted by difficulty_adjusted_strength, then research
     Strength: <Y>/4.0 (±<band>)  ·  risk-adjusted: <Z>  ·  difficulty-adjusted: <D>  ·  lower bound: <W>
     C: <c>  A: <a>  P: <p>  E: <e>  G: <g>
     Research fit: <fit_score>/1.0  (or "not computed" if None)
+    Opportunity: O=<o_score>/1.0 → adj=<opportunity_adj>  (or "legacy: pi=<sig>" if no opportunity_signal)
     Program difficulty: −<penalty>  (e.g., "school_tier=top_10 +0.70, small cohort +0.10")
     Evidence coverage: <verified>/<total> verified · <missing> missing · <unsourced> unsourced
     <inline explanation with cited URLs per claim>
@@ -728,6 +758,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/candidate_discovery.md` — per-field PI search recipes, connection-edge classification, advisor-influence detail signals
 - `references/research_fit.md` — research_fit_axes per field + tie-breaker semantics
 - `references/program_profile.md` — program difficulty signals + penalty formula (post-roadmap-#5)
+- `references/opportunity.md` — admit-cycle availability + A vs O split + opportunity_adj ladder (post-roadmap-#6a)
 - `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
 - `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table

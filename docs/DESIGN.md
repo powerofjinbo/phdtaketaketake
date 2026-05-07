@@ -105,27 +105,56 @@ Connection covers:
 
 ---
 
-## 7. Advisor Influence — A dimension (extracted in roadmap #3)
+## 7. Advisor Influence — A dimension (extracted in #3, refactored in #6a)
 
-Now its own pillar (post-`f80c4d9`). Connection (C) is path-only; the
-candidate PI's intrinsic standing lives in A. Components currently
-active:
+A is now **reputation-only** (post-`<COMMIT-PENDING>`). Funding and
+recruiting moved to the **Opportunity (O)** signal in roadmap #6a so A
+no longer reads `pi_signal` or `active_funding_quality`. Components:
 
 - h-index / citation percentile (proxy via `normalized_collab_top20pct`)
 - academy membership (NAS / NAE / NAM via `collab_with_nas`)
 - field-specific fellow status (HHMI / APS / ACM / IEEE / ACS / RSC / MRS / TMS — surfaced in `collab_with_nas` + caveats)
-- active funding (NIH / NSF / DOE / DARPA / ERC via `active_funding_quality`)
 - lab placement quality (`grad_placement_quality`)
-- recruiting health (derived from `pi_signal`)
 
-Composite: `0.30·influence + 0.20·elite + 0.20·funding + 0.20·placement + 0.10·recruiting_health`. Bounded tier weights ensure A never outranks C — connection-first invariant.
+Composite (post-#6a): `0.40·influence + 0.30·elite + 0.30·placement`.
+Bounded tier weights still ensure A never outranks C — connection-first
+invariant preserved.
 
 Still planned:
 - recent PhD output rate (separate from recruiting health)
-- student career outcomes (longitudinal placement data)
+- student career outcomes (longitudinal placement data — stronger than the current placement_quality proxy)
 - field-centrality / network-density
 
-**Goal**: ask "is this PI strong, active, and a good place to invest 5–6 years" — separate from "do they know my advisor?"
+**Goal**: ask "is this PI strong, well-known, and good for placement?" —
+the multi-year reputation question. The orthogonal "is this PI taking
+students this cycle, with funding, with capacity?" question is owned
+by O (§7b).
+
+---
+
+## 7b. Opportunity — admit-cycle availability (roadmap #6a)
+
+Time-sensitive availability signal. **Not in `match_score`** (CAPEG
+stays clean); feeds `application_strength` via `opportunity_adj`
+which **replaces the v1 `pi_adj` term**.
+
+Components:
+- `pi_signal` — recruiting health (strong / normal / shrinking / missing / not_recruiting)
+- `lab_open_positions` / `current_student_count` / `recent_phd_graduations` — capacity
+- `active_funding_quality` — funding strength (NIH RePORTER / NSF / DOE / ERC)
+- `grant_end_years` — funding timing
+- `sabbatical_or_admin_load` — PI availability
+- `application_contact_policy` — accessibility
+
+`O_raw = 0.30·recruiting + 0.30·funding + 0.20·capacity + 0.10·timing + 0.10·availability`.
+
+Pure-legacy candidates (no `opportunity_signal`) use the v1 PI_ADJ
+table verbatim — preserving exact old behavior. Migrated candidates
+get `opportunity_adj` from the full O composite.
+
+**Goal**: separate the time-sensitive "can I get in this cycle and survive
+funding-wise" question from the multi-year "is this PI's network and
+placement record worth investing 5–6 years in" (A) question.
 
 ---
 
@@ -218,6 +247,7 @@ Explicitly out of scope:
 | 3 | Advisor influence as standalone A dimension | ✅ done (`f80c4d9`) |
 | 4 | Research fit as tie-breaker / ≤0.15× adjustment | ✅ done — initial form is **pure tie-breaker** in sort key, no pillar weight (`a24d9ab`) |
 | 5 | Program difficulty refinement (per-field ranking source) | ✅ done — `ProgramProfile` + `program_difficulty_penalty` (0–0.8) replaces `tier_adj`; `difficulty_adjusted_strength` is now the primary sort key; label applied to it (`90922d6`) |
+| 6a | Opportunity scoring (admit-cycle availability) | ✅ done — `OpportunitySignal` + `opportunity_adj` replaces v1 `pi_adj`; A refactored to reputation-only (`0.40·influence + 0.30·elite + 0.30·placement`) (`<COMMIT-PENDING>`) |
 | 6 | Candidate discovery workflow field-aware | partial — Step 4 of SKILL.md uses profile databases; deeper integration pending |
 | 7 | Output explainer as application-strategy report (next-action) | ⏳ |
 | 8 | CI / packaging / distribution | blocked — CI YAML staged at `.github_workflows/ci.yml`, needs `gh auth refresh -s workflow` to land at `.github/workflows/`; PyPI / plugin marketplace deferred |

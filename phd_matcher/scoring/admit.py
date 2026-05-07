@@ -75,7 +75,14 @@ def application_strength(
     pi_signal: str = "missing",
     unverified_count: int = 0,
 ) -> tuple[float, float]:
-    """Returns (application_strength on 4.0, confidence_band on 4.0).
+    """Legacy signature — derives `pi_adj` from `pi_signal` via `PI_ADJ`.
+
+    Post-roadmap-#6a, the matcher pipeline calls
+    :func:`application_strength_from_adj` instead, which takes
+    `opportunity_adj` directly (computed by
+    `phd_matcher.scoring.opportunity.compute_opportunity_state`). This
+    function is kept so direct callers and `tests/test_admit.py` retain
+    the v1 PI_ADJ behavior exactly.
 
     Post-roadmap-#5: school_tier no longer modifies the strength here —
     its admit-rate role moved into `program_difficulty_penalty`. The
@@ -91,6 +98,31 @@ def application_strength(
 
     pi = PI_ADJ.get(pi_signal, PI_ADJ["missing"])
     raw = match + pi
+    strength = max(0.0, min(4.0, raw))
+    return (strength, band)
+
+
+def application_strength_from_adj(
+    match: float,
+    opportunity_adj: float,
+    *,
+    force_zero: bool,
+    unverified_count: int = 0,
+) -> tuple[float, float]:
+    """Returns (application_strength on 4.0, confidence_band on 4.0).
+
+    Post-roadmap-#6a entry point. Takes `opportunity_adj` directly
+    (computed upstream by
+    `phd_matcher.scoring.opportunity.compute_opportunity_state`).
+    `force_zero=True` means the effective `pi_signal == "not_recruiting"`
+    and the strength must be clipped to 0.
+    """
+    band = confidence_band_from_unverified(unverified_count)
+
+    if force_zero:
+        return (0.0, band)
+
+    raw = match + opportunity_adj
     strength = max(0.0, min(4.0, raw))
     return (strength, band)
 

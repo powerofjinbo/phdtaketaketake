@@ -132,6 +132,31 @@ The matcher takes the **strongest single experience** (no stacking).
   "pi_signal": "normal",
   "recent_phd_count": 4,
 
+  // Roadmap-#6a — opportunity (admit-cycle availability). Drives
+  // `opportunity_adj` (replaces v1 pi_adj) inside application_strength.
+  // Field-by-field merges with legacy top-level pi_signal /
+  // active_funding_quality. See references/opportunity.md.
+  "opportunity_signal": {
+    "pi_signal": "strong",
+    "lab_open_positions": 2,
+    "current_student_count": 5,
+    "recent_phd_graduations": 2,
+    "active_funding_quality": 0.85,
+    "grant_end_years": 4,
+    "sabbatical_or_admin_load": false,
+    "application_contact_policy": "email_first",
+    "evidence": {
+      "lab_open_positions": {
+        "items": [{
+          "url": "https://lab.stanford.edu/positions",
+          "source_type": "lab_page",
+          "claim": "Lab page lists 2 open PhD positions for Fall 2026",
+          "supports_fields": ["opportunity:lab_open_positions"]
+        }]
+      }
+    }
+  },
+
   // Roadmap-#5 — program difficulty (replaces tier_adj). All fields optional.
   // Each scoring-relevant set field needs evidence with
   // supports_fields=["program:<field>"]. See references/program_profile.md.
@@ -212,14 +237,15 @@ significantly (see `count_unverified_signals` in `phd_matcher/matching/ranker.py
 
 The matcher takes **max** across these (no stacking).
 
-### Advisor-influence fields (drive the A pillar — post-roadmap-#3)
+### Advisor-influence fields (drive the A pillar — post-roadmap-#6a, reputation-only)
 
 | Field | Range | Estimation |
 |-------|-------|------------|
 | `normalized_collab_top20pct` | 0–1 | Proxy: `min(1.0, h_index / 50)`. Look up h-index on Google Scholar / OpenAlex. |
 | `collab_with_nas` | bool | Three-state. `true` only if you found a specific NAS / HHMI co-author in the official directory. `false` only if you searched and confirmed none (verified-empty). `null` if you didn't search. |
 | `grad_placement_quality` | 0–1 | Read the lab's alumni page. Top faculty placements: 0.8+, mix academia+industry: 0.5–0.7, mostly post-docs: 0.4. |
-| `active_funding_quality` | 0–1 | NIH RePORTER / NSF Award Search / DOE Office of Science / ERC. Active R01 + NSF CAREER ≈ 0.85; single small grant ≈ 0.4; verified-empty (none found) = 0.0 + sources. |
+| `active_funding_quality` | 0–1 | **Moved to OpportunitySignal post-#6a** but kept on top-level for legacy back-compat (field-by-field merge). NIH RePORTER / NSF Award Search / DOE Office of Science / ERC. |
+| `pi_signal` | enum | **Moved to OpportunitySignal post-#6a** but kept on top-level for legacy back-compat. See OpportunitySignal table for values. |
 
 Each non-null value needs a matching entry in `candidate.evidence` with
 `supports_fields=[<field>]` items. See
@@ -304,6 +330,10 @@ are unverified — the confidence band will be ≥ ±0.6.
   "difficulty_reasons": [
     "school_tier=top_11_30 admit-rate factor +0.50"
   ],
+
+  // Roadmap-#6a — opportunity (admit-cycle availability)
+  "o_score": 0.78,                      // 0–1 from OpportunitySignal; null = pure-legacy path
+  "opportunity_adj": 0.2,               // replaces v1 pi_adj inside application_strength
 
   "field_profile_id": "physics",        // which FieldProfile applied (or null)
 
