@@ -802,6 +802,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/program_profile.md` — program difficulty signals + penalty formula (post-roadmap-#5)
 - `references/opportunity.md` — admit-cycle availability + A vs O split + opportunity_adj ladder (post-roadmap-#6a)
 - `references/connection_v2.md` — expanded network model: shared grants / co-mentored students / committee-or-exam / same center / prior-institution overlap / conference sessions + recency multiplier (post-Sprint-2-c1)
+- `references/publication_v2.md` — recency decay + contribution_role bonus + big-collab guardrail + consortium guardrail + field-aware status weights (post-Sprint-2-c2)
 - `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
 - `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table

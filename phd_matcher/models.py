@@ -115,6 +115,14 @@ AuthorRole = Literal[
     "consortium",       # consortium / large-collab member position
 ]
 
+ContributionRole = Literal[
+    "lead_analysis",    # primary analysis / first-author-style work (+0.15 bonus)
+    "method_developer", # method/algorithm/tool development (+0.10 bonus)
+    "data_collection",  # data acquisition / experimental work (+0.05 bonus)
+    "writing",          # primary writer of the paper (+0.05 bonus)
+    "unclear",          # role uncertain — no bonus
+]
+
 
 # ---------------------------------------------------------------------------
 # Evidence — provenance for any claim the agent makes
@@ -365,6 +373,23 @@ class Paper(BaseModel):
     venue_type: VenueType | None = None
     author_role: AuthorRole | None = None
     total_authors: int | None = Field(default=None, ge=1)
+
+    # Sprint-2-c2 (Publication v2) — opt-in additive features:
+    #   - contribution_role: with `contribution_evidence`, adds a small
+    #     bonus (+0.05 to +0.15) on top of the position-based score.
+    #     Without evidence the role is informational only (no bonus).
+    #   - big-collab guardrail: when total_authors > field threshold AND
+    #     no verified contribution_role, the paper score is capped at
+    #     BIG_COLLAB_GUARDED_FLOOR (default 3.5).
+    #   - consortium guardrail: author_role="consortium" without verified
+    #     contribution_role caps at 0.45 × baseline.
+    #   - recency_weight: scales by year (≤2y → 1.0, 3–5y → 0.95, >5y → 0.85).
+    #   - citations_optional / field_normalized_impact: stored only,
+    #     reserved for future field-norm scoring.
+    contribution_role: ContributionRole | None = None
+    contribution_evidence: list[EvidenceSource] = Field(default_factory=list)
+    citations_optional: int | None = Field(default=None, ge=0)
+    field_normalized_impact: float | None = Field(default=None, ge=0.0, le=1.0)
 
     model_config = ConfigDict(extra="forbid")
 
