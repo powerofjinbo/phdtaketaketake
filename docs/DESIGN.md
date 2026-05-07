@@ -217,7 +217,7 @@ Explicitly out of scope:
 | 2 | Field-aware publication scoring | ✅ done (`1d391a0`) |
 | 3 | Advisor influence as standalone A dimension | ✅ done (`f80c4d9`) |
 | 4 | Research fit as tie-breaker / ≤0.15× adjustment | ✅ done — initial form is **pure tie-breaker** in sort key, no pillar weight (`a24d9ab`) |
-| 5 | Program difficulty refinement (per-field ranking source) | ✅ done — `ProgramProfile` + `program_difficulty_penalty` (0–0.8) replaces `tier_adj`; `difficulty_adjusted_strength` is now the primary sort key; label applied to it (`<COMMIT-PENDING>`) |
+| 5 | Program difficulty refinement (per-field ranking source) | ✅ done — `ProgramProfile` + `program_difficulty_penalty` (0–0.8) replaces `tier_adj`; `difficulty_adjusted_strength` is now the primary sort key; label applied to it (`90922d6`) |
 | 6 | Candidate discovery workflow field-aware | partial — Step 4 of SKILL.md uses profile databases; deeper integration pending |
 | 7 | Output explainer as application-strategy report (next-action) | ⏳ |
 | 8 | CI / packaging / distribution | blocked — CI YAML staged at `.github_workflows/ci.yml`, needs `gh auth refresh -s workflow` to land at `.github/workflows/`; PyPI / plugin marketplace deferred |
