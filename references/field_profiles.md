@@ -39,6 +39,9 @@ See `phd_matcher/models.py` for the Pydantic source. Key fields:
 | `ranking_source_url_template` | string \| null | per-field PhD-ranking URL |
 | `genealogy_resources` | list of string | how to verify academic lineage in this field |
 | `advisor_influence_signals` | list of string | what to look for to assess PI standing |
+| `paper_status_weight_overrides` | dict of string → float | per-field paper-status weight overrides (e.g., math sets `preprint=0.9`) |
+| `scoring_weight_overrides` | dict of string → dict | reserved — future per-school-tier C/A/P/E/G weight overrides |
+| `research_fit_axes` | list of string | per-discipline axes the agent scores when computing `research_fit_score` (see [`research_fit.md`](research_fit.md)) |
 | `caveats` | list of string | field-specific rules surfaced to the user |
 
 `extra="forbid"` — unknown keys raise at YAML load.
@@ -59,19 +62,25 @@ See `phd_matcher/models.py` for the Pydantic source. Key fields:
    + spot-check on key fields).
 5. PR.
 
+## Active overrides (post-roadmap-#3 / #4)
+
+- **Paper-status weights** — `paper_status_weight_overrides` is live.
+  Math activates `preprint=0.9` (vs the cross-field default of 0.7),
+  reflecting that arXiv preprints often *are* the canonical record in
+  math. Other fields can opt in similarly.
+- **Advisor influence as standalone A pillar** — extracted in roadmap
+  #3 (commit `f80c4d9`). C is now path-only; the candidate's intrinsic
+  prestige (h-index proxy / NAS / placement / funding / recruiting
+  health) lives in A, with bounded tier weights so A never outranks C.
+  See [`scoring_reference.md`](scoring_reference.md).
+- **Research-fit axes** — `research_fit_axes` is live (roadmap #4,
+  commit `a24d9ab`). Per-field axis lists drive the tie-breaker score;
+  see [`research_fit.md`](research_fit.md).
+
 ## Out of scope (for now)
 
-These were considered for v0.1 but deferred:
-
 - **Per-field tier weights** — `match_score` weights are currently
-  uniform across fields (only school-tier-adaptive). Field-specific
-  weights (e.g., CS top-10 weighting Connection more, biology weighting
-  Publication more) is a future addition.
-- **Per-field paper-status weights** — preprints carry more weight in
-  math than chemistry, but `STATUS_WEIGHT` is currently uniform.
-- **Per-field advisor-influence as a separate dimension** — currently
-  bundled inside Connection score's field-strength terms. A future
-  refactor may extract `A` (Advisor strength) as its own pillar.
-
-These can be added without breaking the existing schema by extending
-FieldProfile with optional override fields.
+  uniform across fields (only school-tier-adaptive).
+  `scoring_weight_overrides` is reserved on the FieldProfile schema for
+  future activation.
+- **Per-field experience / GPA weights** — same.

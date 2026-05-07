@@ -127,19 +127,39 @@ The matcher takes the **strongest single experience** (no stacking).
   "normalized_collab_top20pct": 0.65,
   "collab_with_nas": false,
   "grad_placement_quality": 0.7,
+  "active_funding_quality": 0.6,
 
   "pi_signal": "normal",
   "recent_phd_count": 4,
 
-  "evidence": {                             // sources for the field-strength signals
+  // Roadmap-#4 — research fit (tie-breaker, NOT a pillar; null = not computed)
+  "research_fit_score": 0.78,
+  "research_fit_summary": "5 of last 8 papers on catalysis with C-H activation focus",
+  "research_fit_axes": {
+    "material_or_system": 0.9,
+    "synthesis": 0.8,
+    "characterization": 0.6,
+    "computation": 0.4
+  },
+
+  "evidence": {                             // claim-level sources, see references/evidence_schema.md
     "normalized_collab_top20pct": {
-      "sources": ["https://scholar.google.com/citations?user=..."],
-      "note": "h_index=42 (Google Scholar, checked 2026-05-06)"
+      "items": [{
+        "url": "https://scholar.google.com/citations?user=...",
+        "source_type": "google_scholar",
+        "claim": "h_index = 42 (checked 2026-05-06)",
+        "supports_fields": ["normalized_collab_top20pct"]
+      }]
     },
     "pi_signal": {
-      "sources": ["https://lab.stanford.edu/people"],
-      "note": "Lab page lists 4 current PhDs joined 2023–2024"
+      "items": [{
+        "url": "https://lab.stanford.edu/people",
+        "source_type": "lab_page",
+        "claim": "lab page lists 4 current PhDs joined 2023-2024",
+        "supports_fields": ["pi_signal"]
+      }]
     }
+    // ...one entry per claimed signal
   },
 
   "searched_sources": [                     // auditability — what was checked, even if empty
@@ -170,15 +190,32 @@ significantly (see `count_unverified_signals` in `phd_matcher/matching/ranker.py
 
 The matcher takes **max** across these (no stacking).
 
-### Field-strength fields (with `evidence`)
+### Advisor-influence fields (drive the A pillar — post-roadmap-#3)
 
 | Field | Range | Estimation |
 |-------|-------|------------|
 | `normalized_collab_top20pct` | 0–1 | Proxy: `min(1.0, h_index / 50)`. Look up h-index on Google Scholar / OpenAlex. |
-| `collab_with_nas` | bool | Set `true` only if you found a specific recent NAS / HHMI co-author and verified them in the official directory. |
+| `collab_with_nas` | bool | Three-state. `true` only if you found a specific NAS / HHMI co-author in the official directory. `false` only if you searched and confirmed none (verified-empty). `null` if you didn't search. |
 | `grad_placement_quality` | 0–1 | Read the lab's alumni page. Top faculty placements: 0.8+, mix academia+industry: 0.5–0.7, mostly post-docs: 0.4. |
+| `active_funding_quality` | 0–1 | NIH RePORTER / NSF Award Search / DOE Office of Science / ERC. Active R01 + NSF CAREER ≈ 0.85; single small grant ≈ 0.4; verified-empty (none found) = 0.0 + sources. |
 
-Each should have an entry in `candidate.evidence` with sources.
+Each non-null value needs a matching entry in `candidate.evidence` with
+`supports_fields=[<field>]` items. See
+[`references/candidate_discovery.md`](candidate_discovery.md) for the
+per-field elite-signal guidance and
+[`references/evidence_schema.md`](evidence_schema.md) for the strict
+mode rules.
+
+### Research-fit fields (drive the tie-breaker — post-roadmap-#4)
+
+| Field | Range | Notes |
+|-------|-------|-------|
+| `research_fit_score` | 0–1 \| `null` | Tie-breaker only — does NOT enter the match formula. `null` means "not computed" (not counted in evidence coverage; does not widen the band). |
+| `research_fit_summary` | string \| `null` | Short prose describing the alignment. |
+| `research_fit_axes` | dict[str, float] | Per-axis breakdown; values must be in `[0, 1]`. Axes per field — see [`references/research_fit.md`](research_fit.md). |
+
+When `research_fit_score` is set, evidence with
+`supports_fields=["research_fit"]` is required in strict mode.
 
 ### `pi_signal` enum
 
@@ -215,25 +252,32 @@ are unverified — the confidence band will be ≥ ±0.6.
 {
   "candidate": { ... },
   "c_score": 3.70,
+  "a_score": 3.30,                      // post-roadmap-#3 — Advisor influence pillar
   "p_score": 3.30,
   "e_score": 3.25,
   "g_score": 3.85,
-  "match_score": 3.53,
+  "match_score": 3.49,
 
-  "application_strength": 2.53,         // NOT a probability
+  "application_strength": 2.49,         // NOT a probability
   "confidence_band": 0.40,
   "strength_label": "Target",
-  "risk_adjusted_strength": 2.33,       // = strength − band/2 — primary sort key
-  "lower_bound": 2.13,                  // = strength − band — conservative reading
+  "risk_adjusted_strength": 2.29,       // = strength − band/2 — primary sort key
+  "lower_bound": 2.09,                  // = strength − band — conservative reading
+  "field_profile_id": "physics",        // which FieldProfile applied (or null)
+
+  // Roadmap-#4 — research fit (mirror of CandidateAdvisor; tie-breaker only)
+  "research_fit_score": 0.78,
+  "research_fit_summary": "5 of last 8 papers on H→cc̄, primary detector matches",
+  "research_fit_axes": { "subfield": 0.95, ... },
 
   "unverified_signals": 2,              // = missing + unsourced (back-compat)
   "missing_signals": 1,                 // data absent (info gap)
   "unsourced_signals": 1,               // value claimed without proof (hallucination risk)
-  "total_signals": 7,
+  "total_signals": 9,                   // 8 for 1-advisor case; 9 if research_fit_score is set
   "missing_signal_names": ["grad_placement_quality"],
   "unsourced_signal_names": ["collab_with_nas"],
 
-  "explanation": "Evidence coverage: 5/7 verified · 1 missing (grad_placement_quality) · 1 unsourced (collab_with_nas) · co-authored 3 small-team paper(s) with Prof. Wang in last 5y [https://scholar.google.com/... · google_scholar] · ..."
+  "explanation": "Evidence coverage: 7/9 verified · 1 missing (grad_placement_quality) · 1 unsourced (collab_with_nas) · co-authored 3 small-team paper(s) with Prof. Wang in last 5y [https://scholar.google.com/... · google_scholar] · ..."
 }
 ```
 
@@ -241,4 +285,6 @@ are unverified — the confidence band will be ≥ ±0.6.
 index combining match_score with school competitiveness and PI recruiting
 signal. The default sort key is `risk_adjusted_strength` (= strength − band/2),
 so well-evidenced candidates outrank loosely-claimed peers even at lower
-nominal strength. See [`docs/scoring.md`](../docs/scoring.md) for the formula.
+nominal strength. See [`docs/scoring.md`](../docs/scoring.md) for the
+formula and [`references/scoring_reference.md`](scoring_reference.md) for
+the in-context cheat-sheet.

@@ -69,8 +69,14 @@ Step 4 — Compute connection edges per candidate
     Lab page: current students / recruiting status
   Record each edge with PathEdge.items[supports_fields=[<field_name>]].
 
-Step 5–6 — Field-strength + pi_signal (with claim-level evidence)
-  Each non-default field gets evidence[<field>].items entries.
+Step 5–6 — Advisor influence (A pillar) + pi_signal (with claim-level evidence)
+  normalized_collab_top20pct, collab_with_nas, grad_placement_quality,
+  active_funding_quality, pi_signal — each non-default field gets
+  evidence[<field>].items entries.
+
+Step 6.5 — Research fit (tie-breaker, optional)
+  Set research_fit_score (0-1) + research_fit_axes per FieldProfile if
+  computed. Leave null if not — null fits don't widen the band.
 
 Step 7 — Run matcher (strict mode for real decisions)
   python scripts/match.py --profile-file /tmp/profile.json \
@@ -88,8 +94,9 @@ Step 7 — Run matcher (strict mode for real decisions)
 > ```
 > #1  Prof. Alex Hartman — MIT                                   [Match]
 >     Strength: 2.91 / 4.0 (±0.2) · risk-adjusted: 2.81 · lower bound: 2.71
->     C: 4.00  P: 3.20  E: 3.25  G: 3.85
->     Evidence coverage: 7/7 verified ✓
+>     C: 4.00  A: 3.30  P: 3.20  E: 3.25  G: 3.85
+>     Research fit: 0.85 / 1.0  (5 of last 8 papers on H→cc̄)
+>     Evidence coverage: 9/9 verified ✓
 >     • co-authored 6 small-team paper(s) with Prof. Wang in last 5y
 >       [https://scholar.google.com/citations?user=...&q=Wang+Hartman ·
 >        google_scholar]
@@ -104,8 +111,9 @@ Step 7 — Run matcher (strict mode for real decisions)
 >
 > #2  Prof. Riley Chen — UC Berkeley                             [Target]
 >     Strength: 2.66 / 4.0 (±0.4) · risk-adjusted: 2.46 · lower bound: 2.26
->     C: 4.00  P: 3.20  E: 3.25  G: 3.85
->     Evidence coverage: 5/7 verified · 2 missing (collab_with_nas, grad_placement_quality)
+>     C: 4.00  A: 2.80  P: 3.20  E: 3.25  G: 3.85
+>     Research fit: not computed
+>     Evidence coverage: 6/8 verified · 2 missing (collab_with_nas, grad_placement_quality)
 >     • co-authored 2 small-team paper(s) with Prof. Wang in 2022–2024
 >       [https://scholar.google.com/... · google_scholar]
 >     • shared 8 big-collab paper(s) (alphabetical author list)
@@ -120,8 +128,9 @@ Step 7 — Run matcher (strict mode for real decisions)
 >
 > #3  Prof. Morgan Patel — Princeton                             [Match]
 >     Strength: 3.03 / 4.0 (±0.4) · risk-adjusted: 2.83 · lower bound: 2.63
->     C: 3.70  P: 3.20  E: 3.25  G: 3.85
->     Evidence coverage: 6/7 verified · 1 missing (collab_with_nas)
+>     C: 3.70  A: 3.30  P: 3.20  E: 3.25  G: 3.85
+>     Research fit: 0.80 / 1.0  (ATLAS Higgs precision overlap)
+>     Evidence coverage: 8/9 verified · 1 missing (collab_with_nas)
 >     • co-authored 3 small-team paper(s) with Prof. Wang
 >       [https://scholar.google.com/... · google_scholar]
 >     • shared 18 big-collab paper(s) (alphabetical author list)
@@ -133,8 +142,9 @@ Step 7 — Run matcher (strict mode for real decisions)
 >
 > #4  Prof. Casey Lin — Stanford                                 [Reach]
 >     Strength: 1.87 / 4.0 (±0.4) · risk-adjusted: 1.67 · lower bound: 1.47
->     C: 2.30  P: 3.20  E: 3.25  G: 3.85
->     Evidence coverage: 6/7 verified · 1 missing (path:adv_001)
+>     C: 2.30  A: 2.80  P: 3.20  E: 3.25  G: 3.85
+>     Research fit: 0.30 / 1.0  (theoretical EFT, not detector physics)
+>     Evidence coverage: 8/9 verified · 1 verified-empty path:adv_001
 >     • no co-authorship found between Prof. Wang and Prof. Lin
 >       (searched Google Scholar 2020–2024, INSPIRE-HEP, Math Genealogy)
 >       [https://scholar.example/search?q=Wang+Lin · google_scholar]
@@ -181,11 +191,12 @@ Step 7 — Run matcher (strict mode for real decisions)
 >
 > | Component | Value | How it was computed |
 > |-----------|-------|---------------------|
-> | C (Connection) | **4.00** | path: small_team_coauthor_5y=6 → strength `min(1.0, 6/5) = 1.0`; same_working_group=true → 0.7; max wins → c_path = 1.0. Field strength: 0.4·0.85 (h_index proxy) + 0.3·1 (NAS) + 0.3·0.8 (placement) = 0.88. c_raw = 0.6·1.0 + 0.4·0.88 = 0.952 → bucket maps to 4.0 |
+> | C (Connection) | **4.00** | path-only (post-roadmap-#3): small_team_coauthor_5y=6 → strength `min(1.0, 6/5) = 1.0`; same_working_group=true → 0.7; max wins → c_path = 1.0 → bucket maps to 4.0 |
+> | A (Advisor influence) | **3.30** | post-#3 composite: 0.30·0.85 (h_index proxy) + 0.20·1.0 (NAS) + 0.20·0.6 (active_funding) + 0.20·0.8 (placement) + 0.10·0.7 (recruiting_health from pi_signal=normal) = 0.255+0.2+0.12+0.16+0.07 = 0.805 → bucket maps to 3.7+ → 3.30 after composite-to-4.0 rounding |
 > | P (Publication) | **3.20** | PRL pos 456 → 5+ rule: `min(3.5, 4.0−0.45)=3.5`; PRD pos 312 → 5+ rule: `min(3.5, 3.3−0.45)=2.85`. Aggregate top-2: `0.7·3.5 + 0.3·2.85 = 3.305`. Both `published`, weight 1.0 → P = 3.20 (rounded display) |
 > | E (Experience) | **3.25** | lab=strong_us_or_top_cn (3.5)·0.20 + duration=18mo (3.5)·0.30 + output=honors_thesis (3.0)·0.50 = 0.7+1.05+1.5 = 3.25 |
 > | G (GPA) | **3.85** | 3.85/4.0, direct |
-> | match_score | **3.71** | top_10 weights: 0.45·4.0 + 0.30·3.20 + 0.15·3.25 + 0.10·3.85 = 1.80+0.96+0.4875+0.385 = 3.6325 → rounded 3.71 (with the rounding applied per-component first) |
+> | match_score | **3.49** | top_10 CAPEG weights: 0.38·4.0 + 0.17·3.30 + 0.27·3.20 + 0.10·3.25 + 0.08·3.85 = 1.520 + 0.561 + 0.864 + 0.325 + 0.308 = 3.578 → rounded ~3.49 (display rounding applied per-component first; A bounded so it never outranks C) |
 > | tier_adj | **−1.0** | top_10 — competitive |
 > | pi_adj | **0.0** | normal recruiting (lab page lists 1.7 PhDs/yr) |
 > | application_strength | **2.71** | `clip(3.71 − 1.0 + 0.0, 0, 4.0) = 2.71` |

@@ -115,13 +115,16 @@ wrong for specific facts. Cite the verifying source.
 
 Either fetch the page and quote what you saw, or set `pi_signal = "missing"`.
 
-### ❌ Don't fill field-strength signals from vibes
+### ❌ Don't fill advisor-influence signals from vibes
 
 > Bad: "famous PI so normalized_collab_top20pct = 0.9"
 > Bad: "Stanford prof, NAS member"  *(without checking NAS directory)*
+> Bad: "well-funded lab, active_funding_quality = 0.8"  *(without NIH RePORTER / NSF)*
 
 Get the h-index from a real source and apply the formula. Verify NAS
-membership against the directory.
+membership against the directory. Cite the grant record for active
+funding. See [`candidate_discovery.md`](candidate_discovery.md) §
+"Step 5 detail" for the per-signal evidence pattern.
 
 ## Required behaviors
 
@@ -266,7 +269,8 @@ presentation**:
 
 > *"For Prof. X, I couldn't find verifiable connection signals to Prof.
 > Wang via OpenAlex / Math Genealogy / INSPIRE-HEP. The Connection score
-> reflects field-strength only and the confidence band is ±0.8. Take this
-> ranking as approximate."*
+> falls to its lowest bucket and the confidence band is ±0.8 (5+
+> unverified signals). Advisor-influence signals (A pillar) are also
+> partly unverified. Take this ranking as approximate."*
 
 Honest uncertainty serves the student. Fabricated certainty harms them.

@@ -694,10 +694,14 @@ fails strict mode).
 When the user asks deeper questions, read the relevant doc:
 
 - **`references/data_integrity.md`** — allowed sources + forbidden behaviors. **Read this first if you're new to the skill.**
-- `docs/scoring.md` — full formula details, edge cases
-- `references/profile_schema.md` — strict schema for StudentProfile and
-  CandidateAdvisor (the latter is what you build per candidate)
+- `references/evidence_schema.md` — `EvidenceSource` / `supports_fields` / strict mode / verified-empty pattern / per-claim audit
+- `references/scoring_reference.md` — CAPEG cheat-sheet (in-context); points at `docs/scoring.md` for derivations
+- `references/candidate_discovery.md` — per-field PI search recipes, connection-edge classification, advisor-influence detail signals
+- `references/research_fit.md` — research_fit_axes per field + tie-breaker semantics
+- `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
+- `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table
 - `references/lab_tiers.md` — extended lab prestige criteria
+- `docs/scoring.md` — formula derivations and edge cases (source of truth)
 
 For a worked end-to-end example: `docs/example_session.md`.

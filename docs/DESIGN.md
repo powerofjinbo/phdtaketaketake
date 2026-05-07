@@ -105,25 +105,31 @@ Connection covers:
 
 ---
 
-## 7. Advisor Influence — A dimension (planned extraction)
+## 7. Advisor Influence — A dimension (extracted in roadmap #3)
 
-Currently lives inside Connection's field-strength terms. Long-term should be its own pillar so Connection ≠ raw PI prominence:
+Now its own pillar (post-`f80c4d9`). Connection (C) is path-only; the
+candidate PI's intrinsic standing lives in A. Components currently
+active:
 
-- h-index / citation percentile
-- academy membership (NAS / NAE / NAM)
-- field-specific fellow status (HHMI / APS / ACM / IEEE / ACS / RSC / MRS / TMS)
-- active funding (NIH / NSF / DOE / DARPA / ERC)
-- lab placement quality (faculty / industry / postdoc mix)
-- recent PhD output rate
-- recruiting trend
-- student career outcomes
+- h-index / citation percentile (proxy via `normalized_collab_top20pct`)
+- academy membership (NAS / NAE / NAM via `collab_with_nas`)
+- field-specific fellow status (HHMI / APS / ACM / IEEE / ACS / RSC / MRS / TMS — surfaced in `collab_with_nas` + caveats)
+- active funding (NIH / NSF / DOE / DARPA / ERC via `active_funding_quality`)
+- lab placement quality (`grad_placement_quality`)
+- recruiting health (derived from `pi_signal`)
+
+Composite: `0.30·influence + 0.20·elite + 0.20·funding + 0.20·placement + 0.10·recruiting_health`. Bounded tier weights ensure A never outranks C — connection-first invariant.
+
+Still planned:
+- recent PhD output rate (separate from recruiting health)
+- student career outcomes (longitudinal placement data)
 - field-centrality / network-density
 
 **Goal**: ask "is this PI strong, active, and a good place to invest 5–6 years" — separate from "do they know my advisor?"
 
 ---
 
-## 8. Research Fit (planned)
+## 8. Research Fit (live as tie-breaker — roadmap #4)
 
 Not keyword overlap. Must decompose by field profile:
 
@@ -136,7 +142,7 @@ Not keyword overlap. Must decompose by field profile:
 | Physics | Experiment / collaboration · subgroup · theory ↔ experiment distinction |
 | Clinical | Disease area · trial network · hospital system |
 
-**Initial form**: tie-breaker or ≤ 0.15× adjustment to application_strength. **Not** a Connection-rivaling pillar — that would dilute the connection-first thesis.
+**Active form**: pure tie-breaker in the sort key (post-`a24d9ab`); does NOT enter the match formula and does NOT contribute to evidence coverage when null (so a missing fit cannot widen the band). **Not** a Connection-rivaling pillar — that would dilute the connection-first thesis.
 
 ---
 
