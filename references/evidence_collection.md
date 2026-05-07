@@ -235,6 +235,43 @@ The recommended flow:
 Each step writes JSON the next step consumes. Iterate until
 `audit_candidates.py --strict-evidence` returns `strict_ready: true`.
 
+## Cache + rate-limit (Sprint-3-c4)
+
+Two `SourceAdapter` decorators that compose with any inner adapter:
+
+  - **`CachedAdapter(inner, cache_dir, ttl_seconds=None)`** — disk-cached
+    JSON of every adapter call. Cache hits skip the inner call entirely
+    (so re-running across portfolios is fast). Optional TTL invalidates
+    older entries.
+  - **`RateLimitedAdapter(inner, min_interval_seconds=0.1)`** — sleeps
+    before each call so consecutive live calls are at least
+    `min_interval_seconds` apart (polite-pool friendly for OpenAlex /
+    NCBI).
+
+Compose them — cache wrapping rate-limit means cache hits avoid the
+wait entirely:
+
+```python
+inner  = OpenAlexAdapter(live=True, mailto="me@example.edu")
+rl     = RateLimitedAdapter(inner, min_interval_seconds=0.1)
+cached = CachedAdapter(rl, cache_dir=Path("/tmp/openalex_cache"),
+                       ttl_seconds=86400 * 7)
+```
+
+CLI flags (Sprint-3-c4):
+
+```bash
+python scripts/collect_evidence.py \
+  --field physics --live --mailto you@example.edu \
+  --cache-dir /tmp/openalex_cache \
+  --cache-ttl-days 7 \
+  --rate-limit-seconds 0.1
+```
+
+When `--cache-dir` is set, the script's reported `mode` becomes
+`live+cache` / `offline+cache` / `fixture+cache` so consumers see
+the caching layer is active.
+
 ## Why fixture-first
 
 - Tests run offline. No flakiness from upstream API outages.

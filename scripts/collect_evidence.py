@@ -67,6 +67,8 @@ from phd_matcher.matching.evidence_collector import EvidenceCollector  # noqa: E
 from phd_matcher.models import CandidateAdvisor, StudentProfile  # noqa: E402
 from phd_matcher.sources import (  # noqa: E402
     ADAPTER_CLASSES,
+    CachedAdapter,
+    RateLimitedAdapter,
     default_adapter_for_field,
     select_adapter,
 )
@@ -108,9 +110,31 @@ def _build_adapter(
             mailto=args.mailto, api_key=args.api_key,
         )
         mode = "live"
+        # Wrap with rate-limit + cache for live mode (Sprint-3-c4).
+        if args.rate_limit_seconds and args.rate_limit_seconds > 0:
+            adapter = RateLimitedAdapter(
+                adapter, min_interval_seconds=args.rate_limit_seconds,
+            )
     else:
         adapter = select_adapter(source_name)
         mode = "offline"
+
+    if args.cache_dir:
+        adapter = CachedAdapter(
+            adapter,
+            cache_dir=args.cache_dir,
+            ttl_seconds=(
+                args.cache_ttl_days * 86400
+                if args.cache_ttl_days else None
+            ),
+        )
+        # Mode reflects caching layer
+        if mode == "live":
+            mode = "live+cache"
+        elif mode == "offline":
+            mode = "offline+cache"
+        elif mode == "fixture":
+            mode = "fixture+cache"
     return adapter, mode, source_name
 
 
@@ -170,6 +194,29 @@ def main() -> int:
         help=(
             "Optional API key for sources that support one (PubMed "
             "NCBI, Semantic Scholar). OpenAlex is keyless; use --mailto."
+        ),
+    )
+    ap.add_argument(
+        "--cache-dir", type=Path,
+        help=(
+            "Disk cache directory. Wraps the chosen adapter with "
+            "CachedAdapter so identical calls reuse the cached JSON "
+            "(speeds up re-runs across portfolios)."
+        ),
+    )
+    ap.add_argument(
+        "--cache-ttl-days", type=int,
+        help=(
+            "Optional TTL for the cache (default: never expires). "
+            "Useful for periodic re-runs that pick up newly-published "
+            "works without manually flushing."
+        ),
+    )
+    ap.add_argument(
+        "--rate-limit-seconds", type=float, default=0.1,
+        help=(
+            "Minimum seconds between consecutive live HTTP calls. "
+            "Default 0.1 (polite-pool friendly). Set to 0 to disable."
         ),
     )
     args = ap.parse_args()

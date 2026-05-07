@@ -17,6 +17,7 @@ from phd_matcher.sources.base import (
     SourceAdapter,
     WorkRecord,
 )
+from phd_matcher.sources.cache import CachedAdapter, RateLimitedAdapter
 from phd_matcher.sources.dblp import DBLPAdapter
 from phd_matcher.sources.openalex import OpenAlexAdapter
 from phd_matcher.sources.pubmed import PubMedAdapter
@@ -81,11 +82,13 @@ def default_adapter_for_field(field_id: str | None) -> str:
 __all__ = [
     "ADAPTER_CLASSES",
     "AuthorRecord",
+    "CachedAdapter",
     "DBLPAdapter",
     "DEFAULT_ADAPTER_BY_FIELD",
     "FixtureLookup",
     "OpenAlexAdapter",
     "PubMedAdapter",
+    "RateLimitedAdapter",
     "SemanticScholarAdapter",
     "SourceAdapter",
     "WorkRecord",
