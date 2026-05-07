@@ -15,6 +15,17 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
+After install, four CLIs are on `$PATH`:
+
+```bash
+phdtaketaketake-match            # rank candidates given profile + JSON
+phdtaketaketake-audit            # report evidence repair queue
+phdtaketaketake-collect-evidence # auto-fill evidence from OpenAlex / PubMed / DBLP / Semantic Scholar
+phdtaketaketake-discovery-plan   # per-field PI-search recipe
+```
+
+You can also invoke them via `python scripts/<name>.py …` from a checkout (without install).
+
 Claude Code auto-discovers the skill on next session. For other agents, see [Use with non-Claude agents](#use-with-non-claude-agents) below.
 
 > Don't have Claude Code? Install at [claude.com/code](https://claude.com/code).

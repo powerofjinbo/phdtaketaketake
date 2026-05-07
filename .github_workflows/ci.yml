@@ -28,5 +28,15 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Type-check
+        run: mypy phd_matcher
+
       - name: Test
         run: pytest
+
+      - name: Verify console scripts installed
+        run: |
+          phdtaketaketake-match --help > /dev/null
+          phdtaketaketake-audit --help > /dev/null
+          phdtaketaketake-collect-evidence --help > /dev/null
+          phdtaketaketake-discovery-plan --help > /dev/null
