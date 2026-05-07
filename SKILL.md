@@ -195,6 +195,28 @@ If the user gives a tier, use the **fetched ranking** to enumerate target
 schools (~10–20). Don't enumerate from training memory — rankings change
 year-to-year and your training data may be stale.
 
+### Step 2.5 — Generate per-field discovery plan (optional)
+
+Before running the candidate-discovery deep-research step, run
+`scripts/build_discovery_plan.py` to get a structured search plan
+(per-field query recipes, primary databases, exclusion rules) — keeps
+field coverage consistent and prevents "I forgot to search OpenReview
+for ML papers" failure modes:
+
+```bash
+python scripts/build_discovery_plan.py \
+  --field <FIELD> \
+  --schools '["MIT", "Stanford", ...]' \
+  --keywords "<research direction>"
+```
+
+Output JSON includes per-school query recipes (Google Scholar / DBLP
+/ INSPIRE / PubMed / NIH RePORTER / Math Genealogy / etc.), the
+loaded `FieldProfile.primary_databases`, the field-specific
+`ranking_source_url`, the field caveats, and universal exclusion
+rules (skip emeriti, no PhD students, no recent papers, etc.). Use
+the queries verbatim during the deep-research step.
+
 ### Step 3 — Find candidate PIs (research direction match)
 
 For each target program, web-search for active PIs whose research matches the
