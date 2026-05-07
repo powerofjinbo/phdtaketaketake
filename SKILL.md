@@ -125,9 +125,25 @@ ranking page**:
 https://www.usnews.com/best-graduate-schools/top-science-schools/<field>-rankings
 ```
 
-Record the URL in `evidence["school_tier"].sources` for every candidate
-you generate. Without this, `school_tier` counts as unverified and the
-candidate's confidence band widens.
+Record the URL in `evidence["school_tier"].items` for every candidate
+you generate, with `supports_fields=["school_tier"]`:
+
+```jsonc
+"evidence": {
+  "school_tier": {
+    "items": [{
+      "url": "https://www.usnews.com/best-graduate-schools/...",
+      "source_type": "us_news",
+      "claim": "MIT physics ranked top 10 in 2024",
+      "supports_fields": ["school_tier"]
+    }]
+  }
+}
+```
+
+Without claim-level evidence (or in strict mode without items at all),
+`school_tier` counts as unverified and the candidate's confidence band
+widens.
 
 If the user gives a tier, use the **fetched ranking** to enumerate target
 schools (~10–20). Don't enumerate from training memory — rankings change
@@ -269,8 +285,28 @@ conference PC list). → `committee_co_member: true`, `same_period: bool`
 **Take the MAX of these edges, do NOT sum.** The matcher treats them as
 mutually exclusive (avoids double-counting).
 
-If no edge found via search: `paths_to_advisors[advisor_id] = {}` is the
-correct value. The C score reduces cleanly to field strength only.
+If no edge found via search, **record what you searched** with a
+`supports_fields=["path:<advisor_id>"]` item — strict mode requires this
+verified-empty form (bare URLs in `sources` won't pass strict):
+
+```jsonc
+"paths_to_advisors": {
+  "adv_001": {
+    "items": [{
+      "url": "https://scholar.google.com/citations?user=...&q=Wang+candidate",
+      "source_type": "google_scholar",
+      "claim": "searched 2020-2024: 0 co-authored papers, no shared lineage",
+      "supports_fields": ["path:adv_001"]
+    }],
+    "note": "also checked Math Genealogy Project — neither party in DB"
+  }
+}
+```
+
+The C score reduces cleanly to field strength only when no edges are
+found. **An empty `paths_to_advisors[adv_id] = {}` is missing data**
+(silently penalized) — prefer the verified-empty form above so the
+matcher can credit you for searching.
 
 ### Step 5 — Field-strength signals (per candidate)
 
@@ -281,7 +317,22 @@ remains `null`/`false` + sources documenting the search), or omitted
 
 - `normalized_collab_top20pct` (0–1, default `null`): proxy via candidate's
   h-index from Google Scholar or OpenAlex. Formula: `min(1.0, h_index / 50)`.
-  Cite the profile URL in `evidence["normalized_collab_top20pct"].sources`.
+  Cite the profile URL in `evidence["normalized_collab_top20pct"].items`
+  with `supports_fields=["normalized_collab_top20pct"]`:
+
+  ```jsonc
+  "normalized_collab_top20pct": 0.7,
+  "evidence": {
+    "normalized_collab_top20pct": {
+      "items": [{
+        "url": "https://scholar.google.com/citations?user=<author_id>",
+        "source_type": "google_scholar",
+        "claim": "h_index = 35 (checked 2026-05-06)",
+        "supports_fields": ["normalized_collab_top20pct"]
+      }]
+    }
+  }
+  ```
 - `collab_with_nas` (bool, default `null`): three-state, **strict** about
   semantics:
     - `null` (default) — you didn't search the NAS / HHMI directory; no
@@ -319,7 +370,30 @@ makes up a status.
 
 ### Step 7 — Run matcher
 
-Build the candidates JSON array, write to a temp file, then:
+Two modes, depending on what the user is doing:
+
+**For real PhD-application decisions** (recommended): use `--strict-evidence`.
+Strict mode rejects any candidate with claim-level evidence missing — the
+errors list which fields and where to cite. This is the right mode when
+the user is finalizing a school list:
+
+```bash
+python scripts/match.py \
+  --profile-file /tmp/profile.json \
+  --candidates-file /tmp/cands.json \
+  --field <FIELD> --top-k 10 \
+  --strict-evidence
+```
+
+If strict fails, **fix the evidence and re-run** — don't fall back to
+default mode silently. Tell the user *which* candidates couldn't be
+strictly verified, then either gather the missing evidence or warn them
+explicitly that those candidates' rankings are based on unverified claims.
+
+**For exploratory drafts** (default mode): omit the flag. Default mode
+accepts legacy bare URLs and missing signals; the confidence band widens
+and `risk_adjusted_strength` drops accordingly. Useful for first-pass
+brainstorming, but say so in the result presentation.
 
 ```bash
 python scripts/match.py \
@@ -329,7 +403,9 @@ python scripts/match.py \
 ```
 
 Output is a JSON list of MatchResult records (candidate, c/p/e/g sub-scores,
-match_score, application_strength, confidence_band, label, explanation).
+match_score, application_strength, confidence_band, strength_label,
+risk_adjusted_strength, lower_bound, missing_signals, unsourced_signals,
+total_signals, missing_signal_names, unsourced_signal_names, explanation).
 
 ### Step 8 — Present results
 
@@ -372,7 +448,7 @@ Examples of good vs bad explanations:
 
 Surface clearly when something is **missing** rather than estimated:
 - ✅ "no co-authorship found in OpenAlex search; genealogy not in Math Genealogy"
-- ✅ "lab alumni page not available; placement signal at 0.5 default"
+- ✅ "lab alumni page not available; grad_placement_quality left null (missing — not asserted)"
 
 Then ask the user what they want next:
 - See more candidates?

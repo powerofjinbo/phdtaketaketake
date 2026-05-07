@@ -82,16 +82,30 @@ def _record(
         cov.unsourced_names.append(name)
 
 
-def _path_edge_verified(edge: PathEdge, *, strict: bool) -> bool:
+def _path_edge_verified(edge: PathEdge, advisor_id: str, *, strict: bool) -> bool:
     """A PathEdge is verified iff every set field has its own evidence.
 
-    For an edge with no fields set (e.g. "I searched, found nothing") it's
-    verified iff there's any evidence at all (a recorded search counts).
+    For an edge with no fields set (verified-empty: "I searched, found
+    nothing"):
+      - default mode: any evidence counts (legacy back-compat).
+      - strict mode: needs an item with `supports_fields=["path:<id>"]`
+        — bare `sources` URLs are not valid claim-level proof of "I
+        searched" in strict mode.
     """
     fields_set = edge.fields_set()
-    if not fields_set:
+    if fields_set:
+        return all(edge.has_evidence_for(f, strict=strict) for f in fields_set)
+    # Verified-empty case
+    if not strict:
         return edge.has_evidence
-    return all(edge.has_evidence_for(f, strict=strict) for f in fields_set)
+    return edge.has_evidence_for(f"path:{advisor_id}", strict=True)
+
+
+def _path_edge_is_set(edge: PathEdge) -> bool:
+    """An edge counts as 'agent making a claim' if it has any sub-field set
+    OR has any recorded evidence. The latter captures verified-empty-path
+    claims ('I searched, found nothing') so they get audited too."""
+    return edge.has_any_edge or edge.has_evidence
 
 
 def evidence_coverage(
@@ -106,15 +120,18 @@ def evidence_coverage(
     """
     cov = EvidenceCoverage()
 
-    # Connection paths to each advisor — per-set-field check
+    # Connection paths to each advisor — per-set-field check.
+    # An empty PathEdge with sources but no items counts as "agent claiming
+    # verified-empty" — strict mode requires structured items with
+    # supports_fields=['path:<id>'] to verify; bare sources fail there.
     if student.current_advisors:
         for adv in student.current_advisors:
             edge = candidate.paths_to_advisors.get(adv.id)
             if edge is None:
                 _record(cov, f"path:{adv.id}", is_set=False, has_ev=False)
             else:
-                is_set = edge.has_any_edge
-                has_ev = _path_edge_verified(edge, strict=strict)
+                is_set = _path_edge_is_set(edge)
+                has_ev = _path_edge_verified(edge, adv.id, strict=strict)
                 _record(cov, f"path:{adv.id}", is_set=is_set, has_ev=has_ev)
 
     # school_tier — always required, always "set"
@@ -207,10 +224,12 @@ def _fix_hint_for(name: str) -> str:
     if name.startswith("path:"):
         adv_id = name.split(":", 1)[1]
         return (
-            f"paths_to_advisors['{adv_id}'].items must include "
-            f"EvidenceSource records covering each set field (e.g. "
-            f"small_team_coauthor_5y, big_collab_papers_5y, "
-            f"same_working_group, …) via supports_fields"
+            f"paths_to_advisors['{adv_id}'].items must include EvidenceSource "
+            f"records covering each set sub-field (small_team_coauthor_5y, "
+            f"big_collab_papers_5y, same_working_group, …) via supports_fields. "
+            f"For a verified-empty path (searched and found no edges), include "
+            f"one item with supports_fields=['path:{adv_id}'] documenting "
+            f"what databases you searched."
         )
     return _FIX_HINTS.get(
         name,

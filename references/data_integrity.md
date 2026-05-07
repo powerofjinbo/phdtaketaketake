@@ -89,8 +89,9 @@ returns nothing, leave genealogy edge empty.
 
 Fetch Google Scholar / OpenAlex / INSPIRE-HEP and **count actual results**.
 If the search returns 0 small-team co-authored papers, leave
-`small_team_coauthor_5y` absent (or set to 0 with sources documenting the
-search). Either way, record `sources` so the path entry counts as verified.
+`small_team_coauthor_5y` absent **and** record an `items` entry bound to
+`path:<advisor_id>` describing what you searched (see "Verified-empty is
+even better than missing" below).
 
 ### ❌ Don't invent collaboration memberships
 
@@ -155,20 +156,30 @@ For each signal, three honest states:
 unverified count widens the confidence band only for the first.
 
 **Verified-empty is even better than missing**. If you searched and the
-search came back empty, record that with sources:
+search came back empty, record that with structured items bound to the
+canonical `path:<advisor_id>` field. **In strict mode this is required** —
+bare `sources` URLs are not accepted as claim-level proof:
 
 ```jsonc
 "paths_to_advisors": {
   "adv_001": {
-    "sources": ["https://scholar.google.com/..."],
-    "note": "0 co-authored papers found in last 5y"
+    "items": [{
+      "url": "https://scholar.google.com/citations?user=...&q=Wang+candidate",
+      "source_type": "google_scholar",
+      "claim": "searched 2020–2024: 0 co-authored papers, no shared lineage",
+      "supports_fields": ["path:adv_001"]
+    }],
+    "note": "also checked Math Genealogy Project — neither party in DB"
   }
 }
 ```
 
-The matcher counts that as verified (path entry has sources) and trusts the
-empty edges. Strictly better than omitting the path entry entirely (which
-the matcher reads as "didn't even check").
+The matcher counts that as verified (path entry has structured items
+binding the claim to `path:adv_001`) and trusts the empty edges. Strictly
+better than:
+- omitting the path entirely (read as "didn't even check"), or
+- using bare `sources: [...]` (rejected by `--strict-evidence`; only
+  passes default mode for legacy back-compat).
 
 ### ✅ Even non-default values need claim-level evidence
 

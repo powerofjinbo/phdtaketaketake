@@ -173,8 +173,11 @@ These reflect realistic admission-rate ratios (top-10 PhD programs admit
 | 3–4 | ±0.6 |
 | 5+ (mostly unsourced) | ±0.8 |
 
-A signal counts as unverified when it lacks `EvidenceEntry.sources` (or
-`PathEdge.sources` for connection edges). Counts against:
+A signal counts as unverified unless an `EvidenceSource` in
+`EvidenceEntry.items` (or `PathEdge.items`) lists that signal's field
+name in `supports_fields`. Default mode also accepts the legacy
+`sources: list[str]` form as a fallback; **strict mode does not**. Counts
+against:
 - each path to a current advisor (missing entirely or unsourced)
 - `school_tier` (post-review: ranking source must be cited)
 - `normalized_collab_top20pct`, `collab_with_nas`, `grad_placement_quality`
@@ -206,6 +209,28 @@ risk-adjusted score would drop.
 - `Target` 2.5–3.0
 - `Reach` 2.0–2.5
 - `Far Reach` < 2.0
+
+### MatchResult output fields
+
+The matcher returns these per candidate. Newer fields below the line are
+post-review additions:
+
+| Field | Meaning |
+|-------|---------|
+| `match_score` | 4-dim weighted composite, 0–4.0 |
+| `application_strength` | match + tier_adj + pi_adj, clipped 0–4.0 (NOT a probability) |
+| `confidence_band` | ±0.2 / 0.4 / 0.6 / 0.8 by evidence coverage |
+| `strength_label` | `Far Reach` / `Reach` / `Target` / `Match` / `Safe` |
+| --- | --- |
+| `risk_adjusted_strength` | = strength − band/2; **primary sort key** |
+| `lower_bound` | = strength − band; conservative reading at uncertainty edge |
+| `unverified_signals` | total of missing + unsourced |
+| `missing_signals` | signals where the agent didn't search (information gap) |
+| `unsourced_signals` | signals claimed without claim-level proof (hallucination risk) |
+| `total_signals` | total signals audited per candidate (typically 7 for 1-advisor) |
+| `missing_signal_names` | which signals are missing |
+| `unsourced_signal_names` | which signals are unsourced |
+| `explanation` | one-string narrative with `Evidence coverage:` line + per-claim source citations |
 
 ## Why this design
 

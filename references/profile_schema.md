@@ -219,14 +219,26 @@ are unverified — the confidence band will be ≥ ±0.6.
   "e_score": 3.25,
   "g_score": 3.85,
   "match_score": 3.53,
-  "application_strength": 2.53,        // renamed from admit_likelihood
+
+  "application_strength": 2.53,         // NOT a probability
   "confidence_band": 0.40,
-  "strength_label": "Target",          // renamed from likelihood_label
-  "explanation": "co-authored 3 small-team paper(s) with Prof. Wang in last 5y [https://scholar.google.com/...] · research: catalysis, C-H activation · ...",
-  "unverified_signals": 2
+  "strength_label": "Target",
+  "risk_adjusted_strength": 2.33,       // = strength − band/2 — primary sort key
+  "lower_bound": 2.13,                  // = strength − band — conservative reading
+
+  "unverified_signals": 2,              // = missing + unsourced (back-compat)
+  "missing_signals": 1,                 // data absent (info gap)
+  "unsourced_signals": 1,               // value claimed without proof (hallucination risk)
+  "total_signals": 7,
+  "missing_signal_names": ["grad_placement_quality"],
+  "unsourced_signal_names": ["collab_with_nas"],
+
+  "explanation": "Evidence coverage: 5/7 verified · 1 missing (grad_placement_quality) · 1 unsourced (collab_with_nas) · co-authored 3 small-team paper(s) with Prof. Wang in last 5y [https://scholar.google.com/... · google_scholar] · ..."
 }
 ```
 
 `application_strength` is **NOT a probability**. It's a 4.0-scale relative-fit
 index combining match_score with school competitiveness and PI recruiting
-signal. See [`docs/scoring.md`](../docs/scoring.md) for the formula.
+signal. The default sort key is `risk_adjusted_strength` (= strength − band/2),
+so well-evidenced candidates outrank loosely-claimed peers even at lower
+nominal strength. See [`docs/scoring.md`](../docs/scoring.md) for the formula.

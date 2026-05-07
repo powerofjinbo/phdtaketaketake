@@ -473,6 +473,62 @@ def test_strict_validate_error_for_path_points_to_correct_location():
     assert "evidence[\"path:adv_001\"]" not in path_error
 
 
+def test_strict_rejects_verified_empty_path_with_only_bare_sources():
+    """P0 fix: 'searched, found nothing' must use structured items with
+    supports_fields=['path:<id>'] in strict mode. Bare sources slip through
+    in default mode (legacy) but are rejected as claim-level proof in strict."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.paths_to_advisors = {
+        "adv_001": PathEdge(
+            sources=["https://scholar.example/search"],  # bare URL only
+            note="searched, found nothing",
+        ),
+    }
+    cov_default = evidence_coverage(student, cand, strict=False)
+    cov_strict = evidence_coverage(student, cand, strict=True)
+    # Default mode: legacy bare URL counts → path is verified (verified-empty)
+    assert "path:adv_001" not in cov_default.unsourced_names
+    assert "path:adv_001" not in cov_default.missing_names
+    # Strict mode: bare URL doesn't count → unsourced (agent claimed
+    # verified-empty without proper format)
+    assert "path:adv_001" in cov_strict.unsourced_names
+
+
+def test_strict_accepts_verified_empty_path_with_supports_fields():
+    """The canonical strict-mode pattern: items with
+    supports_fields=['path:<id>']."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.paths_to_advisors = {
+        "adv_001": PathEdge(
+            items=[EvidenceSource(
+                url="https://scholar.example/search?q=Wang+Doe",
+                source_type="google_scholar",
+                claim="searched 2020–2024: 0 co-authored papers found",
+                supports_fields=["path:adv_001"],
+            )],
+            note="also checked Math Genealogy, no shared lineage",
+        ),
+    }
+    cov_strict = evidence_coverage(student, cand, strict=True)
+    assert "path:adv_001" not in cov_strict.unsourced_names
+    assert "path:adv_001" not in cov_strict.missing_names
+
+
+def test_strict_validate_path_hint_mentions_path_supports_fields():
+    """The strict error should mention the verified-empty pattern."""
+    student = _student_with_advisor()
+    cand = _bare_candidate()
+    cand.paths_to_advisors = {
+        "adv_001": PathEdge(sources=["https://example.com/search"]),
+    }
+    errors = strict_validate(student, cand)
+    path_error = next((e for e in errors if "path:adv_001" in e), None)
+    assert path_error is not None
+    assert "supports_fields=['path:adv_001']" in path_error
+
+
 def test_explainer_filters_sources_per_claim():
     """Per fourth-pass review: an item supporting only small_team should
     NOT appear after the big_collab claim in the explanation."""
