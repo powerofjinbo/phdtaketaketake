@@ -36,8 +36,14 @@ advisor_influence_signals:
   - invited speaker / plenary at ICM (International Congress of Mathematicians)
   - Fields Medal / Abel Prize / Wolf Prize — exceptional cases
 
+# Math: arXiv preprints carry more weight than the cross-field default 0.7.
+# This is the first activated `paper_status_weight_overrides` — math
+# preprints get 0.9× (vs published's 1.0).
+paper_status_weight_overrides:
+  preprint: 0.9
+
 caveats:
-  - "Math publication pipeline is slow (2–3+ years from submission to print). Preprints on arXiv often count ≈ published paper for impact discussion."
+  - "Math publication pipeline is slow (2–3+ years from submission to print). Preprints on arXiv often count ≈ published paper for impact discussion — `paper_status_weight_overrides.preprint=0.9` activates this in scoring."
   - "Author order is conventionally alphabetical — author_position carries less signal here. Use this when explaining matches."
   - "Mathematics Genealogy Project is the gold standard; lineage signals are stronger and more verifiable in math than in any other field."
   - "Top journals (Annals of Mathematics, Inventiones, JAMS, Acta Mathematica) publish far fewer papers/yr than physics flagships — calibrate tier-1 expectations down."

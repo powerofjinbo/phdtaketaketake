@@ -115,12 +115,27 @@ Recommended (each materially changes ranking — **proactively ask**):
 - `current_advisors[]` — `{id, name, institution}`. Without this, the entire
   Connection score collapses to candidate's field strength only.
 - `papers[]` — `{title, journal, journal_tier, author_position, status, year}`.
-  Without this, P score floors at 3.0. **Paper status weights** (per code
-  review #8): `published` / `accepted` / `in_press` get full credit; `submitted`
-  / `preprint` get 0.7×; `in_prep` gets 0.3× — list status honestly to avoid
-  inflating scores. Default is `"published"` (matches typical CV listing for
-  papers the user is confident will be out by deadline). **Schema is strict**
-  — unknown status values raise an error rather than silently defaulting.
+  Without this, P score floors at 3.0.
+
+  **Paper-status weights**: `published` / `accepted` / `in_press` get full
+  credit; `submitted` / `preprint` get 0.7×; `in_prep` gets 0.3×. List
+  status honestly. Default is `"published"`. **Schema is strict** —
+  unknown status values raise. Field-specific overrides apply (e.g.,
+  math sets `preprint=0.9` because arXiv is often the canonical record).
+
+  **Optional P1 fields** (use when you can):
+    - `venue_type`: `journal` / `conference` / `workshop` / `preprint` /
+      `clinical_trial` — useful for CS where conferences = top venues
+    - `author_role`: `first` / `co_first` / `middle` / `senior` /
+      `corresponding` / `consortium`. When set, **`co_first` /
+      `corresponding` / `senior` are scored as 1st-author equivalent
+      regardless of byline position**. Use `co_first` for biology
+      "These authors contributed equally" cases.
+    - `total_authors`: total author count on the paper. Use the
+      `classify_coauthorship(total_authors, field_profile)` helper to
+      bucket `path_edge.small_team_coauthor_5y` vs `big_collab_papers_5y`
+      with the right per-field threshold (physics 10, mse/cs 8,
+      biology/chemistry 6, math 4).
 - `experiences[]` — `{lab_pi_name, lab_tier, duration_months, output_type}`.
   Without this, E score defaults to 2.0.
 
@@ -145,12 +160,16 @@ Ask the user where they want to apply. Acceptable inputs:
 - Open-ended ("show me the best matches")
 
 **Per the cardinal data-integrity rule**, school tier is now a sourced
-signal — not memorized. **Fetch the current US News (or field-equivalent)
-ranking page**:
+signal — not memorized. **Fetch the field-appropriate ranking page**.
+The right source depends on field; use the loaded FieldProfile's
+`ranking_source_url_template` first:
 
-```
-https://www.usnews.com/best-graduate-schools/top-science-schools/<field>-rankings
-```
+| field | preferred ranking source |
+|-------|--------------------------|
+| `physics` / `mse` / `chemistry` / `biology` / `math` | US News field-specific page (URL template in profile) |
+| `cs` | **CSRankings** (`https://csrankings.org/`) — community-maintained, more reliable than US News for CS subfields |
+
+Generic US News science page is a fallback only when no profile applies.
 
 Record the URL in `evidence["school_tier"].items` for every candidate
 you generate, with `supports_fields=["school_tier"]`:

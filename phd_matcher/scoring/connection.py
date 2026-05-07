@@ -2,15 +2,43 @@
 and strict PathEdge schema (post-review #5 + edge refactor).
 
 Co-authorship is differentiated:
-  - small_team_coauthor_5y (papers with ≤10 authors) — strong working signal
-  - big_collab_papers_5y (papers with >10 authors) — alphabetical author bulk;
+  - small_team_coauthor_5y (papers with ≤threshold authors) — strong working signal
+  - big_collab_papers_5y (papers with >threshold authors) — alphabetical author bulk;
     significantly discounted
 
-Per the data-integrity rule, every edge an agent records should be backed by
-URLs in PathEdge.sources — but the scoring math itself only looks at values.
+The `threshold` is field-specific via `FieldProfile.big_collab_threshold`
+(physics 10, mse/cs 8, biology/chemistry 6, math 4). Use
+`classify_coauthorship()` as a deterministic helper.
 """
 
-from phd_matcher.models import PathEdge
+from typing import Literal
+
+from phd_matcher.models import FieldProfile, PathEdge
+
+# ---- Field-aware coauthorship classifier (P2) ----------------------------
+
+DEFAULT_BIG_COLLAB_THRESHOLD = 10
+
+
+def classify_coauthorship(
+    author_count: int,
+    field_profile: FieldProfile | None = None,
+) -> Literal["small_team", "big_collab"]:
+    """Bucket a paper by total author count, using the field profile's
+    threshold (or 10 as cross-field default).
+
+    Use this when the agent has the per-paper author count and wants to
+    deterministically assign it to `small_team_coauthor_5y` vs
+    `big_collab_papers_5y` per the active discipline's convention.
+    """
+    if author_count < 1:
+        raise ValueError(f"author_count must be ≥ 1, got {author_count}")
+    threshold = (
+        field_profile.big_collab_threshold
+        if field_profile is not None
+        else DEFAULT_BIG_COLLAB_THRESHOLD
+    )
+    return "big_collab" if author_count > threshold else "small_team"
 
 # ---- Edge strengths (each on 0–1) ----------------------------------------
 

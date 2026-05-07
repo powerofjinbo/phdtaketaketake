@@ -143,10 +143,22 @@ def main() -> int:
         json.dump({"error": "candidates list is empty"}, sys.stdout)
         return 1
 
-    # Resolve field profile (alias-aware). Surfaces field-specific caveats
-    # so the agent can apply per-discipline calibration when presenting
-    # the ranking. None for fields we don't ship a profile for.
+    # Resolve field profile (alias-aware) and CANONICALIZE student.field
+    # to the profile id, so candidate filtering survives alias inputs
+    # like --field hep + candidate.field=physics. (P0 fix.)
     field_profile = load_field_profile(args.data_dir, args.field)
+    input_field = student.field
+    if field_profile and student.field != field_profile.id:
+        student.field = field_profile.id
+
+    # Canonicalize candidate fields too — agents may emit aliases.
+    if field_profile:
+        for cand in candidates:
+            if cand.field == field_profile.id:
+                continue
+            cand_profile = load_field_profile(args.data_dir, cand.field)
+            if cand_profile and cand_profile.id == field_profile.id:
+                cand.field = field_profile.id
 
     # Strict mode: reject any candidate with unsourced claims.
     if args.strict_evidence:
@@ -167,9 +179,10 @@ def main() -> int:
         student,
         candidates,
         top_k=args.top_k,
-        field_profile_id=(field_profile.id if field_profile else None),
+        field_profile=field_profile,
     )
     output: dict = {
+        "input_field": input_field,
         "field_profile_id": field_profile.id if field_profile else None,
         "field_caveats": field_profile.caveats if field_profile else [],
         "results": [r.model_dump(mode="json") for r in results],

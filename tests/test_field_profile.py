@@ -135,8 +135,116 @@ def test_compute_match_records_field_profile_id():
         school_tier="top_10", field="physics",
     )
 
-    result = compute_match(student, cand, field_profile_id="physics")
+    profile = load_field_profile(DATA_DIR, "physics")
+    assert profile is not None
+
+    result = compute_match(student, cand, field_profile=profile)
     assert result.field_profile_id == "physics"
 
     result_no_profile = compute_match(student, cand)
     assert result_no_profile.field_profile_id is None
+
+
+# ---- P1: field-aware paper scoring ----
+
+def test_pub_score_co_first_author_role_treats_as_first():
+    """Bio convention: 'These authors contributed equally' = first equivalent."""
+    from phd_matcher.scoring.pub import paper_score
+
+    # Tier 1 journal, byline position 3 — without role: tier 1 - 0.25 = 3.75
+    plain = paper_score(1, 3)
+    # Same paper but author_role='co_first' → effective position 1 → 4.0
+    co_first = paper_score(1, 3, author_role="co_first")
+    assert plain == 3.75
+    assert co_first == 4.0
+
+
+def test_pub_score_math_preprint_override_active():
+    """Math FieldProfile activates preprint=0.9 (vs cross-field default 0.7)."""
+    from phd_matcher.scoring.pub import paper_score
+
+    math_profile = load_field_profile(DATA_DIR, "math")
+    assert math_profile is not None
+
+    default_preprint = paper_score(1, 1, status="preprint")
+    math_preprint = paper_score(1, 1, status="preprint", field_profile=math_profile)
+    # Default: 4.0 * 0.7 = 2.8
+    # Math:    4.0 * 0.9 = 3.6
+    assert default_preprint == 2.8
+    assert math_preprint == 3.6
+
+
+def test_pub_score_chemistry_preprint_uses_default_not_overridden():
+    """Chemistry doesn't override preprint weight, so cross-field default applies."""
+    from phd_matcher.scoring.pub import paper_score
+
+    chem_profile = load_field_profile(DATA_DIR, "chemistry")
+    assert chem_profile is not None
+    assert "preprint" not in chem_profile.paper_status_weight_overrides
+
+    chem_preprint = paper_score(1, 1, status="preprint", field_profile=chem_profile)
+    assert chem_preprint == 2.8  # 4.0 * 0.7
+
+
+# ---- P2: classify_coauthorship deterministic helper ----
+
+def test_classify_coauthorship_uses_field_threshold():
+    from phd_matcher.scoring.connection import classify_coauthorship
+
+    physics_p = load_field_profile(DATA_DIR, "physics")
+    math_p = load_field_profile(DATA_DIR, "math")
+
+    # 6-author paper: small_team in physics (≤10), big_collab in math (>4)
+    assert classify_coauthorship(6, physics_p) == "small_team"
+    assert classify_coauthorship(6, math_p) == "big_collab"
+
+    # No profile → default 10 threshold
+    assert classify_coauthorship(8, None) == "small_team"
+    assert classify_coauthorship(11, None) == "big_collab"
+
+
+def test_classify_coauthorship_rejects_invalid_count():
+    from phd_matcher.scoring.connection import classify_coauthorship
+
+    with pytest.raises(ValueError):
+        classify_coauthorship(0)
+
+
+# ---- P0: field canonicalization (alias resolution + filter) ----
+
+def test_match_alias_input_canonicalizes_field():
+    """The bug: --field hep should match candidate.field='physics'."""
+    import json
+    import subprocess
+
+    profile_json = {
+        "field": "hep",
+        "undergrad_institution": "Tsinghua",
+        "gpa_raw": 3.8, "gpa_scale": "4.0",
+        "research_direction": "ATLAS Higgs",
+        "current_advisors": [
+            {"id": "adv_001", "name": "Prof. Wang", "institution": "Tsinghua"}
+        ],
+    }
+    cands_json = [{
+        "id": "c1", "name": "Prof. Test", "institution": "MIT",
+        "school_tier": "top_10", "field": "physics",
+        "research_areas": ["ATLAS"],
+    }]
+
+    result = subprocess.run(
+        [
+            "python3", str(REPO_ROOT / "scripts" / "match.py"),
+            "--profile-json", json.dumps(profile_json),
+            "--candidates-json", json.dumps(cands_json),
+            "--field", "hep",
+        ],
+        capture_output=True, text=True, check=True,
+    )
+    out = json.loads(result.stdout)
+    # Before P0 fix: results would be [] (filter rejects field mismatch)
+    # After fix: candidate is matched; field canonicalized to physics
+    assert out["input_field"] == "hep"
+    assert out["field_profile_id"] == "physics"
+    assert len(out["results"]) == 1
+    assert out["results"][0]["candidate"]["id"] == "c1"

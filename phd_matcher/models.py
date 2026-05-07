@@ -78,6 +78,20 @@ VenueSystem = Literal[
 
 SeniorAuthorPosition = Literal["last", "first", "n/a"]
 
+# Per-paper venue + role typing (P1: field-aware paper scoring)
+VenueType = Literal[
+    "journal", "conference", "workshop", "preprint", "clinical_trial"
+]
+
+AuthorRole = Literal[
+    "first",            # 1st author — primary contributor
+    "co_first",         # shared first authorship (asterisk / dagger)
+    "middle",           # mid-list contributor
+    "senior",           # last author = PI (rare for PhD applicants)
+    "corresponding",    # corresponding author (often senior)
+    "consortium",       # consortium / large-collab member position
+]
+
 
 # ---------------------------------------------------------------------------
 # Evidence — provenance for any claim the agent makes
@@ -268,6 +282,13 @@ class Paper(BaseModel):
     # "submitted in October" or "still drafting".
     status: PaperStatus = "published"
 
+    # P1 — field-aware paper scoring (optional, opt-in). When present,
+    # `author_role` overrides `author_position` for scoring (e.g.,
+    # `co_first` → treated as 1st author regardless of byline position).
+    venue_type: VenueType | None = None
+    author_role: AuthorRole | None = None
+    total_authors: int | None = Field(default=None, ge=1)
+
     model_config = ConfigDict(extra="forbid")
 
 
@@ -389,6 +410,14 @@ class FieldProfile(BaseModel):
     # Field-specific caveats — surfaced in MatchResult.field_caveats so
     # the agent presents them alongside the ranking.
     caveats: list[str] = Field(default_factory=list)
+
+    # P1.5 / P4 — per-field overrides. Currently consulted:
+    #   - paper_status_weight_overrides: e.g., math `preprint=0.9` (vs
+    #     the default 0.7), making math preprints carry more weight.
+    # Reserved for future activation:
+    #   - scoring_weight_overrides: per-school-tier C/P/E/G weights.
+    paper_status_weight_overrides: dict[str, float] = Field(default_factory=dict)
+    scoring_weight_overrides: dict[str, dict[str, float]] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid")
 

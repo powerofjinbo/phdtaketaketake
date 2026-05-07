@@ -17,6 +17,7 @@ from phd_matcher.matching.explainer import explain_match
 from phd_matcher.models import (
     CandidateAdvisor,
     EvidenceEntry,
+    FieldProfile,
     MatchResult,
     PathEdge,
     StudentProfile,
@@ -283,16 +284,18 @@ def compute_match(
     student: StudentProfile,
     candidate: CandidateAdvisor,
     *,
-    field_profile_id: str | None = None,
+    field_profile: FieldProfile | None = None,
 ) -> MatchResult:
     """Score one (student, candidate) pair across all dimensions.
 
-    `field_profile_id`, when provided, is recorded on the result for
-    traceability. The scoring engine itself is field-agnostic — the
-    profile's effect is on agent behavior (per-field source priorities,
-    big-collab threshold, caveats) and is enforced upstream.
+    `field_profile`, when provided, flows into `pub_score` for per-field
+    paper-status weight overrides and author-role normalization. Its `id`
+    is recorded on the result for traceability.
     """
-    p = pub.pub_score([pp.model_dump() for pp in student.papers])
+    p = pub.pub_score(
+        [pp.model_dump() for pp in student.papers],
+        field_profile=field_profile,
+    )
     g = gpa.gpa_score(student.gpa_raw, student.gpa_scale)
     e = experience.experience_score([ee.model_dump() for ee in student.experiences])
     c = connection.connection_score(
@@ -330,7 +333,7 @@ def compute_match(
         unsourced_signal_names=cov.unsourced_names,
         risk_adjusted_strength=round(_risk_adjusted(strength, band), 2),
         lower_bound=round(_lower_bound(strength, band), 2),
-        field_profile_id=field_profile_id,
+        field_profile_id=(field_profile.id if field_profile else None),
     )
 
 
@@ -340,16 +343,19 @@ def rank_advisors(
     top_k: int = 20,
     field_filter: bool = True,
     *,
-    field_profile_id: str | None = None,
+    field_profile: FieldProfile | None = None,
 ) -> list[MatchResult]:
     """Rank candidates by **risk-adjusted strength**. A wider confidence band
     is a downside discount, so well-evidenced candidates outrank loosely-
-    claimed peers even at lower nominal strength."""
+    claimed peers even at lower nominal strength.
+
+    `field_profile`, when provided, flows into the scoring engine (paper
+    status overrides, author-role) and the result `field_profile_id`."""
     if field_filter:
         candidates = [c for c in candidates if c.field == student.field]
 
     results = [
-        compute_match(student, c, field_profile_id=field_profile_id) for c in candidates
+        compute_match(student, c, field_profile=field_profile) for c in candidates
     ]
 
     def sort_key(r: MatchResult):
