@@ -1,16 +1,16 @@
-"""Connection score (C) — per Scoring Design v0.3 §5, with big-collab fix.
+"""Connection score (C) — per Scoring Design v0.3, with big-collab fix
+and strict PathEdge schema (post-review #5 + edge refactor).
 
-Co-authorship is now differentiated:
-  - small_team_coauthor_5y (papers with ≤10 authors) — strong signal of
-    actual working relationship
-  - big_collab_papers_5y (papers with >10 authors) — alphabetical author
-    list bulk; same membership but doesn't imply the PIs know each other.
-    Significantly discounted.
+Co-authorship is differentiated:
+  - small_team_coauthor_5y (papers with ≤10 authors) — strong working signal
+  - big_collab_papers_5y (papers with >10 authors) — alphabetical author bulk;
+    significantly discounted
 
-Per the cardinal rule, every edge an agent records should be backed by
-sources in the edges["sources"] list — but the scoring math only sees
-the values.
+Per the data-integrity rule, every edge an agent records should be backed by
+URLs in PathEdge.sources — but the scoring math itself only looks at values.
 """
+
+from phd_matcher.models import PathEdge
 
 # ---- Edge strengths (each on 0–1) ----------------------------------------
 
@@ -21,8 +21,8 @@ def small_team_coauthor_strength(paper_count_5y: int) -> float:
 
 def big_collab_paper_strength(paper_count_5y: int) -> float:
     """Co-membership in a big collab (e.g., ATLAS / CMS / LIGO) where both
-    names appear in an alphabetical author list of 11+ people. Doesn't imply
-    the PIs know each other; capped low."""
+    names appear in an alphabetical 11+-author list. Doesn't imply the PIs
+    know each other; capped low."""
     return min(0.4, paper_count_5y / 25)
 
 
@@ -50,8 +50,8 @@ def genealogy_strength(relation: str) -> float:
 
 
 def collaboration_strength(overlap_years: float) -> float:
-    """Generic shared-collaboration overlap window (when small_team_coauthor /
-    working_group / analysis_contact data isn't available)."""
+    """Generic shared-collaboration overlap window (when finer signals
+    aren't available)."""
     if overlap_years >= 5: return 1.0
     if overlap_years >= 1: return 0.6
     if overlap_years > 0:  return 0.3
@@ -64,47 +64,35 @@ def committee_strength(same_period: bool = False) -> float:
 
 # ---- Path strength (max over edge types — no stacking) -------------------
 
-def path_strength(edges: dict) -> float:
+def path_strength(edges: PathEdge | dict) -> float:
     """Max of all edge-type strengths between one student-advisor and the
-    candidate. Edges is a dict that may include any subset of:
-      - small_team_coauthor_5y       (int, preferred)
-      - big_collab_papers_5y         (int)
-      - same_working_group           (bool)
-      - analysis_contact_overlap     (bool)
-      - genealogy_relation           (str)
-      - collaboration_overlap_years  (float)
-      - committee_co_member          (bool), same_period (bool)
-      - sources                      (list[str], not used in scoring but
-                                      required by data-integrity policy)
-      - note                         (str, freeform)
+    candidate. Accepts PathEdge or dict; dicts are validated via PathEdge
+    construction (which forbids unknown keys per the strict schema)."""
+    if isinstance(edges, dict):
+        edges = PathEdge.model_validate(edges)
 
-    Backward compat: also accepts legacy `coauthor_papers_5y` (treated as
-    small_team_coauthor_5y).
-    """
     strengths: list[float] = []
 
-    if "small_team_coauthor_5y" in edges:
-        strengths.append(small_team_coauthor_strength(int(edges["small_team_coauthor_5y"])))
-    elif "coauthor_papers_5y" in edges:  # legacy name
-        strengths.append(small_team_coauthor_strength(int(edges["coauthor_papers_5y"])))
+    if edges.small_team_coauthor_5y is not None:
+        strengths.append(small_team_coauthor_strength(edges.small_team_coauthor_5y))
 
-    if "big_collab_papers_5y" in edges:
-        strengths.append(big_collab_paper_strength(int(edges["big_collab_papers_5y"])))
+    if edges.big_collab_papers_5y is not None:
+        strengths.append(big_collab_paper_strength(edges.big_collab_papers_5y))
 
-    if edges.get("same_working_group"):
+    if edges.same_working_group:
         strengths.append(working_group_strength())
 
-    if edges.get("analysis_contact_overlap"):
+    if edges.analysis_contact_overlap:
         strengths.append(analysis_contact_strength())
 
-    if "genealogy_relation" in edges:
-        strengths.append(genealogy_strength(str(edges["genealogy_relation"])))
+    if edges.genealogy_relation is not None:
+        strengths.append(genealogy_strength(edges.genealogy_relation))
 
-    if "collaboration_overlap_years" in edges:
-        strengths.append(collaboration_strength(float(edges["collaboration_overlap_years"])))
+    if edges.collaboration_overlap_years is not None:
+        strengths.append(collaboration_strength(edges.collaboration_overlap_years))
 
-    if edges.get("committee_co_member"):
-        strengths.append(committee_strength(bool(edges.get("same_period", False))))
+    if edges.committee_co_member:
+        strengths.append(committee_strength(edges.same_period))
 
     return max(strengths) if strengths else 0.0
 

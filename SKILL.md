@@ -71,12 +71,13 @@ Recommended (each materially changes ranking — **proactively ask**):
 
 - `current_advisors[]` — `{id, name, institution}`. Without this, the entire
   Connection score collapses to candidate's field strength only.
-- `papers[]` — `{title, journal, journal_tier, author_position, year}`.
-  Without this, P score floors at 3.0. **Paper inclusion convention**: list
-  every paper the user expects to have on their CV by the application
-  deadline. Don't distinguish between `published` / `accepted` / `submitted`
-  / `in prep` — the user has self-selected papers they're confident about,
-  trust that listing.
+- `papers[]` — `{title, journal, journal_tier, author_position, status, year}`.
+  Without this, P score floors at 3.0. **Paper status weights** (per code
+  review #8): `published` / `accepted` / `in_press` get full credit; `submitted`
+  / `preprint` get 0.7×; `in_prep` gets 0.3× — list status honestly to avoid
+  inflating scores. Default is `"published"` (matches typical CV listing for
+  papers the user is confident will be out by deadline). **Schema is strict**
+  — unknown status values raise an error rather than silently defaulting.
 - `experiences[]` — `{lab_pi_name, lab_tier, duration_months, output_type}`.
   Without this, E score defaults to 2.0.
 
@@ -317,18 +318,49 @@ Always close with the standard caveat:
 > search. Does not include SOP / recommendation letters / interviews. Real
 > admission decisions depend on factors beyond what this tool models.
 
-## Confidence calibration
+## Confidence calibration — driven by evidence coverage
 
-Your `confidence_band` (set indirectly via `missing_signals` count in the
-matcher) should reflect how much of the data was verifiable vs. estimated:
+The matcher's `confidence_band` widens as the count of unsourced signals
+grows. **A signal counts as unverified unless it has `sources` URLs in
+its `EvidenceEntry`.** The rules (see `phd_matcher/matching/ranker.py:count_unverified_signals`):
 
-| Coverage | Band | When |
-|----------|------|------|
-| ±0.3 | Tight | All connection edges verified via web search; PI signal confirmed; field-strength signals checked |
-| ±0.5 | Moderate | Some edges inferred from indirect evidence; one signal missing |
-| ±0.7 | Wide | Most edges guessed; multiple signals missing |
+| Signal | Counts as unverified when |
+|--------|--------------------------|
+| Path to a current advisor | path entry missing entirely, OR `PathEdge.sources` is empty |
+| `normalized_collab_top20pct` | `evidence["normalized_collab_top20pct"].sources` empty (regardless of value — even 0.0 needs sources) |
+| `collab_with_nas` | `evidence["collab_with_nas"].sources` empty |
+| `grad_placement_quality` | `evidence["grad_placement_quality"].sources` empty |
+| `pi_signal` | value is `"missing"` (data point absent), OR value is non-`"missing"` and `evidence["pi_signal"].sources` is empty |
 
-Be honest in the result presentation about what you verified vs. estimated.
+| Unverified count | Confidence band |
+|-----------------|-----------------|
+| 0 | ±0.2 (fully sourced) |
+| 1–2 | ±0.4 |
+| 3–4 | ±0.6 |
+| 5+ | ±0.8 (mostly unverified) |
+
+**Per the cardinal rule, a non-default claim without sources is forbidden.**
+But the matcher tolerates it — the consequence is a wide confidence band
+that honestly tells the user "this score isn't backed up". Don't game the
+band by setting fake sources; the user reading the explanation will see
+the bare URLs.
+
+If you searched and verifiably found nothing, record that as evidence:
+
+```jsonc
+"paths_to_advisors": {
+  "adv_001": {
+    "sources": [
+      "https://scholar.google.com/citations?user=...",
+      "https://api.openalex.org/works?filter=..."
+    ],
+    "note": "searched: 0 co-authored papers in 2020–2024"
+  }
+}
+```
+
+This counts as **verified empty** (0 unverified for that path) — strictly
+better than no entry (1 unverified).
 
 ## Important constraints
 

@@ -155,6 +155,12 @@ def test_paper_status_in_prep_low_credit():
     assert s == pytest.approx(4.0 * 0.3)
 
 
+def test_paper_status_unknown_raises():
+    """Per code review #2: unknown status must NOT silently default to 1.0."""
+    with pytest.raises(ValueError):
+        paper_score(1, 1, status="probably_publishable")
+
+
 def test_pub_score_mixes_statuses():
     """Mixed-status portfolio aggregates with weighted scores."""
     papers = [

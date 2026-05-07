@@ -1,7 +1,10 @@
-"""Tests for connection scoring (Scoring Design v0.3, post-review big-collab fix)."""
+"""Tests for connection scoring (Scoring Design v0.3, post-review big-collab
+fix + strict PathEdge schema)."""
 
 import pytest
+from pydantic import ValidationError
 
+from phd_matcher.models import PathEdge
 from phd_matcher.scoring.connection import (
     big_collab_paper_strength,
     collaboration_strength,
@@ -74,10 +77,39 @@ def test_path_strength_takes_max_no_stack():
     assert path_strength(edges) == 1.0
 
 
-def test_path_strength_legacy_coauthor_field_still_works():
-    """Backward compat: old 'coauthor_papers_5y' aliases to small_team."""
+def test_path_strength_rejects_legacy_coauthor_field():
+    """Strict schema (post-review): legacy 'coauthor_papers_5y' is forbidden.
+    Agent must use small_team_coauthor_5y / big_collab_papers_5y explicitly."""
     edges = {"coauthor_papers_5y": 5}
-    assert path_strength(edges) == 1.0
+    with pytest.raises(ValidationError):
+        path_strength(edges)
+
+
+def test_path_edge_rejects_unknown_field():
+    with pytest.raises(ValidationError):
+        PathEdge(some_made_up_edge=True)
+
+
+def test_path_edge_rejects_negative_count():
+    with pytest.raises(ValidationError):
+        PathEdge(small_team_coauthor_5y=-1)
+
+
+def test_path_edge_rejects_negative_overlap_years():
+    with pytest.raises(ValidationError):
+        PathEdge(collaboration_overlap_years=-2.0)
+
+
+def test_path_edge_rejects_invalid_genealogy_relation():
+    with pytest.raises(ValidationError):
+        PathEdge(genealogy_relation="cousin")  # not in Literal
+
+
+def test_path_edge_accepts_minimal_valid():
+    """A path entry can be just sources + note (e.g., 'searched, found
+    nothing') and still be valid."""
+    edge = PathEdge(sources=["https://scholar.google.com/..."], note="no co-authorship")
+    assert path_strength(edge) == 0.0
 
 
 def test_path_strength_big_collab_alone_is_weak():

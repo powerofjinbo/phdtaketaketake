@@ -133,13 +133,51 @@ inline source. Examples:
 ### ✅ Mark unverified data as missing
 
 Better:
-- `paths_to_advisors[adv_id] = {}` — empty
+- `paths_to_advisors` entry missing entirely, OR `PathEdge` with `sources: []`
 - `pi_signal = "missing"`
 - `collab_with_nas = false` (when you didn't verify NAS membership)
 
 These trigger the matcher's wider confidence band, which **honestly
 communicates** to the user that this candidate's signals aren't fully
 verified.
+
+**Verified-empty is even better than missing**. If you searched and the
+search came back empty, record that with sources:
+
+```jsonc
+"paths_to_advisors": {
+  "adv_001": {
+    "sources": ["https://scholar.google.com/..."],
+    "note": "0 co-authored papers found in last 5y"
+  }
+}
+```
+
+The matcher counts that as verified (path entry has sources) and trusts the
+empty edges. Strictly better than omitting the path entry entirely (which
+the matcher reads as "didn't even check").
+
+### ✅ Even non-default values need sources (post-review #1)
+
+This is enforced — the matcher counts a positive claim without sources the
+same as a missing claim:
+
+```jsonc
+// ❌ asserted without proof — counts as unverified
+"normalized_collab_top20pct": 0.8,
+
+// ✅ same value but verified
+"normalized_collab_top20pct": 0.8,
+"evidence": {
+  "normalized_collab_top20pct": {
+    "sources": ["https://scholar.google.com/citations?user=..."],
+    "note": "h_index=42 per Google Scholar (2026-05-06)"
+  }
+}
+```
+
+Same for `pi_signal != "missing"` — if you say `"strong"`, you owe a source.
+The lab page URL counts.
 
 ### ✅ Prefer the canonical primary source
 

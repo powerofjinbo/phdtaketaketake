@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Score a profile dimensionally (C / P / E / G) without ranking against advisors.
+"""Score a profile dimensionally (P / G / E only) without candidate ranking.
 
-Useful when:
-  - The user's field isn't covered by the bundled advisor cache
-  - The user just wants a self-assessment of their profile
+The repo has no static candidate cache — connection scores are always
+per-(student, candidate) pairs computed by the agent (see SKILL.md). This
+script is for self-assessment of the publication / GPA / experience
+dimensions in isolation, e.g. when the user just wants a sanity check on
+their own profile before doing the full match flow.
 
-Invocation mirrors match.py.
-Output: JSON object {p, g, e, school_tier_examples, …}.
+Invocation mirrors match.py. Output: JSON {p_score, g_score, e_score, note}.
 """
 
 from __future__ import annotations

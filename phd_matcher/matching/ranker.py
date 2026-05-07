@@ -2,11 +2,15 @@
 
 from phd_matcher.matching.direction import direction_relevance
 from phd_matcher.matching.explainer import explain_match
-from phd_matcher.models import CandidateAdvisor, MatchResult, StudentProfile
+from phd_matcher.models import (
+    CandidateAdvisor,
+    EvidenceEntry,
+    MatchResult,
+    StudentProfile,
+)
 from phd_matcher.scoring import admit, connection, experience, gpa, pub
 
-# Field-strength signals that carry their own EvidenceEntry — count as
-# "unverified" if at default value without sources.
+# Field-strength signals that should each have an EvidenceEntry with sources.
 _FIELD_STRENGTH_SIGNALS = (
     "normalized_collab_top20pct",
     "collab_with_nas",
@@ -14,50 +18,49 @@ _FIELD_STRENGTH_SIGNALS = (
 )
 
 
-def _signal_is_at_default(candidate: CandidateAdvisor, field: str) -> bool:
-    val = getattr(candidate, field)
-    if field == "normalized_collab_top20pct":
-        return val == 0.0
-    if field == "collab_with_nas":
-        return val is False
-    if field == "grad_placement_quality":
-        return val == 0.0
-    return False
-
-
-def _signal_has_sources(candidate: CandidateAdvisor, field: str) -> bool:
-    entry = candidate.evidence.get(field) if candidate.evidence else None
-    if not entry:
+def _has_sources(entry: EvidenceEntry | None) -> bool:
+    if entry is None:
         return False
-    sources = getattr(entry, "sources", None)
-    if sources is None and isinstance(entry, dict):
-        sources = entry.get("sources")
-    return bool(sources)
+    return bool(entry.sources)
 
 
 def count_unverified_signals(
     student: StudentProfile, candidate: CandidateAdvisor
 ) -> int:
-    """Count signals that are missing OR at default values without source
-    citations. Drives confidence_band — see admit.confidence_band_from_unverified."""
+    """Count signals that lack source citations (per code-review #1).
+
+    Strict rule: every claim — even a default value or "missing" — must have
+    EvidenceEntry.sources to count as verified. Asserting non-default values
+    without sources also counts as unverified.
+
+    Counted:
+      - paths_to_advisors[adv.id] missing entirely or PathEdge with empty sources
+      - field-strength signals (normalized_collab_top20pct, collab_with_nas,
+        grad_placement_quality) without an EvidenceEntry that has sources
+      - pi_signal == "missing" (data point absent regardless)
+      - pi_signal != "missing" without an EvidenceEntry that has sources
+    """
     n = 0
 
-    # Connection paths to advisors
+    # Connection paths to each advisor
     if student.current_advisors:
         for adv in student.current_advisors:
-            edges = candidate.paths_to_advisors.get(adv.id) or {}
-            if not edges:
-                n += 1                       # no edge found at all
-            elif not edges.get("sources"):
-                n += 1                       # claimed edges without source URLs
+            edges = candidate.paths_to_advisors.get(adv.id)
+            if edges is None:
+                n += 1                              # no path entry at all
+            elif not edges.sources:
+                n += 1                              # path entry without sources
 
-    # Field-strength signals — unverified if default value AND no sources
+    # Field-strength signals (each must have evidence sources)
+    evidence = candidate.evidence or {}
     for sig in _FIELD_STRENGTH_SIGNALS:
-        if _signal_is_at_default(candidate, sig) and not _signal_has_sources(candidate, sig):
+        if not _has_sources(evidence.get(sig)):
             n += 1
 
-    # PI signal
+    # PI signal — both "missing" and unsourced non-missing count
     if candidate.pi_signal == "missing":
+        n += 1
+    elif not _has_sources(evidence.get("pi_signal")):
         n += 1
 
     return n

@@ -45,7 +45,14 @@ def journal_baseline(tier: int | str) -> float:
 
 
 def status_weight(status: str) -> float:
-    return STATUS_WEIGHT.get(status, 1.0)
+    """Multiplicative weight for a paper status. Raises on unknown status —
+    per code review #2, unknown should NOT silently default to 1.0."""
+    if status not in STATUS_WEIGHT:
+        raise ValueError(
+            f"Unknown paper status: {status!r}. "
+            f"Valid: {sorted(STATUS_WEIGHT.keys())}"
+        )
+    return STATUS_WEIGHT[status]
 
 
 def paper_score(

@@ -143,7 +143,19 @@ even a flawless profile is uncertain at the most selective programs.
 | missing data | −0.1 |
 | not recruiting | force to 0 |
 
-**Confidence band** (4.0 scale): full data → ±0.3, missing 1 signal → ±0.5, missing 2+ → ±0.7
+**Confidence band** (4.0 scale, driven by evidence coverage):
+
+| Unverified count | Band |
+|------------------|------|
+| 0 (everything sourced) | ±0.2 |
+| 1–2 | ±0.4 |
+| 3–4 | ±0.6 |
+| 5+ (mostly unsourced) | ±0.8 |
+
+A signal counts as unverified unless its `EvidenceEntry.sources` (or
+`PathEdge.sources` for connection edges) is non-empty. Default values without
+sources count as unverified too — "didn't check" is treated the same as
+"asserted without proof".
 
 **5-tier label**:
 - `Safe` ≥ 3.5
