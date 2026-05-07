@@ -209,7 +209,7 @@ Explicitly out of scope:
 |---|------|--------|
 | 1 | FieldProfile operationalization | ✅ done (commits `7a6d002` → `1d391a0`) |
 | 2 | Field-aware publication scoring | ✅ done (`1d391a0`) |
-| 3 | Advisor influence as standalone A dimension | ⏳ next |
+| 3 | Advisor influence as standalone A dimension | ✅ done (`<COMMIT-PENDING>`) |
 | 4 | Research fit as tie-breaker / ≤0.15× adjustment | ⏳ after #3 |
 | 5 | Program difficulty refinement (per-field ranking source) | partial — Step 2 of SKILL.md is profile-driven; deeper work pending |
 | 6 | Candidate discovery workflow field-aware | partial — Step 4 of SKILL.md uses profile databases; deeper integration pending |

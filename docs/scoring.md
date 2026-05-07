@@ -68,6 +68,11 @@ Differentiated edges (post-review #5). The matcher takes **max** strength
 across present edge types — no stacking — to avoid double-counting overlapping
 evidence.
 
+**Roadmap-#3 split**: C used to mix path strength with the candidate's own
+network signals (h-index proxy / NAS / placement). Those now live in the
+A dimension; C is path-only. Without a `current_advisor`, C falls to the
+lowest bucket (2.3).
+
 **Co-authorship edges:**
 
 | Edge | Strength formula |
@@ -110,30 +115,61 @@ Three-state semantics (post-review): each input field can be `None`
 (not checked) — None contributes 0 to scoring (conservative; pushes the
 agent to actually verify).
 
-**Composite:**
+**Composite (post-roadmap-#3)**:
 
 ```
-C_raw = 0.6 · max_path_strength + 0.4 · C_field
+C_raw = max_path_strength
 ```
 
-If student has no current advisor: `C_raw = C_field`.
+(Field-strength terms moved out to the A dimension.) Without a current
+advisor: `C_raw = 0` → bucket 2.3 (lowest).
 
 **0–1 → 4.0 mapping:** ≥0.8 → 4.0, 0.6–0.8 → 3.7, 0.4–0.6 → 3.3, 0.2–0.4 → 2.8, <0.2 → 2.3
 
+### 4b. Advisor Influence Score (A) — per candidate, post-roadmap-#3
+
+The A dimension answers "is this PI strong, active, and a good place to
+invest 5–6 years?" — separate from C, which answers "do I have a real
+connection to them?".
+
+```
+A_raw = 0.30 · influence_percentile  (h-index proxy)
+      + 0.20 · elite_status          (NAS / HHMI / NAE / field-specific fellow)
+      + 0.20 · active_funding_quality
+      + 0.20 · grad_placement_quality
+      + 0.10 · recruiting_health     (from pi_signal: strong=1.0, normal=0.7,
+                                       shrinking=0.3, missing=0.5,
+                                       not_recruiting=0.0)
+```
+
+`A` then maps 0–1 → 4.0 via the same `raw_to_4_0` buckets as C.
+
+`pi_signal` feeds two distinct uses (NOT double-counting):
+- A's `recruiting_health` term (lab health signal)
+- `application_strength`'s `pi_adj` (admit-cycle availability)
+
+These ask different questions — same input, separate outputs.
+
 ## Final scores
 
-### Match score (tier-adaptive)
+### Match score (tier-adaptive, 5-pillar CAPEG post-roadmap-#3)
 
 ```
-match = w_C · C + w_P · P + w_E · E + w_G · G
+match = w_C · C + w_A · A + w_P · P + w_E · E + w_G · G
 ```
 
-| School tier | w_C | w_P | w_E | w_G |
-|-------------|-----|-----|-----|-----|
-| Top 10 | 0.45 | 0.30 | 0.15 | 0.10 |
-| Top 11–30 | 0.40 | 0.30 | 0.15 | 0.15 |
-| Top 31–60 | 0.35 | 0.25 | 0.20 | 0.20 |
-| Top 60+ | 0.30 | 0.20 | 0.20 | 0.30 |
+| School tier | w_C | w_A | w_P | w_E | w_G |
+|-------------|-----|-----|-----|-----|-----|
+| Top 10 | 0.38 | 0.17 | 0.27 | 0.10 | 0.08 |
+| Top 11–30 | 0.35 | 0.15 | 0.25 | 0.12 | 0.13 |
+| Top 31–60 | 0.30 | 0.15 | 0.22 | 0.15 | 0.18 |
+| Top 60+ | 0.25 | 0.12 | 0.18 | 0.18 | 0.27 |
+
+C remains the largest pillar in the top three tiers (connection-first); at
+top_60+, GPA edges above C (consistent with the original CPEG calibration's
+"lower tier weights GPA more"). **A is bounded so it never outranks C** —
+the A pillar measures the candidate PI's intrinsic strength, but doesn't
+get to dilute the connection-first thesis.
 
 ### Application strength
 

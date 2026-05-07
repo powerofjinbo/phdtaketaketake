@@ -78,16 +78,59 @@ def status_weight(
 
 
 def effective_position(
-    author_position: int, author_role: str | None = None
+    author_position: int,
+    author_role: str | None = None,
+    field_profile: FieldProfile | None = None,
 ) -> int:
     """Compute the position used for tier × decrement scoring.
 
     Without an `author_role`, returns `author_position` as-is. With a role,
     applies the role override (e.g., `co_first` → 1 regardless of byline).
+
+    **P0 guardrail**: if `author_role='co_first'` but the field profile
+    declares `co_first_supported=False` (e.g., physics, chemistry, math),
+    the override is silently dropped (returns literal position). Use
+    `validate_paper_roles()` to surface such cases as warnings/errors at
+    the validation layer.
     """
     if author_role is None:
         return author_position
+    if (
+        author_role == "co_first"
+        and field_profile is not None
+        and not field_profile.co_first_supported
+    ):
+        return author_position
     return _ROLE_TO_EFFECTIVE_POSITION.get(author_role, author_position)
+
+
+def validate_paper_roles(
+    papers: list[dict], field_profile: FieldProfile | None = None
+) -> list[str]:
+    """Return human-readable warnings about author_role usage that
+    conflicts with the active FieldProfile.
+
+    Currently checks:
+      - `author_role='co_first'` in a field whose `co_first_supported=False`
+        (physics / chemistry / mse / math) — warn that this convention
+        isn't recognized in this discipline.
+
+    Returns an empty list if no profile or no conflicts.
+    """
+    if field_profile is None:
+        return []
+    warnings: list[str] = []
+    for i, p in enumerate(papers):
+        role = p.get("author_role")
+        if role == "co_first" and not field_profile.co_first_supported:
+            warnings.append(
+                f"paper[{i}]: author_role='co_first' is not a recognized "
+                f"convention in {field_profile.id} "
+                f"(FieldProfile.co_first_supported=false). The role override "
+                f"is dropped — the paper scores at literal author_position. "
+                f"Confirm with the user whether the convention applies."
+            )
+    return warnings
 
 
 def paper_score(
@@ -105,10 +148,12 @@ def paper_score(
     tier inversion.
 
     Author role (P1, optional): if set, overrides `author_position` for
-    scoring (`co_first` / `corresponding` / `senior` → 1).
+    scoring (`co_first` / `corresponding` / `senior` → 1). For `co_first`,
+    the override only applies if the FieldProfile recognizes the
+    convention (`co_first_supported=True`).
 
     Field profile (P1, optional): consulted for per-field status weight
-    overrides.
+    overrides and the co_first guardrail.
     """
     if author_position < 1:
         raise ValueError(f"author_position must be >= 1, got {author_position}")
@@ -117,7 +162,7 @@ def paper_score(
     if baseline == 0.0:
         return 0.0
 
-    pos = effective_position(author_position, author_role)
+    pos = effective_position(author_position, author_role, field_profile)
     if pos <= 4:
         base = baseline - POSITION_DECREMENT[pos]
     else:

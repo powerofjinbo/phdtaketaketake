@@ -368,12 +368,23 @@ found. **An empty `paths_to_advisors[adv_id] = {}` is missing data**
 (silently penalized) — prefer the verified-empty form above so the
 matcher can credit you for searching.
 
-### Step 5 — Field-strength signals (per candidate)
+### Step 5 — Advisor influence signals (per candidate, drive the A dimension)
 
-Properties of the candidate themselves. **Three-state semantics** (per code
-review): each field is either verified-with-sources, verified-empty (value
-remains `null`/`false` + sources documenting the search), or omitted
-(no value, no sources → counts as unverified).
+Properties of the candidate themselves — *not* about your connection to
+them. These feed the **A pillar** in the 5-dim CAPEG match formula
+(roadmap #3). **Three-state semantics**: each field is either
+verified-with-sources, verified-empty (value remains `null`/`false`
++ sources documenting the search), or omitted (no value, no sources →
+counts as unverified).
+
+The A composite (sum to 1.0):
+- 0.30 · influence (h-index proxy)
+- 0.20 · elite_status (NAS / HHMI / NAE / field fellow)
+- 0.20 · active_funding_quality
+- 0.20 · grad_placement_quality
+- 0.10 · recruiting_health (derived from pi_signal)
+
+Fields:
 
 - `normalized_collab_top20pct` (0–1, default `null`): proxy via candidate's
   h-index from Google Scholar or OpenAlex. Formula: `min(1.0, h_index / 50)`.
@@ -407,6 +418,19 @@ remains `null`/`false` + sources documenting the search), or omitted
   academia + industry mix: 0.5–0.7, mostly post-docs: 0.4. If no alumni
   page exists, leave as `null` (do **not** fall back to 0.5 — that's a
   fake default; the matcher widens the band on its own).
+
+- `active_funding_quality` (0–1, default `null`): cite NIH RePORTER /
+  NSF Award Search / DOE Office of Science / ERC / DARPA grant records.
+  Active R01 + NSF CAREER ≈ 0.85. Single small grant ≈ 0.4.
+  No active grants found ≈ 0.0 (verified-empty with sources). Leave
+  as `null` if you didn't search.
+
+- Discipline-specific elite signals (use `collab_with_nas=true` and cite):
+    - bio: HHMI investigator, NAS / NAM membership
+    - CS: ACM / IEEE Fellow, OpenReview reviewer profile, top-venue track record
+    - physics: APS Fellow, DOE Office of Science principal, big-collab convener
+    - chemistry / MSE: ACS / RSC / MRS / NAE membership
+    - math: AMS Fellow, ICM invited speaker, Sloan / Packard Fellow
 
 **Don't fill in fake defaults when you didn't check.** A 0.5 written into
 the JSON without sources counts as unverified — same as `null` without

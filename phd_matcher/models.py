@@ -348,13 +348,17 @@ class CandidateAdvisor(BaseModel):
     # Connection edges per student-advisor id. Each value is a PathEdge.
     paths_to_advisors: dict[str, PathEdge] = Field(default_factory=dict)
 
-    # Field-level network strength (0–1). Three-state semantics per code
-    # review: `None` means "not checked yet" (distinct from a verified low
-    # score). Set to a numeric value only after web verification, with a
-    # matching `evidence[<field>]` entry containing source URLs.
+    # Advisor influence signals (drive the A dimension, post-roadmap-#3).
+    # Three-state semantics: `None` means "not checked yet" (distinct from
+    # a verified low score). Set to a numeric value only after web
+    # verification, with a matching `evidence[<field>]` entry containing
+    # source URLs that bind the field via `supports_fields=[<field>]`.
     normalized_collab_top20pct: float | None = Field(default=None, ge=0.0, le=1.0)
     collab_with_nas: bool | None = None
     grad_placement_quality: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Active funding signal (post-roadmap-#3): NSF / NIH / DOE / DARPA /
+    # ERC etc. on a 0–1 quality score (e.g., active R01 + NSF CAREER ≈ 0.85).
+    active_funding_quality: float | None = Field(default=None, ge=0.0, le=1.0)
 
     pi_signal: PISignal = "missing"
     recent_phd_count: int | None = Field(default=None, ge=0)
@@ -429,6 +433,7 @@ class FieldProfile(BaseModel):
 class MatchResult(BaseModel):
     candidate: CandidateAdvisor
     c_score: float
+    a_score: float        # post-roadmap-#3: Advisor influence dimension
     p_score: float
     e_score: float
     g_score: float

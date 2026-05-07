@@ -42,12 +42,13 @@ def _bare_candidate():
 def test_unverified_count_all_missing():
     """Brand-new candidate with no evidence → max unverified count.
 
-    Total signals per 1-advisor case (after research_areas was added):
-    1 path + 1 school_tier + 1 research_areas + 3 field-strength + 1 pi = 7
+    Total signals per 1-advisor case (post-roadmap-#3 with A signals):
+    1 path + 1 school_tier + 1 research_areas + 4 advisor-influence
+    (normalized_collab + nas + placement + active_funding) + 1 pi = 8
     """
     student = _student_with_advisor()
     cand = _bare_candidate()
-    assert count_unverified_signals(student, cand) == 7
+    assert count_unverified_signals(student, cand) == 8
 
 
 def test_unverified_count_all_verified():
@@ -65,11 +66,13 @@ def test_unverified_count_all_verified():
     cand.normalized_collab_top20pct = 0.7
     cand.collab_with_nas = True
     cand.grad_placement_quality = 0.8
+    cand.active_funding_quality = 0.7
     cand.pi_signal = "normal"
     cand.evidence = {
         "normalized_collab_top20pct": EvidenceEntry(sources=["https://scholar.google.com/..."]),
         "collab_with_nas": EvidenceEntry(sources=["https://www.nasonline.org/..."]),
         "grad_placement_quality": EvidenceEntry(sources=["https://lab.mit.edu/alumni"]),
+        "active_funding_quality": EvidenceEntry(sources=["https://reporter.nih.gov/..."]),
         "pi_signal": EvidenceEntry(sources=["https://lab.mit.edu/people"]),
         "school_tier": EvidenceEntry(sources=["https://www.usnews.com/..."]),
         "research_areas": EvidenceEntry(sources=["https://lab.mit.edu/research"]),
@@ -84,8 +87,8 @@ def test_unverified_path_without_sources_counts():
     cand.paths_to_advisors = {
         "adv_001": PathEdge(small_team_coauthor_5y=3),  # no sources
     }
-    # 1 path (unsourced) + 1 school + 1 research + 3 field + 1 pi = 7
-    assert count_unverified_signals(student, cand) == 7
+    # 1 path (unsourced) + 1 school + 1 research + 4 advisor-influence + 1 pi = 8
+    assert count_unverified_signals(student, cand) == 8
 
 
 def test_unverified_pi_signal_non_missing_without_sources():
@@ -93,8 +96,8 @@ def test_unverified_pi_signal_non_missing_without_sources():
     student = _student_with_advisor()
     cand = _bare_candidate()
     cand.pi_signal = "strong"  # claim without sources
-    # 1 path + 1 school + 1 research + 3 field + 1 pi(unsourced) = 7
-    assert count_unverified_signals(student, cand) == 7
+    # 1 path + 1 school + 1 research + 4 advisor + 1 pi(unsourced) = 8
+    assert count_unverified_signals(student, cand) == 8
 
 
 def test_unverified_pi_signal_non_missing_with_sources_is_verified():
@@ -104,16 +107,16 @@ def test_unverified_pi_signal_non_missing_with_sources_is_verified():
     cand.evidence = {
         "pi_signal": EvidenceEntry(sources=["https://lab.mit.edu/openings"]),
     }
-    # 1 path + 1 school + 1 research + 3 field-strength + 0 pi(verified) = 6
-    assert count_unverified_signals(student, cand) == 6
+    # 1 path + 1 school + 1 research + 4 advisor + 0 pi(verified) = 7
+    assert count_unverified_signals(student, cand) == 7
 
 
 def test_unverified_field_strength_default_value_without_sources():
     """Per #1: even default values count as unverified without sources."""
     student = _student_with_advisor()
     cand = _bare_candidate()
-    # All defaults; school + research_areas + 3 field + pi + path = 7
-    assert count_unverified_signals(student, cand) == 7
+    # All defaults; school + research_areas + 4 advisor + pi + path = 8
+    assert count_unverified_signals(student, cand) == 8
 
 
 def test_unverified_no_advisor_means_no_path_count():
@@ -127,8 +130,8 @@ def test_unverified_no_advisor_means_no_path_count():
         # no current_advisors
     )
     cand = _bare_candidate()
-    # 0 paths + 1 school + 1 research + 3 field + 1 pi = 6
-    assert count_unverified_signals(student, cand) == 6
+    # 0 paths + 1 school + 1 research + 4 advisor + 1 pi = 7
+    assert count_unverified_signals(student, cand) == 7
 
 
 def test_unverified_path_with_only_sources_and_note_is_verified():
@@ -142,8 +145,8 @@ def test_unverified_path_with_only_sources_and_note_is_verified():
             note="searched OpenAlex + Math Genealogy: 0 co-authored papers, no shared lineage",
         ),
     }
-    # 0 path(verified-empty) + 1 school + 1 research + 3 field + 1 pi = 6
-    assert count_unverified_signals(student, cand) == 6
+    # 0 path(verified-empty) + 1 school + 1 research + 4 advisor + 1 pi = 7
+    assert count_unverified_signals(student, cand) == 7
 
 
 # ---- Risk-adjusted ranking (post-review tier 3 #1) -----------------------
@@ -179,7 +182,7 @@ def test_well_evidenced_lower_strength_outranks_loose_higher():
         pi_signal="strong",     # +0.2 over normal
     )
 
-    # Tight: pi_signal=normal but everything sourced (all 7 signals).
+    # Tight: pi_signal=normal but everything sourced (all 8 signals incl. active_funding).
     #   strength loss: 0 (normal recruiting baseline)
     #   band benefit: ±0.2 (0 unverified)
     tight = CandidateAdvisor(
@@ -189,6 +192,7 @@ def test_well_evidenced_lower_strength_outranks_loose_higher():
         normalized_collab_top20pct=0.7,
         collab_with_nas=False,
         grad_placement_quality=0.6,
+        active_funding_quality=0.6,
         pi_signal="normal",
         evidence={
             "school_tier":                EvidenceEntry(sources=["https://www.usnews.com/..."]),
@@ -196,6 +200,7 @@ def test_well_evidenced_lower_strength_outranks_loose_higher():
             "normalized_collab_top20pct": EvidenceEntry(sources=["https://scholar.google.com/..."]),
             "collab_with_nas":            EvidenceEntry(sources=["https://www.nasonline.org/..."]),
             "grad_placement_quality":     EvidenceEntry(sources=["https://lab.berkeley.edu/alumni"]),
+            "active_funding_quality":     EvidenceEntry(sources=["https://reporter.nih.gov/..."]),
             "pi_signal":                  EvidenceEntry(sources=["https://lab.berkeley.edu/people"]),
         },
     )
@@ -224,14 +229,14 @@ def test_evidence_coverage_splits_missing_vs_unsourced():
     cand.collab_with_nas = True   # additional unsourced claim
 
     cov = evidence_coverage(student, cand)
-    # 1 path + 1 school_tier + 1 research_areas + 3 field-strength + 1 pi = 7
-    assert cov.total == 7
+    # 1 path + 1 school_tier + 1 research_areas + 4 advisor-influence + 1 pi = 8
+    assert cov.total == 8
     # Unsourced: school_tier (always set) + collab_with_nas (set, no ev) = 2
     assert cov.unsourced == 2
     assert "school_tier" in cov.unsourced_names
     assert "collab_with_nas" in cov.unsourced_names
-    # Missing: 1 path + 1 research_areas (empty) + 2 other field-strength + 1 pi = 5
-    assert cov.missing == 5
+    # Missing: 1 path + 1 research_areas (empty) + 3 other advisor signals + 1 pi = 6
+    assert cov.missing == 6
 
 
 def test_evidence_coverage_all_verified_via_items():
@@ -294,10 +299,19 @@ def test_evidence_coverage_all_verified_via_items():
         )]),
     }
 
+    # Add active_funding evidence too (post-roadmap-#3 — required for full coverage)
+    cand.active_funding_quality = 0.6
+    cand.evidence["active_funding_quality"] = EvidenceEntry(items=[EvidenceSource(
+        url="https://reporter.nih.gov/...",
+        source_type="nih_reporter",
+        claim="active R01 grant 2023–2028",
+        supports_fields=["active_funding_quality"],
+    )])
+
     cov = evidence_coverage(student, cand)
     assert cov.unverified == 0
     assert cov.verified == cov.total
-    assert cov.total == 7
+    assert cov.total == 8
 
 
 # ---- EvidenceSource model validation ----
@@ -527,6 +541,117 @@ def test_strict_validate_path_hint_mentions_path_supports_fields():
     path_error = next((e for e in errors if "path:adv_001" in e), None)
     assert path_error is not None
     assert "supports_fields=['path:adv_001']" in path_error
+
+
+# ---- Roadmap-#3: Advisor Influence (A) is a separate dimension ----
+
+def test_advisor_strength_independent_of_connection_path():
+    """Verify A doesn't depend on student.current_advisors — it's the
+    candidate PI's intrinsic strength, scored independently from C."""
+    from phd_matcher.scoring.advisor import advisor_strength
+
+    cand_with_no_path = {
+        "normalized_collab_top20pct": 0.8,
+        "collab_with_nas": True,
+        "grad_placement_quality": 0.7,
+        "active_funding_quality": 0.7,
+        "pi_signal": "normal",
+        "paths_to_advisors": {},   # no path data at all
+    }
+    a = advisor_strength(cand_with_no_path)
+    # A should still be high — PI is strong regardless of path data.
+    assert a >= 3.7  # bucket from raw ≥ 0.6
+
+
+def test_strong_connection_beats_strong_advisor_strength():
+    """Connection-first invariant: a candidate with high C and low A
+    should still outrank one with low C and high A at top_10 (where C
+    weight 0.38 > A weight 0.17)."""
+    from phd_matcher.matching.ranker import compute_match
+    from phd_matcher.models import (
+        CandidateAdvisor,
+        CurrentAdvisor,
+        EvidenceEntry,
+        EvidenceSource,
+        PathEdge,
+        StudentProfile,
+    )
+
+    student = StudentProfile(
+        field="physics",
+        undergrad_institution="Tsinghua",
+        gpa_raw=3.8, gpa_scale="4.0",
+        research_direction="ATLAS Higgs",
+        current_advisors=[CurrentAdvisor(id="adv_001", name="X", institution="Y")],
+    )
+
+    # High C (verified strong path), weak A (no PI prestige signals)
+    high_c = CandidateAdvisor(
+        id="high_c", name="Prof. C", institution="MIT",
+        school_tier="top_10", field="physics",
+        research_areas=["physics"],
+        paths_to_advisors={
+            "adv_001": PathEdge(
+                small_team_coauthor_5y=5,  # → strength 1.0 → C = 4.0
+                items=[EvidenceSource(
+                    url="https://scholar.google.com/...",
+                    source_type="google_scholar",
+                    claim="5 small-team papers",
+                    supports_fields=["small_team_coauthor_5y"],
+                )],
+            ),
+        },
+        # A signals all None → A = bucket 2.3
+    )
+
+    # Low C (no path), high A (all signals strong + verified)
+    high_a = CandidateAdvisor(
+        id="high_a", name="Prof. A", institution="Stanford",
+        school_tier="top_10", field="physics",
+        research_areas=["physics"],
+        paths_to_advisors={},  # no path → C = 2.3
+        normalized_collab_top20pct=0.95,
+        collab_with_nas=True,
+        grad_placement_quality=0.9,
+        active_funding_quality=0.9,
+        pi_signal="strong",
+        evidence={
+            "normalized_collab_top20pct": EvidenceEntry(items=[EvidenceSource(
+                url="https://scholar.google.com/...", source_type="google_scholar",
+                claim="h_index=50", supports_fields=["normalized_collab_top20pct"])]),
+            "collab_with_nas": EvidenceEntry(items=[EvidenceSource(
+                url="https://www.nasonline.org/...", source_type="nas",
+                claim="NAS member", supports_fields=["collab_with_nas"])]),
+            "grad_placement_quality": EvidenceEntry(items=[EvidenceSource(
+                url="https://lab.stanford.example/alumni", source_type="lab_page",
+                claim="80% faculty placements",
+                supports_fields=["grad_placement_quality"])]),
+            "active_funding_quality": EvidenceEntry(items=[EvidenceSource(
+                url="https://reporter.nih.gov/...", source_type="nih_reporter",
+                claim="active R01", supports_fields=["active_funding_quality"])]),
+            "pi_signal": EvidenceEntry(items=[EvidenceSource(
+                url="https://lab.stanford.example/people", source_type="lab_page",
+                claim="3 new PhDs in 2024", supports_fields=["pi_signal"])]),
+            "school_tier": EvidenceEntry(items=[EvidenceSource(
+                url="https://www.usnews.com/...", source_type="us_news",
+                claim="Stanford physics top 10",
+                supports_fields=["school_tier"])]),
+            "research_areas": EvidenceEntry(items=[EvidenceSource(
+                url="https://physics.stanford.example/...", source_type="faculty_page",
+                claim="research focus stated on faculty page",
+                supports_fields=["research_areas"])]),
+        },
+    )
+
+    r_c = compute_match(student, high_c)
+    r_a = compute_match(student, high_a)
+    # high_c: C=4.0, A≈2.3 (default). At top_10: 0.38·4 + 0.17·2.3 = 1.52 + 0.39
+    # high_a: C=2.3, A≈3.7+ (all sourced strong). At top_10: 0.38·2.3 + 0.17·3.7+
+    # The C contribution differential (≈0.65) outweighs A differential (≈0.24).
+    assert r_c.match_score > r_a.match_score, (
+        f"connection-first invariant violated: high_c.match={r_c.match_score}, "
+        f"high_a.match={r_a.match_score}"
+    )
 
 
 def test_explainer_filters_sources_per_claim():

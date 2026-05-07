@@ -125,26 +125,6 @@ def path_strength(edges: PathEdge | dict) -> float:
     return max(strengths) if strengths else 0.0
 
 
-# ---- Field strength (candidate's own network) ----------------------------
-
-def field_strength(candidate: dict) -> float:
-    """Compute candidate's field-level network signal on 0–1.
-
-    Three-state semantics per code review: each input field can be `None`
-    (not checked), a verified value (with sources), or False/0 (verified
-    weak). For scoring, `None` contributes 0 (conservative — pushes the
-    agent to actually verify rather than guess a neutral default)."""
-    collab_top20_raw = candidate.get("normalized_collab_top20pct")
-    collab_top20 = 0.0 if collab_top20_raw is None else float(collab_top20_raw)
-
-    nas = 1.0 if candidate.get("collab_with_nas") is True else 0.0
-
-    placement_raw = candidate.get("grad_placement_quality")
-    placement = 0.0 if placement_raw is None else float(placement_raw)
-
-    return 0.4 * collab_top20 + 0.3 * nas + 0.3 * placement
-
-
 # ---- Final composite + 4.0 mapping ---------------------------------------
 
 def raw_to_4_0(raw: float) -> float:
@@ -156,11 +136,22 @@ def raw_to_4_0(raw: float) -> float:
 
 
 def connection_score(student_advisors: list[dict], candidate: dict) -> float:
-    paths = candidate.get("paths_to_advisors", {})
+    """Path-based connection score on the 4.0 scale.
 
+    Roadmap #3 split: this used to mix path strength with the candidate's
+    own network signals (`normalized_collab_top20pct`, `collab_with_nas`,
+    `grad_placement_quality`) — but those describe the PI's own standing,
+    not the connection to the student's advisor. Now they live in the A
+    dimension (`scoring.advisor.advisor_strength`).
+
+    No advisor → C = bucketed-from-0 = 2.3 (lowest bucket). The student
+    profile honestly has no path-style signal to evaluate; the candidate's
+    intrinsic strength is captured in A separately.
+    """
     if not student_advisors:
-        return raw_to_4_0(field_strength(candidate))
+        return raw_to_4_0(0.0)
 
+    paths = candidate.get("paths_to_advisors", {})
     path_strengths: list[float] = []
     for adv in student_advisors:
         adv_id = adv.get("id")
@@ -168,6 +159,4 @@ def connection_score(student_advisors: list[dict], candidate: dict) -> float:
             path_strengths.append(path_strength(paths[adv_id]))
 
     c_path = max(path_strengths) if path_strengths else 0.0
-    c_field = field_strength(candidate)
-    c_raw = 0.6 * c_path + 0.4 * c_field
-    return raw_to_4_0(c_raw)
+    return raw_to_4_0(c_path)

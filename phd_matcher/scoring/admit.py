@@ -8,21 +8,29 @@ docs/scoring.md for the rationale.
 
 from phd_matcher.models import StrengthLabel
 
-# ---- Tier-adaptive weights (§6) ------------------------------------------
+# ---- Tier-adaptive weights (post-roadmap-#3 — 5-pillar CAPEG) ------------
 
+# C · A · P · E · G. Connection still the largest pillar (connection-first).
+# A (Advisor influence) is bounded so it doesn't compete with C.
+# Weights sum to 1.0 within each tier.
 TIER_WEIGHTS: dict[str, dict[str, float]] = {
-    "top_10":      {"C": 0.45, "P": 0.30, "E": 0.15, "G": 0.10},
-    "top_11_30":   {"C": 0.40, "P": 0.30, "E": 0.15, "G": 0.15},
-    "top_31_60":   {"C": 0.35, "P": 0.25, "E": 0.20, "G": 0.20},
-    "top_60_plus": {"C": 0.30, "P": 0.20, "E": 0.20, "G": 0.30},
+    "top_10":      {"C": 0.38, "A": 0.17, "P": 0.27, "E": 0.10, "G": 0.08},
+    "top_11_30":   {"C": 0.35, "A": 0.15, "P": 0.25, "E": 0.12, "G": 0.13},
+    "top_31_60":   {"C": 0.30, "A": 0.15, "P": 0.22, "E": 0.15, "G": 0.18},
+    "top_60_plus": {"C": 0.25, "A": 0.12, "P": 0.18, "E": 0.18, "G": 0.27},
 }
 
 
-def match_score(c: float, p: float, e: float, g: float, school_tier: str) -> float:
+def match_score(
+    c: float, a: float, p: float, e: float, g: float, school_tier: str
+) -> float:
+    """Weighted combination of 5 dimensions → 4.0."""
     if school_tier not in TIER_WEIGHTS:
-        raise ValueError(f"Unknown school tier: {school_tier!r}. Valid: {list(TIER_WEIGHTS)}")
+        raise ValueError(
+            f"Unknown school tier: {school_tier!r}. Valid: {list(TIER_WEIGHTS)}"
+        )
     w = TIER_WEIGHTS[school_tier]
-    return w["C"] * c + w["P"] * p + w["E"] * e + w["G"] * g
+    return w["C"] * c + w["A"] * a + w["P"] * p + w["E"] * e + w["G"] * g
 
 
 # ---- Application-strength adjustments ------------------------------------

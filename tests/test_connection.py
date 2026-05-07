@@ -5,11 +5,11 @@ import pytest
 from pydantic import ValidationError
 
 from phd_matcher.models import PathEdge
+from phd_matcher.scoring.advisor import advisor_strength_raw
 from phd_matcher.scoring.connection import (
     big_collab_paper_strength,
     collaboration_strength,
     connection_score,
-    field_strength,
     genealogy_strength,
     path_strength,
     raw_to_4_0,
@@ -143,37 +143,52 @@ def test_raw_to_4_0_buckets():
     assert raw_to_4_0(0.05) == 2.3
 
 
-def test_field_strength_components():
+def test_advisor_strength_components():
+    """Per roadmap-#3: advisor influence is now a separate A dimension.
+    The previous `field_strength` lived inside Connection — bug: PI prestige
+    inflated the C score. Now it's `advisor_strength_raw` and feeds the A
+    pillar in MatchResult."""
     cand = {
-        "normalized_collab_top20pct": 0.5,
+        "normalized_collab_top20pct": 0.6,
         "collab_with_nas": True,
-        "grad_placement_quality": 0.4,
+        "grad_placement_quality": 0.5,
+        "active_funding_quality": 0.7,
+        "pi_signal": "normal",  # → recruiting_health = 0.7
     }
-    expected = 0.4 * 0.5 + 0.3 * 1.0 + 0.3 * 0.4
-    assert field_strength(cand) == pytest.approx(expected)
+    expected = (
+        0.30 * 0.6      # influence
+        + 0.20 * 1.0    # elite (NAS)
+        + 0.20 * 0.7    # active funding
+        + 0.20 * 0.5    # placement
+        + 0.10 * 0.7    # recruiting (normal)
+    )
+    assert advisor_strength_raw(cand) == pytest.approx(expected)
 
 
-def test_connection_score_no_advisor_uses_field_only():
+def test_connection_score_no_advisor_returns_minimum_bucket():
+    """Roadmap-#3 split: with no current advisor, C honestly has no path
+    signal to evaluate. Returns the lowest 4.0 bucket (2.3) — PI prestige
+    is captured separately in A."""
     cand = {
         "normalized_collab_top20pct": 1.0,
         "collab_with_nas": True,
         "grad_placement_quality": 1.0,
         "paths_to_advisors": {},
     }
-    assert connection_score([], cand) == 4.0
+    assert connection_score([], cand) == 2.3
 
 
 def test_connection_score_with_strong_path():
+    """Roadmap-#3 split: C now only reflects path strength (no field-strength
+    blending). A 1.0 path strength saturates to bucket 4.0."""
     cand = {
-        "normalized_collab_top20pct": 0.5,
-        "collab_with_nas": False,
-        "grad_placement_quality": 0.5,
+        "normalized_collab_top20pct": 0.5,  # ignored by C now (was: blended)
         "paths_to_advisors": {
-            "adv_001": {"small_team_coauthor_5y": 5},
+            "adv_001": {"small_team_coauthor_5y": 5},  # → strength 1.0
         },
     }
     advisors = [{"id": "adv_001", "name": "Adv"}]
-    assert connection_score(advisors, cand) == 3.7
+    assert connection_score(advisors, cand) == 4.0
 
 
 def test_connection_score_big_collab_only_weaker_than_small_team():

@@ -22,14 +22,17 @@ from phd_matcher.models import (
     PathEdge,
     StudentProfile,
 )
-from phd_matcher.scoring import admit, connection, experience, gpa, pub
+from phd_matcher.scoring import admit, advisor, connection, experience, gpa, pub
 
-# Field-strength signals that should each have an EvidenceEntry with sources
+# A-dimension (Advisor influence) signals. Each needs an EvidenceEntry
 # whose items list `<field>` in `supports_fields`.
-_FIELD_STRENGTH_SIGNALS = (
+# (Renamed from _FIELD_STRENGTH_SIGNALS in roadmap-#3 — these describe
+# the candidate PI's own standing, distinct from C / connection paths.)
+_ADVISOR_INFLUENCE_SIGNALS = (
     "normalized_collab_top20pct",
     "collab_with_nas",
     "grad_placement_quality",
+    "active_funding_quality",
 )
 
 
@@ -151,13 +154,14 @@ def evidence_coverage(
         has_ev=_entry_has_evidence_for(ra_ev, "research_areas", strict=strict),
     )
 
-    # Field-strength signals
-    field_pairs = [
+    # A-dimension (Advisor influence) signals
+    advisor_pairs = [
         ("normalized_collab_top20pct", candidate.normalized_collab_top20pct),
         ("collab_with_nas", candidate.collab_with_nas),
         ("grad_placement_quality", candidate.grad_placement_quality),
+        ("active_funding_quality", candidate.active_funding_quality),
     ]
-    for sig, val in field_pairs:
+    for sig, val in advisor_pairs:
         is_set = val is not None
         ev = candidate.evidence.get(sig) if candidate.evidence else None
         _record(
@@ -213,6 +217,11 @@ _FIX_HINTS: dict[str, str] = {
     "grad_placement_quality": (
         "evidence['grad_placement_quality'].items must include an "
         "EvidenceSource citing the lab's alumni / former-students page"
+    ),
+    "active_funding_quality": (
+        "evidence['active_funding_quality'].items must include an "
+        "EvidenceSource citing active grant records "
+        "(NIH RePORTER / NSF Award Search / DOE Office of Science / ERC)"
     ),
     "pi_signal": (
         "evidence['pi_signal'].items must include an EvidenceSource citing "
@@ -302,8 +311,9 @@ def compute_match(
         [a.model_dump() for a in student.current_advisors],
         candidate.model_dump(),
     )
+    a_score = advisor.advisor_strength(candidate.model_dump())
 
-    m = admit.match_score(c, p, e, g, candidate.school_tier)
+    m = admit.match_score(c, a_score, p, e, g, candidate.school_tier)
 
     cov = evidence_coverage(student, candidate)
 
@@ -317,6 +327,7 @@ def compute_match(
     return MatchResult(
         candidate=candidate,
         c_score=round(c, 2),
+        a_score=round(a_score, 2),
         p_score=round(p, 2),
         e_score=round(e, 2),
         g_score=round(g, 2),

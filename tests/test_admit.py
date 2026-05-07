@@ -11,20 +11,47 @@ from phd_matcher.scoring.admit import (
 
 
 def test_match_score_top_10_weights():
-    m = match_score(c=4.0, p=3.5, e=3.0, g=3.5, school_tier="top_10")
-    expected = 0.45 * 4.0 + 0.30 * 3.5 + 0.15 * 3.0 + 0.10 * 3.5
+    """Post-roadmap-#3: 5-pillar CAPEG. C=0.38, A=0.17, P=0.27, E=0.10, G=0.08."""
+    m = match_score(c=4.0, a=3.0, p=3.5, e=3.0, g=3.5, school_tier="top_10")
+    expected = 0.38 * 4.0 + 0.17 * 3.0 + 0.27 * 3.5 + 0.10 * 3.0 + 0.08 * 3.5
     assert m == pytest.approx(expected)
 
 
 def test_match_score_top_60_plus_gpa_weighted_more():
-    m = match_score(c=4.0, p=3.5, e=3.0, g=3.5, school_tier="top_60_plus")
-    expected = 0.30 * 4.0 + 0.20 * 3.5 + 0.20 * 3.0 + 0.30 * 3.5
+    """top_60_plus: G=0.27 — the largest non-C/P weight; A is bounded at 0.12."""
+    m = match_score(c=4.0, a=3.0, p=3.5, e=3.0, g=3.5, school_tier="top_60_plus")
+    expected = 0.25 * 4.0 + 0.12 * 3.0 + 0.18 * 3.5 + 0.18 * 3.0 + 0.27 * 3.5
     assert m == pytest.approx(expected)
 
 
 def test_match_score_invalid_tier_raises():
     with pytest.raises(ValueError):
-        match_score(3, 3, 3, 3, "top_999")
+        match_score(3, 3, 3, 3, 3, "top_999")
+
+
+def test_tier_weights_sum_to_one():
+    """Sanity: 5-pillar weights must sum to 1.0 within each tier."""
+    from phd_matcher.scoring.admit import TIER_WEIGHTS
+
+    for tier, ws in TIER_WEIGHTS.items():
+        total = sum(ws.values())
+        assert total == pytest.approx(1.0), f"{tier} weights sum to {total}, not 1.0"
+
+
+def test_a_does_not_outrank_c_in_any_tier():
+    """The user's explicit invariant: A is bounded so it doesn't compete
+    with C. Under no tier does Advisor influence weight exceed Connection.
+
+    (At top_60_plus, G > C — that's the established 'lower tier weights
+    GPA more' rule from the original CPEG calibration. But A specifically
+    must never beat C, or the connection-first thesis dilutes.)"""
+    from phd_matcher.scoring.admit import TIER_WEIGHTS
+
+    for tier, ws in TIER_WEIGHTS.items():
+        assert ws["C"] > ws["A"], (
+            f"{tier}: C={ws['C']} but A={ws['A']} — A would outrank C, "
+            f"diluting connection-first."
+        )
 
 
 def test_application_strength_top_10_penalty():
