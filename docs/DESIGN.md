@@ -107,7 +107,7 @@ Connection covers:
 
 ## 7. Advisor Influence — A dimension (extracted in #3, refactored in #6a)
 
-A is now **reputation-only** (post-`<COMMIT-PENDING>`). Funding and
+A is now **reputation-only** (post-`58596fa`). Funding and
 recruiting moved to the **Opportunity (O)** signal in roadmap #6a so A
 no longer reads `pi_signal` or `active_funding_quality`. Components:
 
@@ -247,7 +247,7 @@ Explicitly out of scope:
 | 3 | Advisor influence as standalone A dimension | ✅ done (`f80c4d9`) |
 | 4 | Research fit as tie-breaker / ≤0.15× adjustment | ✅ done — initial form is **pure tie-breaker** in sort key, no pillar weight (`a24d9ab`) |
 | 5 | Program difficulty refinement (per-field ranking source) | ✅ done — `ProgramProfile` + `program_difficulty_penalty` (0–0.8) replaces `tier_adj`; `difficulty_adjusted_strength` is now the primary sort key; label applied to it (`90922d6`) |
-| 6a | Opportunity scoring (admit-cycle availability) | ✅ done — `OpportunitySignal` + `opportunity_adj` replaces v1 `pi_adj`; A refactored to reputation-only (`0.40·influence + 0.30·elite + 0.30·placement`) (`<COMMIT-PENDING>`) |
+| 6a | Opportunity scoring (admit-cycle availability) | ✅ done — `OpportunitySignal` + `opportunity_adj` replaces v1 `pi_adj`; A refactored to reputation-only (`0.40·influence + 0.30·elite + 0.30·placement`) (`58596fa`) |
 | 6 | Candidate discovery workflow field-aware | partial — Step 4 of SKILL.md uses profile databases; deeper integration pending |
 | 7 | Output explainer as application-strategy report (next-action) | ⏳ |
 | 8 | CI / packaging / distribution | blocked — CI YAML staged at `.github_workflows/ci.yml`, needs `gh auth refresh -s workflow` to land at `.github/workflows/`; PyPI / plugin marketplace deferred |
