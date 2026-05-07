@@ -51,14 +51,32 @@ EvidenceSourceType = Literal[
     "europe_pmc",
     "semantic_scholar",
     "arxiv",
+    "biorxiv",
+    "dblp",
+    "openreview",
+    "csrankings",
+    "mathscinet",
+    "math_genealogy",
     "us_news",
     "nas",
     "hhmi",
+    "nih_reporter",
+    "clinicaltrials_gov",
     "genealogy",
     "paper",
     "cv",
     "other",
 ]
+
+VenueSystem = Literal[
+    "journal_first",       # physics, chemistry, MSE, biology, clinical
+    "conference_first",    # CS / ML / AI / HCI / systems
+    "preprint_first",      # math, theoretical CS
+    "trial_first",         # clinical / biomedical RCT-driven
+    "mixed",
+]
+
+SeniorAuthorPosition = Literal["last", "first", "n/a"]
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +353,50 @@ class CandidateAdvisor(BaseModel):
 # Match result
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# FieldProfile — per-discipline calibration layer
+# ---------------------------------------------------------------------------
+
+class FieldProfile(BaseModel):
+    """Per-discipline calibration: publication culture, source priorities,
+    advisor-influence rules, ranking sources, caveats. Loaded from
+    `data/field_profiles/<id>.yaml`.
+
+    The deterministic scoring engine is field-agnostic; FieldProfile is
+    metadata that the agent consults to (a) bucket papers correctly,
+    (b) search the right primary databases, and (c) surface field-specific
+    caveats in the result presentation.
+    """
+
+    id: str
+    display_name: str
+    aliases: list[str] = Field(default_factory=list)
+
+    # Publication culture
+    venue_system: VenueSystem
+    # Total-author count above which a paper is "big collab" (for
+    # bucketing into small_team_coauthor_5y vs big_collab_papers_5y).
+    big_collab_threshold: int = Field(default=10, ge=2)
+    co_first_supported: bool = False
+    senior_author_position: SeniorAuthorPosition = "n/a"
+
+    # Source priorities for the agent's web research (per field)
+    primary_databases: list[str] = Field(default_factory=list)
+    ranking_source_url_template: str | None = None
+    genealogy_resources: list[str] = Field(default_factory=list)
+    advisor_influence_signals: list[str] = Field(default_factory=list)
+
+    # Field-specific caveats — surfaced in MatchResult.field_caveats so
+    # the agent presents them alongside the ranking.
+    caveats: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
+# Match result
+# ---------------------------------------------------------------------------
+
 class MatchResult(BaseModel):
     candidate: CandidateAdvisor
     c_score: float
@@ -371,5 +433,8 @@ class MatchResult(BaseModel):
     # Conservative lower-bound reading: even at the wide edge of uncertainty,
     # the application strength is at least this (within the matcher's band).
     lower_bound: float = 0.0
+
+    # Which FieldProfile (if any) was active for this match — for traceability.
+    field_profile_id: str | None = None
 
     model_config = ConfigDict(extra="forbid")

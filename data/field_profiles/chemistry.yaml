@@ -1,0 +1,41 @@
+id: chemistry
+display_name: "Chemistry"
+aliases:
+  - chemistry
+  - chem
+  - organic chemistry
+  - inorganic chemistry
+  - physical chemistry
+  - analytical chemistry
+  - chemical biology
+
+venue_system: journal_first
+big_collab_threshold: 6
+co_first_supported: false            # rare in chemistry
+senior_author_position: "last"       # corresponding PI
+
+primary_databases:
+  - Web of Science (if institutional access)
+  - Google Scholar
+  - OpenAlex
+  - ACS / RSC / Wiley journal pages
+  - SciFinder (if institutional access)
+
+ranking_source_url_template: "https://www.usnews.com/best-graduate-schools/top-science-schools/chemistry-rankings"
+
+genealogy_resources:
+  - Mathematics Genealogy Project (partial)
+  - faculty bio pages
+  - department alumni listings
+
+advisor_influence_signals:
+  - h-index
+  - ACS / RSC fellow status
+  - NAS membership
+  - Sloan / Packard / Beckman early-career awards
+  - active NSF / DOE / NIH funding
+
+caveats:
+  - "Last author = corresponding PI. Mid-author often signals student or postdoc contribution."
+  - "Total-synthesis papers may have 6+ authors but a tight working team — confirm with student before bucketing as big-collab."
+  - "Strong cross-listing with materials and chemical engineering — check candidate's department of origin."

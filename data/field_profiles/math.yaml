@@ -1,0 +1,44 @@
+id: math
+display_name: "Mathematics / Statistics"
+aliases:
+  - math
+  - mathematics
+  - applied math
+  - applied mathematics
+  - pure math
+  - statistics
+  - probability
+  - operations research
+  - or
+
+venue_system: preprint_first         # arXiv preprint often is the canonical record
+big_collab_threshold: 4              # math papers rarely have >4 authors
+co_first_supported: false            # alphabetical author order is the norm
+senior_author_position: "n/a"        # no PI signal from position
+
+primary_databases:
+  - arXiv (math.AG / math.NT / math.GT / etc.)
+  - MathSciNet (if institutional access)
+  - Mathematics Genealogy Project (most authoritative for math genealogy)
+  - zbMATH
+  - Google Scholar
+
+ranking_source_url_template: "https://www.usnews.com/best-graduate-schools/top-science-schools/mathematics-rankings"
+
+genealogy_resources:
+  - Mathematics Genealogy Project (gold standard)
+  - faculty bio pages
+
+advisor_influence_signals:
+  - h-index (lower than other fields — math citations slow)
+  - AMS fellow status
+  - Sloan / Packard
+  - invited speaker / plenary at ICM (International Congress of Mathematicians)
+  - Fields Medal / Abel Prize / Wolf Prize — exceptional cases
+
+caveats:
+  - "Math publication pipeline is slow (2–3+ years from submission to print). Preprints on arXiv often count ≈ published paper for impact discussion."
+  - "Author order is conventionally alphabetical — author_position carries less signal here. Use this when explaining matches."
+  - "Mathematics Genealogy Project is the gold standard; lineage signals are stronger and more verifiable in math than in any other field."
+  - "Top journals (Annals of Mathematics, Inventiones, JAMS, Acta Mathematica) publish far fewer papers/yr than physics flagships — calibrate tier-1 expectations down."
+  - "Math admits also weight problem-solving competition history (Putnam, IMO) — not modeled here, but worth surfacing."

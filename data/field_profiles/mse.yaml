@@ -1,0 +1,40 @@
+id: mse
+display_name: "Materials Science & Engineering"
+aliases:
+  - mse
+  - materials
+  - materials science
+  - materials engineering
+  - nanotechnology
+  - nano
+
+venue_system: journal_first
+big_collab_threshold: 8
+co_first_supported: false
+senior_author_position: "last"     # PI typically last author
+
+primary_databases:
+  - Web of Science (if institutional access)
+  - Google Scholar
+  - OpenAlex
+  - ACS / RSC / Wiley journal pages
+  - lab alumni pages
+
+ranking_source_url_template: "https://www.usnews.com/best-graduate-schools/top-engineering-schools/materials-engineering-rankings"
+
+genealogy_resources:
+  - Mathematics Genealogy Project (partial coverage)
+  - faculty bio pages
+  - PhD-thesis acknowledgments
+
+advisor_influence_signals:
+  - h-index
+  - MRS / TMS / ACS fellow status
+  - NAE membership
+  - active NSF / DOE / industrial funding
+  - lab placement quality
+
+caveats:
+  - "Last (senior) author is typically the PI — clarify with the student which author position they held."
+  - "Total-synthesis or nano-fabrication papers may have 6+ authors but a small effective team — ask the student before bucketing."
+  - "Strong cross-listing with chemistry; check candidate's department + recent venue mix."

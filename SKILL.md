@@ -56,6 +56,33 @@ strength** to the student's current research advisor, on a 4.0 scale across:
 Final scores tier-adaptively weighted by school competitiveness. Admit
 likelihood incorporates the candidate PI's recruiting signal.
 
+## Step 0 — Load the FieldProfile
+
+Before running any deep-research, **load the FieldProfile for the user's
+discipline**. This is the per-field calibration layer that tells you
+which databases to search, how to bucket papers, and what caveats to
+surface. Bundled profiles:
+
+| field id | aliases | notable rules |
+|----------|---------|---------------|
+| `physics` | `hep`, `hep-ex`, `hep-ph`, `hep-th`, `astrophysics`, `condensed matter` | `journal_first`; big_collab_threshold=10; INSPIRE-HEP primary |
+| `mse` | `materials`, `nano`, `nanotechnology` | `journal_first`; big_collab_threshold=8; senior author = last |
+| `cs` | `ml`, `machine learning`, `ai`, `nlp`, `cv`, `systems`, `theory`, `hci` | **`conference_first`**; co-first supported; CSRankings, not US News |
+| `biology` | `bio`, `genetics`, `neuroscience`, `immunology`, `microbiology`, `biochemistry` | `journal_first`; co-first common; PubMed/bioRxiv; HHMI strong signal |
+| `chemistry` | `chem`, `organic`, `inorganic`, `physical chemistry` | `journal_first`; senior author = last |
+| `math` | `mathematics`, `applied math`, `pure math`, `statistics` | **`preprint_first`**; arXiv often canonical; Math Genealogy authoritative |
+
+The matcher resolves aliases (e.g., user types `"hep"` → loads
+`physics.yaml`). The resolved profile flows into the result as
+`field_profile_id` and `field_caveats`; **always surface the caveats in
+your result presentation** — they are how the matcher tells the user
+"this discipline has the following gotchas".
+
+For an unbundled field (e.g., `"materials_chemistry"`), the matcher
+returns `field_profile_id: null` — fall back to the cross-field guidance
+in `references/journal_tiers.md` and your domain knowledge, and tell the
+user explicitly "no profile bundled for this field".
+
 ## Architecture: no static cache, always real-time research
 
 There is **no bundled candidate cache**. PhD advisor data is too dynamic
@@ -183,7 +210,21 @@ distinction matters: co-authoring a 5-person condensed-matter paper is
 real evidence of working together; co-name on an alphabetical 3000-author
 ATLAS paper is just shared collaboration membership.
 
-Search **at least one** of:
+The threshold for "big collab" is **field-specific** — see the loaded
+FieldProfile's `big_collab_threshold`:
+
+| field | threshold (>N authors → big collab) |
+|-------|-------------------------------------|
+| physics | 10 (ATLAS-aware) |
+| mse / cs | 8 |
+| biology / chemistry | 6 |
+| math | 4 |
+
+Use the right threshold per field instead of always assuming 10.
+
+Search the FieldProfile's `primary_databases` first (e.g., INSPIRE-HEP
+for physics, DBLP for CS, PubMed for biology). Generic Google Scholar is
+a fallback. Specifically:
 
 ```
 - Google Scholar:  "<advisor full name>" "<candidate full name>"

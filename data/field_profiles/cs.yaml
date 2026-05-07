@@ -1,0 +1,50 @@
+id: cs
+display_name: "Computer Science"
+aliases:
+  - cs
+  - computer science
+  - ml
+  - machine learning
+  - ai
+  - artificial intelligence
+  - deep learning
+  - hci
+  - systems
+  - theory
+  - nlp
+  - cv
+  - computer vision
+
+venue_system: conference_first       # CS is conference-driven
+big_collab_threshold: 8
+co_first_supported: true             # alphabetical co-first is common
+senior_author_position: "last"       # advisor / PI typically last
+
+primary_databases:
+  - DBLP                              # canonical CS bibliography
+  - Semantic Scholar
+  - OpenReview (NeurIPS / ICML / ICLR — open peer review)
+  - arXiv (cs.LG / cs.CV / cs.CL / cs.AI / etc.)
+  - CSRankings (faculty + venue stats)
+  - ACM Digital Library
+
+ranking_source_url_template: "https://csrankings.org/"   # field-specific, not US News
+
+genealogy_resources:
+  - AI Genealogy Project
+  - faculty bio pages
+  - Mathematics Genealogy Project (for theoretical CS)
+
+advisor_influence_signals:
+  - h-index (Semantic Scholar)
+  - ACM / IEEE fellow status
+  - test-of-time / best-paper awards at top venues
+  - NSF CAREER award
+  - active industry-academic appointment (e.g., Google Brain + Stanford)
+
+caveats:
+  - "Conferences (NeurIPS, ICML, ICLR, CVPR, ACL, EMNLP, OSDI, SOSP, STOC, FOCS, etc.) ARE the top venues. Don't apply tier 4 default to a top-tier conference paper — they belong in tier 1 or 2."
+  - "Co-first authorship is common; treat shared first-author as 1st position equivalent."
+  - "ML / AI fields move fast — recent (last 2 years) work matters more than older citation count."
+  - "OpenReview reviews are public for some venues — check author rebuttals + reviewer identities for analysis-contact-overlap-style evidence."
+  - "CSRankings is more reliable than US News for CS subfield rankings."

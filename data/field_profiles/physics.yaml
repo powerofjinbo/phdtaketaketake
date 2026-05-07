@@ -1,0 +1,41 @@
+id: physics
+display_name: "Physics / HEP / Astrophysics"
+aliases:
+  - physics
+  - hep
+  - hep-ex
+  - hep-ph
+  - hep-th
+  - particle physics
+  - astrophysics
+  - astronomy
+  - condensed matter
+
+venue_system: journal_first
+big_collab_threshold: 10           # ATLAS / CMS / LIGO papers cross this routinely
+co_first_supported: false
+senior_author_position: "n/a"      # author order largely reflects contribution
+
+primary_databases:
+  - INSPIRE-HEP                    # gold standard for HEP literature + collaborations
+  - arXiv (hep-ex / hep-ph / hep-th / astro-ph / cond-mat)
+  - OpenAlex
+  - Google Scholar
+
+ranking_source_url_template: "https://www.usnews.com/best-graduate-schools/top-science-schools/physics-rankings"
+
+genealogy_resources:
+  - Mathematics Genealogy Project (good coverage for physics)
+  - faculty bio pages
+
+advisor_influence_signals:
+  - h-index from Google Scholar / OpenAlex
+  - APS / AIP fellow status
+  - DOE Office of Science Early Career awards
+  - NAS membership
+  - convener / spokesperson roles in big-collab experiments
+
+caveats:
+  - "Big-collab papers (ATLAS / CMS / LIGO / etc.) require analyzer / convener / paper-editor evidence beyond simple author-list overlap. Use same_working_group or analysis_contact_overlap edges for these."
+  - "Theory vs experiment matters for advisor matching — check candidate's recent papers."
+  - "INSPIRE-HEP collaboration tracking is more authoritative than Google Scholar for HEP author lists."

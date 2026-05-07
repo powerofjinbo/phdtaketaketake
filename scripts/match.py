@@ -44,6 +44,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from phd_matcher.data.loaders import load_field_profile  # noqa: E402
 from phd_matcher.matching.ranker import rank_advisors, strict_validate  # noqa: E402
 from phd_matcher.models import CandidateAdvisor, StudentProfile  # noqa: E402
 
@@ -107,6 +108,12 @@ def main() -> int:
             "allowed — they're honest 'I couldn't verify' states."
         ),
     )
+    ap.add_argument(
+        "--data-dir",
+        type=Path,
+        default=REPO_ROOT / "data",
+        help="Path to the data/ directory (for field profile lookup).",
+    )
     args = ap.parse_args()
 
     try:
@@ -136,6 +143,11 @@ def main() -> int:
         json.dump({"error": "candidates list is empty"}, sys.stdout)
         return 1
 
+    # Resolve field profile (alias-aware). Surfaces field-specific caveats
+    # so the agent can apply per-discipline calibration when presenting
+    # the ranking. None for fields we don't ship a profile for.
+    field_profile = load_field_profile(args.data_dir, args.field)
+
     # Strict mode: reject any candidate with unsourced claims.
     if args.strict_evidence:
         all_errors: list[str] = []
@@ -151,8 +163,17 @@ def main() -> int:
             sys.stdout.write("\n")
             return 2
 
-    results = rank_advisors(student, candidates, top_k=args.top_k)
-    output = [r.model_dump(mode="json") for r in results]
+    results = rank_advisors(
+        student,
+        candidates,
+        top_k=args.top_k,
+        field_profile_id=(field_profile.id if field_profile else None),
+    )
+    output: dict = {
+        "field_profile_id": field_profile.id if field_profile else None,
+        "field_caveats": field_profile.caveats if field_profile else [],
+        "results": [r.model_dump(mode="json") for r in results],
+    }
     json.dump(output, sys.stdout, indent=2, ensure_ascii=False)
     sys.stdout.write("\n")
     return 0

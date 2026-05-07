@@ -279,8 +279,19 @@ def _lower_bound(strength: float, band: float) -> float:
 # Compute / rank
 # ---------------------------------------------------------------------------
 
-def compute_match(student: StudentProfile, candidate: CandidateAdvisor) -> MatchResult:
-    """Score one (student, candidate) pair across all dimensions."""
+def compute_match(
+    student: StudentProfile,
+    candidate: CandidateAdvisor,
+    *,
+    field_profile_id: str | None = None,
+) -> MatchResult:
+    """Score one (student, candidate) pair across all dimensions.
+
+    `field_profile_id`, when provided, is recorded on the result for
+    traceability. The scoring engine itself is field-agnostic — the
+    profile's effect is on agent behavior (per-field source priorities,
+    big-collab threshold, caveats) and is enforced upstream.
+    """
     p = pub.pub_score([pp.model_dump() for pp in student.papers])
     g = gpa.gpa_score(student.gpa_raw, student.gpa_scale)
     e = experience.experience_score([ee.model_dump() for ee in student.experiences])
@@ -319,6 +330,7 @@ def compute_match(student: StudentProfile, candidate: CandidateAdvisor) -> Match
         unsourced_signal_names=cov.unsourced_names,
         risk_adjusted_strength=round(_risk_adjusted(strength, band), 2),
         lower_bound=round(_lower_bound(strength, band), 2),
+        field_profile_id=field_profile_id,
     )
 
 
@@ -327,6 +339,8 @@ def rank_advisors(
     candidates: list[CandidateAdvisor],
     top_k: int = 20,
     field_filter: bool = True,
+    *,
+    field_profile_id: str | None = None,
 ) -> list[MatchResult]:
     """Rank candidates by **risk-adjusted strength**. A wider confidence band
     is a downside discount, so well-evidenced candidates outrank loosely-
@@ -334,7 +348,9 @@ def rank_advisors(
     if field_filter:
         candidates = [c for c in candidates if c.field == student.field]
 
-    results = [compute_match(student, c) for c in candidates]
+    results = [
+        compute_match(student, c, field_profile_id=field_profile_id) for c in candidates
+    ]
 
     def sort_key(r: MatchResult):
         rel = direction_relevance(student.research_direction, r.candidate.research_areas)

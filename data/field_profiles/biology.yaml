@@ -1,0 +1,48 @@
+id: biology
+display_name: "Biology / Life Sciences"
+aliases:
+  - biology
+  - bio
+  - life sciences
+  - genetics
+  - genomics
+  - neuroscience
+  - molecular biology
+  - cell biology
+  - immunology
+  - microbiology
+  - biochemistry
+  - structural biology
+
+venue_system: journal_first
+big_collab_threshold: 6              # smaller teams typical; big-consortium papers (e.g. ENCODE) cross threshold
+co_first_supported: true             # very common — sometimes 2-3 co-first
+senior_author_position: "last"       # PI / corresponding
+
+primary_databases:
+  - PubMed
+  - Europe PMC
+  - bioRxiv (preprints)
+  - Google Scholar
+  - NIH RePORTER (active funding lookup)
+
+ranking_source_url_template: "https://www.usnews.com/best-graduate-schools/top-science-schools/biological-sciences-rankings"
+
+genealogy_resources:
+  - faculty bio pages (biology rarely uses Math Genealogy)
+  - Howard Hughes Medical Institute (HHMI) investigator profiles
+  - lab alumni pages
+
+advisor_influence_signals:
+  - HHMI investigator status (very strong)
+  - NAS / NAM (National Academy of Medicine) membership
+  - active R01 / R35 / DP1 funding (NIH RePORTER)
+  - h-index
+  - lab placement (faculty / industry / postdoc mix)
+
+caveats:
+  - "Co-first authorship is common — treat shared-first as 1st position. Look for asterisks / dagger marks or 'These authors contributed equally' notes on PubMed."
+  - "Last author = PI (corresponding). Mid-author position (3rd of 6) is typical for student or postdoc contribution."
+  - "Multi-institution consortium papers (e.g., ENCODE, Allen Brain Atlas, Cancer Genome Atlas) can have 50+ authors — bucket as big_collab_papers_5y."
+  - "Clinical biology papers (RCT, case-control) follow medical conventions — see clinical fallback."
+  - "HHMI is a strong advisor-influence signal in biology, more than in physics."
