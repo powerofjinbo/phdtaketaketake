@@ -100,9 +100,20 @@ def path_strength(edges: PathEdge | dict) -> float:
 # ---- Field strength (candidate's own network) ----------------------------
 
 def field_strength(candidate: dict) -> float:
-    collab_top20 = float(candidate.get("normalized_collab_top20pct", 0.0))
-    nas = 1.0 if candidate.get("collab_with_nas") else 0.0
-    placement = float(candidate.get("grad_placement_quality", 0.0))
+    """Compute candidate's field-level network signal on 0–1.
+
+    Three-state semantics per code review: each input field can be `None`
+    (not checked), a verified value (with sources), or False/0 (verified
+    weak). For scoring, `None` contributes 0 (conservative — pushes the
+    agent to actually verify rather than guess a neutral default)."""
+    collab_top20_raw = candidate.get("normalized_collab_top20pct")
+    collab_top20 = 0.0 if collab_top20_raw is None else float(collab_top20_raw)
+
+    nas = 1.0 if candidate.get("collab_with_nas") is True else 0.0
+
+    placement_raw = candidate.get("grad_placement_quality")
+    placement = 0.0 if placement_raw is None else float(placement_raw)
+
     return 0.4 * collab_top20 + 0.3 * nas + 0.3 * placement
 
 

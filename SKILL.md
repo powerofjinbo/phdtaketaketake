@@ -19,8 +19,10 @@ years of their life. Made-up data is worse than no data.
 - ❌ Inferred from name patterns / school proximity / "feels likely" → **NOT ALLOWED**
 - ❌ Estimated without any web search → **NOT ALLOWED**
 
-The matcher's confidence band (±0.3 / 0.5 / 0.7) handles missing data
-gracefully. A wide band on **real** data is far more useful than a narrow
+The matcher's confidence band (±0.2 / 0.4 / 0.6 / 0.8 — see §Confidence
+calibration below) handles missing data gracefully, AND the risk-adjusted
+ranking subtracts band/2 from the sort key — so wide bands move candidates
+down the list. A wide band on **real** data is far more useful than a narrow
 band on **made-up** data.
 
 Full allowed-source list and forbidden-behavior catalog:
@@ -93,7 +95,7 @@ For mappings (`gpa_scale`, `journal_tier`, `lab_tier`, `output_type`,
 and `references/journal_tiers.md`. When uncertain about a journal tier,
 ask the user or default to tier `4`.
 
-### Step 2 — Determine target programs
+### Step 2 — Determine target programs (with cited ranking source)
 
 Ask the user where they want to apply. Acceptable inputs:
 - Specific schools (e.g., MIT, Stanford, Princeton)
@@ -101,8 +103,21 @@ Ask the user where they want to apply. Acceptable inputs:
 - Specific professors they have in mind ("I'm interested in Prof. X")
 - Open-ended ("show me the best matches")
 
-If they give a tier, use your knowledge of US News PhD program rankings to
-enumerate target schools (~10–20). If they give specific schools, use those.
+**Per the cardinal data-integrity rule**, school tier is now a sourced
+signal — not memorized. **Fetch the current US News (or field-equivalent)
+ranking page**:
+
+```
+https://www.usnews.com/best-graduate-schools/top-science-schools/<field>-rankings
+```
+
+Record the URL in `evidence["school_tier"].sources` for every candidate
+you generate. Without this, `school_tier` counts as unverified and the
+candidate's confidence band widens.
+
+If the user gives a tier, use the **fetched ranking** to enumerate target
+schools (~10–20). Don't enumerate from training memory — rankings change
+year-to-year and your training data may be stale.
 
 ### Step 3 — Find candidate PIs (research direction match)
 
@@ -223,25 +238,27 @@ correct value. The C score reduces cleanly to field strength only.
 
 ### Step 5 — Field-strength signals (per candidate)
 
-Properties of the candidate themselves. Each must be sourced:
+Properties of the candidate themselves. **Three-state semantics** (per code
+review): each field is either verified-with-sources, verified-empty (value
+remains `null`/`false` + sources documenting the search), or omitted
+(no value, no sources → counts as unverified).
 
-- `normalized_collab_top20pct` (0–1): proxy via candidate's h-index from
-  Google Scholar or OpenAlex. Formula: `min(1.0, h_index / 50)`. Cite the
-  profile URL.
-- `collab_with_nas` (bool): set to true **only if** you found a specific
-  recent co-author who is a verified NAS / HHMI member (search the official
-  NAS / HHMI directories for confirmation). If you didn't verify, leave
-  it `false`.
-- `grad_placement_quality` (0–1): only set if you found and read the lab
-  page's "alumni" / "former students" section. Top faculty placements: 0.8+,
-  mix of academia + industry: 0.5–0.7, mostly post-docs: 0.4. **If the lab
-  page doesn't have alumni info, set this to 0.5 (neutral default) and
-  note "no alumni page" in the explanation — don't fabricate based on
-  vibes.**
+- `normalized_collab_top20pct` (0–1, default `null`): proxy via candidate's
+  h-index from Google Scholar or OpenAlex. Formula: `min(1.0, h_index / 50)`.
+  Cite the profile URL in `evidence["normalized_collab_top20pct"].sources`.
+- `collab_with_nas` (bool, default `null`): set to `true` **only if** you
+  verified a specific recent co-author against the NAS / HHMI directory.
+  Set to `false` only if you searched and confirmed no such collaborator.
+  Otherwise leave as `null`.
+- `grad_placement_quality` (0–1, default `null`): only set if you read the
+  lab's "alumni" / "former students" section. Top faculty placements: 0.8+,
+  academia + industry mix: 0.5–0.7, mostly post-docs: 0.4. If no alumni
+  page exists, leave as `null` and surface that in the explanation.
 
-**No guessing.** If you didn't actually look it up, the conservative
-defaults are: `0.5 / false / 0.5`. Note in the explanation that these are
-defaults so the user knows the confidence is lower for that candidate.
+**Don't fill in fake defaults when you didn't check.** A 0.5 written into
+the JSON without sources counts as unverified — same as `null` without
+sources — but pretends to be a real signal. The matcher's confidence band
+will widen either way; honesty in the JSON helps the user read the result.
 
 ### Step 6 — Recruiting signal (`pi_signal`)
 

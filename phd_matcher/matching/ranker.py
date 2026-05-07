@@ -17,6 +17,13 @@ _FIELD_STRENGTH_SIGNALS = (
     "grad_placement_quality",
 )
 
+# All other signals on a CandidateAdvisor that need source citations.
+_NON_PATH_SIGNALS_REQUIRING_SOURCES = (
+    *_FIELD_STRENGTH_SIGNALS,
+    "school_tier",       # post-review: ranking must be cited, not from memory
+    # pi_signal handled separately because it has the special "missing" value
+)
+
 
 def _has_sources(entry: EvidenceEntry | None) -> bool:
     if entry is None:
@@ -27,16 +34,18 @@ def _has_sources(entry: EvidenceEntry | None) -> bool:
 def count_unverified_signals(
     student: StudentProfile, candidate: CandidateAdvisor
 ) -> int:
-    """Count signals that lack source citations (per code-review #1).
+    """Count signals that lack source citations.
 
-    Strict rule: every claim — even a default value or "missing" — must have
-    EvidenceEntry.sources to count as verified. Asserting non-default values
-    without sources also counts as unverified.
+    Strict rule: every claim must have EvidenceEntry.sources (or PathEdge
+    sources for connection edges) to count as verified.
 
     Counted:
       - paths_to_advisors[adv.id] missing entirely or PathEdge with empty sources
+      - school_tier (post-review): no evidence sources for the ranking source
       - field-strength signals (normalized_collab_top20pct, collab_with_nas,
-        grad_placement_quality) without an EvidenceEntry that has sources
+        grad_placement_quality): no evidence sources, regardless of value
+        (None = not checked, value-without-sources = asserted without proof,
+        both count)
       - pi_signal == "missing" (data point absent regardless)
       - pi_signal != "missing" without an EvidenceEntry that has sources
     """
@@ -51,9 +60,9 @@ def count_unverified_signals(
             elif not edges.sources:
                 n += 1                              # path entry without sources
 
-    # Field-strength signals (each must have evidence sources)
+    # Other non-path signals that need source citations
     evidence = candidate.evidence or {}
-    for sig in _FIELD_STRENGTH_SIGNALS:
+    for sig in _NON_PATH_SIGNALS_REQUIRING_SOURCES:
         if not _has_sources(evidence.get(sig)):
             n += 1
 
@@ -64,6 +73,16 @@ def count_unverified_signals(
         n += 1
 
     return n
+
+
+def _risk_adjusted(strength: float, band: float) -> float:
+    """Sort-key score that penalizes wide confidence bands.
+
+    `strength - band/2` treats half the band as a downside discount. A
+    candidate at strength=3.0 ±0.2 (risk-adjusted 2.9) outranks a peer
+    at strength=3.2 ±0.8 (risk-adjusted 2.8) — narrower evidence wins.
+    """
+    return strength - band / 2.0
 
 
 def compute_match(student: StudentProfile, candidate: CandidateAdvisor) -> MatchResult:
@@ -99,6 +118,7 @@ def compute_match(student: StudentProfile, candidate: CandidateAdvisor) -> Match
         strength_label=label,
         explanation=explanation,
         unverified_signals=unverified,
+        risk_adjusted_strength=round(_risk_adjusted(strength, band), 2),
     )
 
 
@@ -108,6 +128,9 @@ def rank_advisors(
     top_k: int = 20,
     field_filter: bool = True,
 ) -> list[MatchResult]:
+    """Rank candidates by **risk-adjusted strength** (post-review): a wider
+    confidence band is a downside discount, so well-evidenced candidates
+    outrank loosely-claimed peers even at lower nominal strength."""
     if field_filter:
         candidates = [c for c in candidates if c.field == student.field]
 
@@ -115,7 +138,7 @@ def rank_advisors(
 
     def sort_key(r: MatchResult):
         rel = direction_relevance(student.research_direction, r.candidate.research_areas)
-        return (r.application_strength, rel, r.match_score)
+        return (r.risk_adjusted_strength, rel, r.application_strength)
 
     results.sort(key=sort_key, reverse=True)
     return results[:top_k]

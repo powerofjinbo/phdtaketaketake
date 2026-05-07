@@ -6,6 +6,8 @@ there is no historical admission data to calibrate against. See README and
 docs/scoring.md for the rationale.
 """
 
+from phd_matcher.models import StrengthLabel
+
 # ---- Tier-adaptive weights (§6) ------------------------------------------
 
 TIER_WEIGHTS: dict[str, dict[str, float]] = {
@@ -86,7 +88,10 @@ def application_strength(
 
 # ---- Strength label (§7.3) -----------------------------------------------
 
-def strength_label(strength: float) -> str:
+def strength_label(strength: float) -> StrengthLabel:
+    """Bucket the 4.0-scale application_strength into a 5-tier label.
+    Return type is the same Literal alias as MatchResult.strength_label,
+    so mypy is happy."""
     if strength >= 3.5: return "Safe"
     if strength >= 3.0: return "Match"
     if strength >= 2.5: return "Target"

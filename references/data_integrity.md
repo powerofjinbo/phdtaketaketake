@@ -15,9 +15,11 @@ it's harmful. Read this whole page before doing any connection research.
 | Estimated without web search | ❌ **forbidden** |
 | Source citation omitted from explanation | ❌ **forbidden** |
 
-The matcher's confidence band (±0.3 / 0.5 / 0.7) widens automatically when
-signals are missing — that's the **correct behavior**. A wide band on real
-data is far more useful than a narrow band on fabricated data.
+The matcher's confidence band (±0.2 / 0.4 / 0.6 / 0.8) widens automatically
+when signals are missing — that's the **correct behavior**. AND the
+risk-adjusted ranking subtracts band/2 from the sort key, so wide-band
+candidates literally drop in rank. A wide band on real data is far more
+useful than a narrow band on fabricated data.
 
 ## Allowed data sources
 
@@ -86,7 +88,9 @@ returns nothing, leave genealogy edge empty.
 > Bad: "given they're both at top schools in HEP, ~3–5 co-authored papers"
 
 Fetch Google Scholar / OpenAlex / INSPIRE-HEP and **count actual results**.
-If the search returns 0, `coauthor_papers_5y` stays absent — `paths_to_advisors[adv_id] = {}`.
+If the search returns 0 small-team co-authored papers, leave
+`small_team_coauthor_5y` absent (or set to 0 with sources documenting the
+search). Either way, record `sources` so the path entry counts as verified.
 
 ### ❌ Don't invent collaboration memberships
 
@@ -207,10 +211,10 @@ honest-but-missing over present-but-fabricated.**
 The matcher handles missing data:
 - Empty `paths_to_advisors` → C falls back to field strength only
 - `pi_signal = "missing"` → application_strength penalized −0.1
-- Many missing signals → confidence band widens to ±0.7
+- Many missing signals → confidence band widens to ±0.8
 
-A candidate ranked at application_strength = 2.8 (±0.7) on **real** data is far
-more useful than application_strength = 3.4 (±0.3) on **fabricated** data.
+A candidate ranked at application_strength = 2.8 (±0.8) on **real** data is far
+more useful than application_strength = 3.4 (±0.2) on **fabricated** data.
 
 ## Why this matters
 
@@ -226,7 +230,7 @@ presentation**:
 
 > *"For Prof. X, I couldn't find verifiable connection signals to Prof.
 > Wang via OpenAlex / Math Genealogy / INSPIRE-HEP. The Connection score
-> reflects field-strength only and the confidence band is ±0.7. Take this
+> reflects field-strength only and the confidence band is ±0.8. Take this
 > ranking as approximate."*
 
 Honest uncertainty serves the student. Fabricated certainty harms them.

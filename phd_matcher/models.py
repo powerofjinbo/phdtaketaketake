@@ -39,6 +39,8 @@ OutputType = Literal[
 
 GPAScale = Literal["4.0", "4.3", "4.5", "100", "uk"]
 
+StrengthLabel = Literal["Far Reach", "Reach", "Target", "Match", "Safe"]
+
 
 # ---------------------------------------------------------------------------
 # Evidence — provenance for any claim the agent makes
@@ -183,11 +185,13 @@ class CandidateAdvisor(BaseModel):
     # Connection edges per student-advisor id. Each value is a PathEdge.
     paths_to_advisors: dict[str, PathEdge] = Field(default_factory=dict)
 
-    # Field-level network strength (0–1). Each should have a matching entry
-    # in `evidence` (per the cardinal data-integrity rule).
-    normalized_collab_top20pct: float = Field(default=0.0, ge=0.0, le=1.0)
-    collab_with_nas: bool = False
-    grad_placement_quality: float = Field(default=0.0, ge=0.0, le=1.0)
+    # Field-level network strength (0–1). Three-state semantics per code
+    # review: `None` means "not checked yet" (distinct from a verified low
+    # score). Set to a numeric value only after web verification, with a
+    # matching `evidence[<field>]` entry containing source URLs.
+    normalized_collab_top20pct: float | None = Field(default=None, ge=0.0, le=1.0)
+    collab_with_nas: bool | None = None
+    grad_placement_quality: float | None = Field(default=None, ge=0.0, le=1.0)
 
     pi_signal: PISignal = "missing"
     recent_phd_count: int | None = Field(default=None, ge=0)
@@ -220,9 +224,14 @@ class MatchResult(BaseModel):
     # signal. See docs/scoring.md.
     application_strength: float
     confidence_band: float
-    strength_label: Literal["Far Reach", "Reach", "Target", "Match", "Safe"]
+    strength_label: StrengthLabel
 
     explanation: str | None = None
     unverified_signals: int = Field(default=0, ge=0)
+
+    # Risk-adjusted strength used as the primary sort key — penalizes wide
+    # confidence bands so a candidate with sparse evidence can't outrank a
+    # better-sourced peer simply by claiming a higher strength.
+    risk_adjusted_strength: float = 0.0
 
     model_config = ConfigDict(extra="forbid")
