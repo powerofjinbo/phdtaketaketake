@@ -175,22 +175,18 @@ get to dilute the connection-first thesis.
 
 > **Important**: `application_strength` is **NOT a probability**. It's a
 > 4.0-scale relative-fit index. There's no historical admission data behind
-> it — calibration is qualitative, based on realistic admission-rate ratios
-> across school tiers.
+> it — calibration is qualitative.
 
 ```
-application_strength = clip(match + tier_adj + pi_adj, 0, 4.0)
+application_strength = clip(match + pi_adj, 0, 4.0)
 ```
 
-| School tier | tier_adj |
-|-------------|----------|
-| Top 10 | **−1.0** |
-| Top 11–30 | **−0.5** |
-| Top 31–60 | 0 |
-| Top 60+ | **+0.4** |
-
-These reflect realistic admission-rate ratios (top-10 PhD programs admit
-~5–10%; top-60+ admit ~25–35% — a 4–8× gap).
+Post-roadmap-#5: school-tier difficulty no longer enters
+`application_strength` directly. Its admit-rate role moved into
+`program_difficulty_penalty`'s `school_tier_admit_rate_factor`
+component, and the matcher now exposes
+`difficulty_adjusted_strength = risk_adjusted_strength − penalty` as
+the primary sort key. See [`references/program_profile.md`](../references/program_profile.md).
 
 | PI signal | pi_adj |
 |-----------|--------|
@@ -199,6 +195,9 @@ These reflect realistic admission-rate ratios (top-10 PhD programs admit
 | shrinking (<1/yr) | −0.4 |
 | missing data | −0.1 |
 | not recruiting | force to 0 |
+
+`pi_adj` stays inside `application_strength` for v2 commit 1; commit 2
+(Opportunity / A refactor) will reorganize this boundary.
 
 ### Confidence band (driven by evidence coverage)
 
@@ -209,26 +208,42 @@ These reflect realistic admission-rate ratios (top-10 PhD programs admit
 | 3–4 | ±0.6 |
 | 5+ (mostly unsourced) | ±0.8 |
 
-### Sort order (tie-break ladder, post-roadmap-#4)
+### Program difficulty (post-roadmap-#5)
+
+```
+program_difficulty_penalty   = clip(school_tier_factor + cohort_factor + admission_factor
+                                    + funding_factor + area_factor + intl_factor, 0.0, 0.8)
+difficulty_adjusted_strength = max(0.0, risk_adjusted_strength − program_difficulty_penalty)
+```
+
+`difficulty_adjusted_strength` is the **primary sort key** post-#5. The
+5-tier label is now applied to it (not to `application_strength`). See
+[`references/program_profile.md`](../references/program_profile.md) for
+the per-component table and calibration rationale.
+
+### Sort order (tie-break ladder, post-roadmap-#5)
 
 The ranker uses this descending priority:
 
-1. `risk_adjusted_strength` (= `application_strength − band/2`) — primary key
-2. `research_fit_score` (None → -∞, ranked last among ties)
-3. `direction_relevance` (keyword overlap fallback)
-4. `application_strength` (raw)
-5. `lower_bound` (final tiebreak — favors narrower band)
+1. `difficulty_adjusted_strength` — **primary key (post-#5)**
+2. `risk_adjusted_strength` (= `application_strength − band/2`)
+3. `research_fit_score` (None → −∞, ranked last among ties)
+4. `direction_relevance` (keyword overlap fallback)
+5. `application_strength` (raw)
+6. `lower_bound` (final tiebreak — favors narrower band)
 
 Research fit is **not** part of the match formula — it cannot move
-`risk_adjusted_strength`. It only breaks ties when two candidates are
-otherwise equal. The connection-first thesis is preserved.
+`risk_adjusted_strength` and (since #5) cannot move
+`difficulty_adjusted_strength` either. It only breaks ties when two
+candidates are otherwise equal. The connection-first thesis is preserved.
 
-To make this airtight, `research_fit` is also excluded from evidence
+To make this airtight, `research_fit` is excluded from evidence
 coverage when `research_fit_score is None` — otherwise a missing fit
 would count as one extra missing signal, widen the band, and indirectly
 lower `risk_adjusted_strength`. Counted only when set; verified when
 sourced; unsourced (and rejected by strict mode) when set without
-`supports_fields=["research_fit"]` evidence.
+`supports_fields=["research_fit"]` evidence. The same opt-in pattern
+applies to ProgramProfile signals — only set fields enter coverage.
 
 A signal counts as unverified unless an `EvidenceSource` in
 `EvidenceEntry.items` (or `PathEdge.items`) lists that signal's field
@@ -265,13 +280,17 @@ candidate (risk-adjusted 2.9) outranks a loosely-claimed 3.2 ±0.8 candidate
 by writing nice numbers without sources** — the band would widen and the
 risk-adjusted score would drop.
 
-### 5-tier label (applied to `application_strength`, not risk-adjusted)
+### 5-tier label (applied to `difficulty_adjusted_strength` post-roadmap-#5)
 
 - `Safe` ≥ 3.5
 - `Match` 3.0–3.5
 - `Target` 2.5–3.0
 - `Reach` 2.0–2.5
 - `Far Reach` < 2.0
+
+Pre-#5 the label was applied to `application_strength` — see the v1
+calibration in [`references/program_profile.md`](../references/program_profile.md)
+for the calibration shifts vs v1.
 
 ### MatchResult output fields
 
@@ -280,19 +299,21 @@ post-review additions:
 
 | Field | Meaning |
 |-------|---------|
-| `match_score` | 4-dim weighted composite, 0–4.0 |
-| `application_strength` | match + tier_adj + pi_adj, clipped 0–4.0 (NOT a probability) |
+| `match_score` | CAPEG weighted composite, 0–4.0 |
+| `application_strength` | `match + pi_adj`, clipped 0–4.0 (NOT a probability) |
 | `confidence_band` | ±0.2 / 0.4 / 0.6 / 0.8 by evidence coverage |
-| `strength_label` | `Far Reach` / `Reach` / `Target` / `Match` / `Safe` |
+| `strength_label` | `Far Reach` / `Reach` / `Target` / `Match` / `Safe` — applied to `difficulty_adjusted_strength` (post-#5) |
 | --- | --- |
-| `risk_adjusted_strength` | = strength − band/2; **primary sort key** |
-| `lower_bound` | = strength − band; conservative reading at uncertainty edge |
+| `risk_adjusted_strength` | = `application_strength − band/2` |
+| `lower_bound` | = `application_strength − band`; conservative reading at uncertainty edge |
+| `program_difficulty_penalty` | 0–0.8 from `school_tier` + ProgramProfile signals (post-#5) |
+| `difficulty_adjusted_strength` | = `max(0, risk_adjusted_strength − penalty)`; **primary sort key (post-#5)** |
+| `difficulty_reasons` | per-component contributions (e.g., "small cohort (4/yr) +0.10") |
 | `unverified_signals` | total of missing + unsourced |
 | `missing_signals` | signals where the agent didn't search (information gap) |
 | `unsourced_signals` | signals claimed without claim-level proof (hallucination risk) |
-| `total_signals` | total signals audited per candidate (8 for 1-advisor; 9 if `research_fit_score` is set) |
-| `missing_signal_names` | which signals are missing |
-| `unsourced_signal_names` | which signals are unsourced |
+| `total_signals` | base 8 for 1-advisor; +1 per set `research_fit_score`; +N per set program signal |
+| `missing_signal_names` / `unsourced_signal_names` | namespaced (`path:<id>`, `program:<field>`, …) |
 | `explanation` | one-string narrative with `Evidence coverage:` line + per-claim source citations |
 
 ## Why this design

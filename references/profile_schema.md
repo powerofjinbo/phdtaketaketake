@@ -132,6 +132,28 @@ The matcher takes the **strongest single experience** (no stacking).
   "pi_signal": "normal",
   "recent_phd_count": 4,
 
+  // Roadmap-#5 — program difficulty (replaces tier_adj). All fields optional.
+  // Each scoring-relevant set field needs evidence with
+  // supports_fields=["program:<field>"]. See references/program_profile.md.
+  "program_profile": {
+    "department": "Chemistry",
+    "admission_model": "rotation",
+    "cohort_size_estimate": 18,
+    "faculty_count_in_area": 6,
+    "international_friendliness": 0.7,
+    "funding_structure": "guaranteed",
+    "evidence": {
+      "cohort_size_estimate": {
+        "items": [{
+          "url": "https://chem.stanford.edu/admissions/...",
+          "source_type": "lab_page",
+          "claim": "department admits ~18 PhDs/yr (2023 admissions report)",
+          "supports_fields": ["program:cohort_size_estimate"]
+        }]
+      }
+    }
+  },
+
   // Roadmap-#4 — research fit (tie-breaker, NOT a pillar; null = not computed)
   "research_fit_score": 0.78,
   "research_fit_summary": "5 of last 8 papers on catalysis with C-H activation focus",
@@ -206,6 +228,18 @@ per-field elite-signal guidance and
 [`references/evidence_schema.md`](evidence_schema.md) for the strict
 mode rules.
 
+### Program-difficulty fields (drive the difficulty penalty — post-roadmap-#5)
+
+| Field | Range | Notes |
+|-------|-------|-------|
+| `program_profile` | `ProgramProfile` \| `null` | Per-program difficulty signals (cohort, admission model, funding, area coverage, international friendliness). Replaces the v1 `tier_adj` term. |
+
+When `program_profile` is set, each scoring-relevant field that's set
+(non-`None`, non-`"unknown"`) requires evidence with
+`supports_fields=["program:<field>"]`. See
+[`references/program_profile.md`](program_profile.md) for the full
+schema, formula, and per-component table.
+
 ### Research-fit fields (drive the tie-breaker — post-roadmap-#4)
 
 | Field | Range | Notes |
@@ -258,11 +292,19 @@ are unverified — the confidence band will be ≥ ±0.6.
   "g_score": 3.85,
   "match_score": 3.49,
 
-  "application_strength": 2.49,         // NOT a probability
+  "application_strength": 3.49,         // post-#5: match + pi_adj only (no tier_adj). NOT a probability
   "confidence_band": 0.40,
-  "strength_label": "Target",
-  "risk_adjusted_strength": 2.29,       // = strength − band/2 — primary sort key
-  "lower_bound": 2.09,                  // = strength − band — conservative reading
+  "strength_label": "Match",            // post-#5: applied to difficulty_adjusted_strength
+  "risk_adjusted_strength": 3.29,       // = strength − band/2
+  "lower_bound": 3.09,                  // = strength − band — conservative reading
+
+  // Roadmap-#5 — program difficulty (new primary sort key)
+  "program_difficulty_penalty": 0.50,   // 0–0.8; from school_tier + ProgramProfile signals
+  "difficulty_adjusted_strength": 2.79, // = max(0, risk_adjusted − penalty); primary sort key
+  "difficulty_reasons": [
+    "school_tier=top_11_30 admit-rate factor +0.50"
+  ],
+
   "field_profile_id": "physics",        // which FieldProfile applied (or null)
 
   // Roadmap-#4 — research fit (mirror of CandidateAdvisor; tie-breaker only)

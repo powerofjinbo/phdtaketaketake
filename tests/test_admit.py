@@ -54,23 +54,20 @@ def test_a_does_not_outrank_c_in_any_tier():
         )
 
 
-def test_application_strength_top_10_penalty():
-    # match=3.5, top_10 (-1.0), normal (0.0) → 2.5
-    s, _ = application_strength(3.5, "top_10", "normal")
-    assert s == pytest.approx(2.5)
-
-
-def test_application_strength_top_11_30_penalty():
-    s, _ = application_strength(3.5, "top_11_30", "normal")
-    assert s == pytest.approx(3.0)
-
-
-def test_application_strength_top_60_plus_bonus():
-    s, _ = application_strength(3.0, "top_60_plus", "normal")
-    assert s == pytest.approx(3.4)
+def test_application_strength_school_tier_does_not_affect_strength():
+    """Post-roadmap-#5: tier_adj removed. application_strength is now
+    `match + pi_adj` (clipped 0–4); school difficulty is layered on top
+    via `program_difficulty_penalty` / `difficulty_adjusted_strength`.
+    Same match + same pi must give the same strength across all tiers."""
+    s_top10,    _ = application_strength(3.0, "top_10",      "normal")
+    s_top11_30, _ = application_strength(3.0, "top_11_30",   "normal")
+    s_top31_60, _ = application_strength(3.0, "top_31_60",   "normal")
+    s_top60p,   _ = application_strength(3.0, "top_60_plus", "normal")
+    assert s_top10 == s_top11_30 == s_top31_60 == s_top60p == pytest.approx(3.0)
 
 
 def test_application_strength_strong_pi_signal():
+    """pi_adj=+0.2 is the only adjustment now."""
     s, _ = application_strength(3.0, "top_31_60", "strong")
     assert s == pytest.approx(3.2)
 
@@ -80,25 +77,36 @@ def test_application_strength_shrinking_pi_penalty():
     assert s == pytest.approx(2.6)
 
 
+def test_application_strength_missing_pi_penalty():
+    """pi_signal='missing' applies −0.1 (default for unverified)."""
+    s, _ = application_strength(3.0, "top_31_60", "missing")
+    assert s == pytest.approx(2.9)
+
+
 def test_application_strength_not_recruiting_zeros_out():
+    """Forces strength to 0 regardless of tier or match (unchanged)."""
     s, _ = application_strength(4.0, "top_10", "not_recruiting")
     assert s == 0.0
 
 
-def test_application_strength_perfect_at_top10_is_match_not_safe():
-    # match=4.0, top_10 (-1.0), strong (+0.2) → 3.2 (Match)
-    s, _ = application_strength(4.0, "top_10", "strong")
-    assert s == pytest.approx(3.2)
-
-
 def test_application_strength_clipped_at_0():
-    s, _ = application_strength(0.5, "top_10", "shrinking")
+    """Low match + shrinking pi can drive strength below 0 → clipped."""
+    s, _ = application_strength(0.3, "top_10", "shrinking")  # 0.3 − 0.4 = −0.1
     assert s == 0.0
 
 
 def test_application_strength_clipped_at_4():
-    s, _ = application_strength(4.0, "top_60_plus", "strong")
+    """High match + strong pi can exceed 4.0 → clipped."""
+    s, _ = application_strength(4.0, "top_60_plus", "strong")  # 4.0 + 0.2 = 4.2
     assert s == 4.0
+
+
+def test_application_strength_unknown_tier_no_longer_raises():
+    """Post-roadmap-#5 the school_tier param is unused (kept for compat).
+    Passing an unknown value should not raise — that validation moved
+    to `program.program_difficulty_penalty`."""
+    s, _ = application_strength(3.0, "top_31_60", "normal")
+    assert s == pytest.approx(3.0)
 
 
 def test_confidence_band_all_verified():

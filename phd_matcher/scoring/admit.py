@@ -35,16 +35,15 @@ def match_score(
 
 # ---- Application-strength adjustments ------------------------------------
 
-# School competitiveness adjustment (lower tier = easier admit at same match).
-# Calibrated to top-10 PhD admit rate ~5–10%, top-60+ ~25–35% (4–8× gap).
-TIER_ADJ: dict[str, float] = {
-    "top_10":      -1.0,
-    "top_11_30":   -0.5,
-    "top_31_60":    0.0,
-    "top_60_plus": +0.4,
-}
+# Roadmap-#5: `tier_adj` removed. Its school-tier admit-rate role moved
+# into `phd_matcher.scoring.program.program_difficulty_penalty`'s
+# `school_tier_admit_rate_factor` component. `application_strength` is
+# now a pure (match + pi_adj) value; school difficulty is layered on top
+# via `difficulty_adjusted_strength = risk_adjusted_strength − penalty`
+# (computed in the ranker).
 
-# PI recruiting signal adjustment.
+# PI recruiting signal adjustment. Stays here for v2 commit 1; v2 commit
+# 2 (Opportunity / A refactor) will rework this boundary.
 PI_ADJ: dict[str, float] = {
     "strong":     +0.2,
     "normal":      0.0,
@@ -60,7 +59,7 @@ NOT_RECRUITING_SIGNAL = "not_recruiting"
 def confidence_band_from_unverified(unverified_count: int) -> float:
     """Wider band when more signals lack source citations.
 
-    "Unverified" includes: missing PI signal, field-strength signals at
+    "Unverified" includes: missing PI signal, advisor-influence signals at
     default values without sources, empty / unsourced paths to advisors.
     The matcher's caller (ranker) computes the count.
     """
@@ -78,6 +77,11 @@ def application_strength(
 ) -> tuple[float, float]:
     """Returns (application_strength on 4.0, confidence_band on 4.0).
 
+    Post-roadmap-#5: school_tier no longer modifies the strength here —
+    its admit-rate role moved into `program_difficulty_penalty`. The
+    parameter is kept on the signature for back-compat (callers may
+    still pass it; it's unused) and for the `not_recruiting` fast-path.
+
     pi_signal == 'not_recruiting' → strength is forced to 0.
     """
     band = confidence_band_from_unverified(unverified_count)
@@ -85,11 +89,8 @@ def application_strength(
     if pi_signal == NOT_RECRUITING_SIGNAL:
         return (0.0, band)
 
-    if school_tier not in TIER_ADJ:
-        raise ValueError(f"Unknown school tier: {school_tier!r}")
-
     pi = PI_ADJ.get(pi_signal, PI_ADJ["missing"])
-    raw = match + TIER_ADJ[school_tier] + pi
+    raw = match + pi
     strength = max(0.0, min(4.0, raw))
     return (strength, band)
 

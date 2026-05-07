@@ -33,17 +33,11 @@ competitiveness. **C remains the largest pillar in the top three tiers
 ## Application strength
 
 ```
-application_strength = clip(match_score + tier_adj + pi_adj, 0, 4.0)
+application_strength = clip(match_score + pi_adj, 0, 4.0)
 ```
 
-Tier adjustments reflect realistic admit rates:
-
-| School tier | tier_adj | reason |
-|-------------|----------|--------|
-| Top 10      | **−1.0** | top-10 reject ~90–95% |
-| Top 11–30   | **−0.5** | |
-| Top 31–60   | 0       | baseline |
-| Top 60+     | **+0.4** | top-60+ admit ~25–35% |
+Post-roadmap-#5: `tier_adj` removed from `application_strength`. Its
+admit-rate role moved to `program_difficulty_penalty` (see below).
 
 PI signal adjustments:
 
@@ -57,6 +51,27 @@ PI signal adjustments:
 
 > `application_strength` is **NOT a probability**. It's a 4.0-scale
 > relative-fit index. There is no historical admit data behind it.
+
+## Program difficulty (roadmap #5)
+
+```
+program_difficulty_penalty   = clip(sum of components, 0.0, 0.8)
+difficulty_adjusted_strength = max(0, risk_adjusted_strength − penalty)
+```
+
+| Component | Trigger | Δ |
+|-----------|---------|---|
+| `school_tier_admit_rate_factor` | top_10 / top_11_30 / top_31_60 / top_60+ | 0.70 / 0.50 / 0.30 / 0.00 |
+| `cohort_factor` | <8 / ≥30 | +0.10 / −0.05 |
+| `admission_factor` | direct_admit / rotation\|centralized | +0.10 / −0.05 |
+| `funding_factor` | pi_grant / guaranteed | +0.10 / −0.05 |
+| `area_factor` | ≤1 faculty / ≥5 faculty | +0.10 / −0.05 |
+| `intl_factor` | friendliness <0.3 | +0.05 |
+
+`difficulty_adjusted_strength` is the **primary sort key** post-#5; the
+5-tier label is applied to it (not to raw `application_strength`). See
+[`program_profile.md`](program_profile.md) for the full table and
+calibration rationale.
 
 ## Confidence band → risk-adjusted ranking
 
@@ -73,22 +88,27 @@ The matcher's **primary sort key is `risk_adjusted_strength`**, not raw
 *down* the list — the agent literally cannot get a top rank with
 unsourced numbers.
 
-## Sort key — tie-break ladder (post-roadmap-#4)
+## Sort key — tie-break ladder (post-roadmap-#5)
 
 ```
 descending priority:
-  1. risk_adjusted_strength
-  2. research_fit_score              (None → -∞, sorts last among ties)
-  3. direction_relevance             (keyword overlap fallback)
-  4. application_strength            (raw)
-  5. lower_bound                     (final tiebreak — favors narrower band)
+  1. difficulty_adjusted_strength    ← primary (post-#5)
+  2. risk_adjusted_strength
+  3. research_fit_score              (None → -∞, sorts last among ties)
+  4. direction_relevance             (keyword overlap fallback)
+  5. application_strength            (raw)
+  6. lower_bound                     (final tiebreak — favors narrower band)
 ```
 
-Research fit is **not** part of the match formula — it cannot move
-`risk_adjusted_strength`. It only breaks ties when two candidates land
-otherwise equal. See [`research_fit.md`](research_fit.md).
+Program difficulty enters the *primary* sort key — a hard top_10
+direct-admit small-cohort program is now visibly down-ranked vs an
+equally-strong candidate at a broader, rotation-based program.
+Research fit remains a pure tie-breaker (rank 3) — fits between
+risk-adjusted and direction relevance, never overrides difficulty-
+adjusted. See [`research_fit.md`](research_fit.md) and
+[`program_profile.md`](program_profile.md).
 
-## 5-tier label (applied to `application_strength`, not risk-adjusted)
+## 5-tier label (applied to `difficulty_adjusted_strength` post-roadmap-#5)
 
 | Label | Range |
 |-------|-------|

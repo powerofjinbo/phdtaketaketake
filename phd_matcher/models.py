@@ -41,6 +41,22 @@ GPAScale = Literal["4.0", "4.3", "4.5", "100", "uk"]
 
 StrengthLabel = Literal["Far Reach", "Reach", "Target", "Match", "Safe"]
 
+AdmissionModel = Literal[
+    "direct_admit",     # PI admits the student directly; the application is to a specific advisor
+    "rotation",         # rotation-based; student picks PI after the first 1-2 quarters
+    "centralized",      # admissions committee + cohort, advisor matched later
+    "mixed",            # hybrid (e.g., direct admit OR rotation)
+    "unknown",          # default — agent didn't verify
+]
+
+FundingStructure = Literal[
+    "guaranteed",       # full multi-year support (TA + RA + fellowship), program-guaranteed
+    "pi_grant",         # support depends on PI's active grants
+    "fellowship_first", # student must secure outside fellowship to be admitted
+    "mixed",            # hybrid
+    "unknown",          # default
+]
+
 EvidenceSourceType = Literal[
     "lab_page",
     "faculty_page",
@@ -333,6 +349,50 @@ class StudentProfile(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# ProgramProfile — per-program difficulty signals (post-roadmap-#5)
+# ---------------------------------------------------------------------------
+
+class ProgramProfile(BaseModel):
+    """Program-level difficulty / accessibility signals (post-roadmap-#5).
+
+    Sits next to `school_tier` on a `CandidateAdvisor`: school_tier is
+    the coarse tier from a ranking page; ProgramProfile is the
+    fine-grained "what's it actually like to apply here" data — cohort
+    size, admission model, funding structure, subfield coverage.
+
+    All signals are optional and default to "didn't check". Each
+    non-default field that contributes to `program_difficulty_penalty`
+    needs a matching entry in `evidence` with
+    `supports_fields=["program:<field>"]` for strict mode.
+    """
+
+    department: str | None = None
+
+    # Admission mechanics
+    admission_model: AdmissionModel = "unknown"
+    rotation_supported: bool | None = None
+    direct_admit_required: bool | None = None
+    gre_required: bool | None = None
+    application_deadline: str | None = None
+
+    # Capacity / coverage signals
+    cohort_size_estimate: int | None = Field(default=None, ge=0)
+    faculty_count_in_area: int | None = Field(default=None, ge=0)
+    international_friendliness: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    # Funding
+    funding_structure: FundingStructure = "unknown"
+
+    # Aggregate selectivity if known (e.g., from program acceptance rate)
+    program_selectivity_score: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    # Provenance — supports_fields uses the "program:<field>" namespace
+    evidence: dict[str, EvidenceEntry] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
 # Candidate advisor (always agent-generated via web research)
 # ---------------------------------------------------------------------------
 
@@ -388,6 +448,12 @@ class CandidateAdvisor(BaseModel):
 
     pi_signal: PISignal = "missing"
     recent_phd_count: int | None = Field(default=None, ge=0)
+
+    # ---- Program difficulty (roadmap #5) -------------------------------
+    # Replaces tier_adj as the school-difficulty signal. When present,
+    # the candidate's program-level details refine the penalty further.
+    # When absent, only school_tier_admit_rate_factor contributes.
+    program_profile: ProgramProfile | None = None
 
     # Provenance registry — keys are field names, values are EvidenceEntry.
     # Use to attach sources to e.g. normalized_collab_top20pct, collab_with_nas,
@@ -493,14 +559,28 @@ class MatchResult(BaseModel):
     missing_signal_names: list[str] = Field(default_factory=list)
     unsourced_signal_names: list[str] = Field(default_factory=list)
 
-    # Risk-adjusted strength used as the primary sort key — penalizes wide
-    # confidence bands so a candidate with sparse evidence can't outrank a
-    # better-sourced peer simply by claiming a higher strength.
+    # Risk-adjusted strength — penalizes wide confidence bands so a candidate
+    # with sparse evidence can't outrank a better-sourced peer simply by
+    # claiming a higher strength. Pre-roadmap-#5 this was the primary sort
+    # key; post-#5 it is the second-tier sort key (after
+    # `difficulty_adjusted_strength`).
     risk_adjusted_strength: float = 0.0
 
     # Conservative lower-bound reading: even at the wide edge of uncertainty,
     # the application strength is at least this (within the matcher's band).
     lower_bound: float = 0.0
+
+    # ---- Program difficulty (roadmap #5) -------------------------------
+    # `program_difficulty_penalty` is 0–0.8 on the 4.0 scale, computed by
+    # `phd_matcher.scoring.program.program_difficulty_penalty`. Replaces
+    # the old `tier_adj` term that used to live inside `application_strength`.
+    # `difficulty_adjusted_strength = max(0.0, risk_adjusted_strength −
+    # program_difficulty_penalty)` is the **new primary sort key**, and the
+    # 5-tier `strength_label` is now applied to it (not to the raw
+    # application_strength).
+    program_difficulty_penalty: float = Field(default=0.0, ge=0.0, le=0.8)
+    difficulty_adjusted_strength: float = 0.0
+    difficulty_reasons: list[str] = Field(default_factory=list)
 
     # Which FieldProfile (if any) was active for this match — for traceability.
     field_profile_id: str | None = None

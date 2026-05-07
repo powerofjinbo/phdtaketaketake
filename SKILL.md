@@ -452,6 +452,25 @@ Read the current-students list, "join the lab" page, or "applying" notes:
 page.** The matcher penalizes missing data slightly (−0.1) but never
 makes up a status.
 
+### Step 6.4 — Program difficulty (roadmap #5 — primary sort key)
+
+Optionally fill `candidate.program_profile` with program-level
+difficulty signals. The matcher's primary sort key is now
+`difficulty_adjusted_strength = risk_adjusted_strength −
+program_difficulty_penalty`, and the 5-tier label is applied to it
+(not to raw `application_strength`).
+
+The penalty (0–0.8) combines school_tier admit-rate, cohort size,
+admission model (rotation vs direct-admit), funding structure, faculty
+count in subfield, and international friendliness. Each set field
+needs evidence with `supports_fields=["program:<field>"]`. Full schema,
+formula, and components in
+[`references/program_profile.md`](references/program_profile.md).
+
+When `program_profile` is null, only the school_tier factor contributes
+(top_10=0.70, top_11_30=0.50, top_31_60=0.30, top_60+=0.00) — this is
+the v2 replacement for the v1 `tier_adj` term, which has been removed.
+
 ### Step 6.5 — Research fit (roadmap #4 — tie-breaker, NOT a pillar)
 
 After C / A / P / E / G fields are populated and **before** the matcher
@@ -568,17 +587,23 @@ Format conversationally — use the **expanded card** that surfaces evidence
 coverage, not just numbers:
 
 ```
-Top N matches for <field> (sorted by risk_adjusted_strength, then research_fit):
+Top N matches for <field> (sorted by difficulty_adjusted_strength, then research_fit):
 
 #1  Prof. <Name> — <Institution>  [<Label>]
-    Strength: <Y>/4.0 (±<band>)  ·  risk-adjusted: <Z>  ·  lower bound: <W>
+    Strength: <Y>/4.0 (±<band>)  ·  risk-adjusted: <Z>  ·  difficulty-adjusted: <D>  ·  lower bound: <W>
     C: <c>  A: <a>  P: <p>  E: <e>  G: <g>
     Research fit: <fit_score>/1.0  (or "not computed" if None)
+    Program difficulty: −<penalty>  (e.g., "school_tier=top_10 +0.70, small cohort +0.10")
     Evidence coverage: <verified>/<total> verified · <missing> missing · <unsourced> unsourced
     <inline explanation with cited URLs per claim>
     ⚠️ Missing: <list>     (only if missing > 0)
     ⚠️ Unsourced claims: <list>     (only if unsourced > 0 — high risk)
 ```
+
+`<D>` is the new primary sort key. `<Label>` is now applied to it
+(not to raw application strength) — so a perfect candidate at a hard
+top_10 small-subfield program may show as `Match` even with
+application_strength near 4.0.
 
 If the run output's `input_warnings` is non-empty (e.g., co_first used in
 a field that doesn't recognize the convention), surface them once at the
@@ -588,9 +613,13 @@ specific candidates.
 The agent should always emphasize:
 - `Strength` is `application_strength` — a relative-fit index, **not a
   probability**.
-- `risk_adjusted_strength` is what drives the ranking — narrower band wins.
+- `difficulty_adjusted_strength` is what drives the ranking post-#5 —
+  narrower band + easier program wins.
 - `lower_bound = strength − band`. Mention this when a candidate has wide
   band: "even at the wide edge of my uncertainty, this is at least <W>".
+- The `Program difficulty` line shows the per-component penalty (school
+  tier admit-rate factor, cohort size, admission model, funding
+  structure, etc.) so the user sees *why* a program ranks where it does.
 - Unsourced claims are a **hallucination risk** — flag explicitly.
 
 **Every factual claim in the explanation must include its source.** This is
@@ -698,6 +727,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/scoring_reference.md` — CAPEG cheat-sheet (in-context); points at `docs/scoring.md` for derivations
 - `references/candidate_discovery.md` — per-field PI search recipes, connection-edge classification, advisor-influence detail signals
 - `references/research_fit.md` — research_fit_axes per field + tie-breaker semantics
+- `references/program_profile.md` — program difficulty signals + penalty formula (post-roadmap-#5)
 - `references/profile_schema.md` — strict schema for `StudentProfile` and `CandidateAdvisor`
 - `references/field_profiles.md` — bundled FieldProfile catalog
 - `references/journal_tiers.md` — cross-field journal tier table

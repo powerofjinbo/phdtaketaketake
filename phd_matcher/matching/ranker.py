@@ -22,7 +22,7 @@ from phd_matcher.models import (
     PathEdge,
     StudentProfile,
 )
-from phd_matcher.scoring import admit, advisor, connection, experience, gpa, pub
+from phd_matcher.scoring import admit, advisor, connection, experience, gpa, program, pub
 
 # A-dimension (Advisor influence) signals. Each needs an EvidenceEntry
 # whose items list `<field>` in `supports_fields`.
@@ -193,6 +193,25 @@ def evidence_coverage(
             has_ev=_entry_has_evidence_for(rf_ev, "research_fit", strict=strict),
         )
 
+    # Program profile (roadmap #5) — same opt-in pattern as research_fit.
+    # Each scoring-relevant program field is counted in coverage ONLY when
+    # the agent actually set it; "unknown" (literal) and None (numeric /
+    # bool optionals) both mean "didn't check" and don't enter coverage.
+    # When set, evidence under `program_profile.evidence[<field>]` with
+    # `supports_fields=["program:<field>"]` is required in strict mode.
+    if candidate.program_profile is not None:
+        prog = candidate.program_profile
+        for field_name in program.SCORING_RELEVANT_FIELDS:
+            if not program.program_signal_is_set(prog, field_name):
+                continue
+            ev = program.program_evidence_for(prog, field_name)
+            ns_name = f"program:{field_name}"
+            _record(
+                cov, ns_name,
+                is_set=True,
+                has_ev=_entry_has_evidence_for(ev, ns_name, strict=strict),
+            )
+
     return cov
 
 
@@ -260,6 +279,15 @@ def _fix_hint_for(name: str) -> str:
             f"For a verified-empty path (searched and found no edges), include "
             f"one item with supports_fields=['path:{adv_id}'] documenting "
             f"what databases you searched."
+        )
+    if name.startswith("program:"):
+        field = name.split(":", 1)[1]
+        return (
+            f"program_profile.evidence['{field}'].items must include an "
+            f"EvidenceSource with supports_fields containing 'program:{field}' "
+            f"(cite the department's admissions / cohort / funding page, an "
+            f"alumni report, or a faculty-listing page that backs the "
+            f"specific program signal)"
         )
     return _FIX_HINTS.get(
         name,
@@ -347,6 +375,15 @@ def compute_match(
 ) -> MatchResult:
     """Score one (student, candidate) pair across all dimensions.
 
+    Post-roadmap-#5 the pipeline is:
+      1. CAPEG match_score (unchanged formula)
+      2. application_strength = match_score + pi_adj   (no more tier_adj)
+      3. risk_adjusted_strength = application_strength − band/2
+      4. program_difficulty_penalty = f(school_tier, program_profile)
+      5. difficulty_adjusted_strength = max(0, risk_adjusted − penalty)  ← new sort key
+      6. strength_label is applied to difficulty_adjusted_strength
+         (previously applied to application_strength)
+
     `field_profile`, when provided, flows into `pub_score` for per-field
     paper-status weight overrides and author-role normalization. Its `id`
     is recorded on the result for traceability.
@@ -370,7 +407,15 @@ def compute_match(
     strength, band = admit.application_strength(
         m, candidate.school_tier, candidate.pi_signal, unverified_count=cov.unverified
     )
-    label = admit.strength_label(strength)
+    risk_adj = _risk_adjusted(strength, band)
+
+    penalty, difficulty_reasons = program.program_difficulty_penalty(
+        candidate.school_tier, candidate.program_profile
+    )
+    diff_adj = max(0.0, risk_adj - penalty)
+
+    # Label is now applied to difficulty_adjusted_strength (post-roadmap-#5).
+    label = admit.strength_label(diff_adj)
 
     explanation = explain_match(student, candidate, cov)
 
@@ -392,8 +437,11 @@ def compute_match(
         total_signals=cov.total,
         missing_signal_names=cov.missing_names,
         unsourced_signal_names=cov.unsourced_names,
-        risk_adjusted_strength=round(_risk_adjusted(strength, band), 2),
+        risk_adjusted_strength=round(risk_adj, 2),
         lower_bound=round(_lower_bound(strength, band), 2),
+        program_difficulty_penalty=round(penalty, 2),
+        difficulty_adjusted_strength=round(diff_adj, 2),
+        difficulty_reasons=difficulty_reasons,
         field_profile_id=(field_profile.id if field_profile else None),
         research_fit_score=candidate.research_fit_score,
         research_fit_summary=candidate.research_fit_summary,
@@ -409,20 +457,20 @@ def rank_advisors(
     *,
     field_profile: FieldProfile | None = None,
 ) -> list[MatchResult]:
-    """Rank candidates by **risk-adjusted strength**, with research-fit as
-    a tie-breaker. A wider confidence band is a downside discount, so
-    well-evidenced candidates outrank loosely-claimed peers even at lower
-    nominal strength.
+    """Rank candidates by **difficulty-adjusted strength** (post-roadmap-#5).
 
-    Sort key (descending priority, post-roadmap-#4):
-      1. risk_adjusted_strength (= application_strength − band/2)
-      2. research_fit_score (None → -inf, ranked last among ties)
-      3. direction_relevance (keyword overlap fallback)
-      4. application_strength (raw)
-      5. lower_bound (final tiebreak — favors narrower band)
+    Sort key (descending priority):
+      1. difficulty_adjusted_strength = risk_adjusted_strength − program_difficulty_penalty
+      2. risk_adjusted_strength
+      3. research_fit_score   (None → -inf; ranked last among ties)
+      4. direction_relevance  (keyword overlap fallback)
+      5. application_strength (raw)
+      6. lower_bound          (final tiebreak — favors narrower band)
 
-    Research fit *cannot* compete with risk_adjusted_strength — it only
-    breaks ties. Connection-first thesis is preserved.
+    Program difficulty enters the *primary* sort key — a hard top_10
+    direct-admit small-cohort program is now visibly down-ranked vs an
+    equally-strong candidate at a broader, rotation-based program.
+    Research fit remains a pure tie-breaker (rank 3).
 
     `field_profile`, when provided, flows into the scoring engine (paper
     status overrides, author-role) and the result `field_profile_id`.
@@ -440,6 +488,7 @@ def rank_advisors(
         # below, the smallest goes last; -1.0 puts it strictly below 0.0).
         rf = r.research_fit_score if r.research_fit_score is not None else -1.0
         return (
+            r.difficulty_adjusted_strength,
             r.risk_adjusted_strength,
             rf,
             rel,
