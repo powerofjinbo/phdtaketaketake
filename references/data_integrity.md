@@ -134,16 +134,25 @@ inline source. Examples:
 - "academic siblings — both PhD'd under H. Georgi at Harvard (Math Genealogy)"
 - "lab page (URL) lists 3 PhDs admitted in 2023"
 
-### ✅ Mark unverified data as missing
+### ✅ Mark unverified data as missing — three-state semantics
 
-Better:
-- `paths_to_advisors` entry missing entirely, OR `PathEdge` with `sources: []`
-- `pi_signal = "missing"`
-- `collab_with_nas = false` (when you didn't verify NAS membership)
+For each signal, three honest states:
 
-These trigger the matcher's wider confidence band, which **honestly
-communicates** to the user that this candidate's signals aren't fully
-verified.
+| State | Means | Three-state pattern |
+|-------|-------|--------------------|
+| **Verified** | searched, found a value | set value + `evidence[<field>].items` with `supports_fields=[<field>]` |
+| **Verified-empty** | searched, found nothing | leave value at default (`null` / `"missing"` / `False`) **AND** record evidence with `supports_fields=[<field>]` describing what you searched |
+| **Missing** | didn't search | leave value at default; no evidence |
+
+`collab_with_nas` is the canonical example:
+- `null` (default) — didn't check NAS / HHMI. Missing.
+- `false` with evidence citing NAS / HHMI directory pages = "I checked
+  the official directory; no recent co-author was a member". Verified-empty.
+- `true` with evidence linking to a specific NAS / HHMI member's profile.
+  Verified.
+
+**Don't conflate "didn't check" with "checked, was false".** The matcher's
+unverified count widens the confidence band only for the first.
 
 **Verified-empty is even better than missing**. If you searched and the
 search came back empty, record that with sources:
@@ -161,27 +170,43 @@ The matcher counts that as verified (path entry has sources) and trusts the
 empty edges. Strictly better than omitting the path entry entirely (which
 the matcher reads as "didn't even check").
 
-### ✅ Even non-default values need sources (post-review #1)
+### ✅ Even non-default values need claim-level evidence
 
-This is enforced — the matcher counts a positive claim without sources the
-same as a missing claim:
+This is enforced. The matcher checks each non-default field against
+`evidence[<field>].items` for an `EvidenceSource` whose `supports_fields`
+includes that field name:
 
 ```jsonc
 // ❌ asserted without proof — counts as unverified
 "normalized_collab_top20pct": 0.8,
 
-// ✅ same value but verified
+// ⚠️ legacy bare URL — accepted in default mode, REJECTED in --strict-evidence
 "normalized_collab_top20pct": 0.8,
 "evidence": {
   "normalized_collab_top20pct": {
-    "sources": ["https://scholar.google.com/citations?user=..."],
-    "note": "h_index=42 per Google Scholar (2026-05-06)"
+    "sources": ["https://scholar.google.com/..."]
+  }
+}
+
+// ✅ structured item with claim-level binding — preferred
+"normalized_collab_top20pct": 0.8,
+"evidence": {
+  "normalized_collab_top20pct": {
+    "items": [{
+      "url": "https://scholar.google.com/citations?user=...",
+      "source_type": "google_scholar",
+      "claim": "h_index=42 (2026-05-06)",
+      "supports_fields": ["normalized_collab_top20pct"]
+    }]
   }
 }
 ```
 
-Same for `pi_signal != "missing"` — if you say `"strong"`, you owe a source.
-The lab page URL counts.
+Same for `pi_signal != "missing"`, `school_tier`, `research_areas`,
+`collab_with_nas=true`, `grad_placement_quality=<set>`, and every
+non-default field on `PathEdge`. **The strict-mode validator and the
+explainer both filter by `supports_fields`, so attaching a Math Genealogy
+URL to a co-authorship claim doesn't help.**
 
 ### ✅ Prefer the canonical primary source
 

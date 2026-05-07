@@ -1,4 +1,12 @@
-"""End-to-end match pipeline + ranker."""
+"""End-to-end match pipeline + ranker.
+
+Per fourth-pass review: evidence verification is now **claim-level**, not
+just "any URL anywhere". Each non-default field needs an `EvidenceSource`
+in `items` with the field name in its `supports_fields` list.
+
+In `--strict-evidence` mode, legacy bare `sources: list[str]` URLs do not
+count — only structured `items` with matching `supports_fields`.
+"""
 
 from __future__ import annotations
 
@@ -10,11 +18,13 @@ from phd_matcher.models import (
     CandidateAdvisor,
     EvidenceEntry,
     MatchResult,
+    PathEdge,
     StudentProfile,
 )
 from phd_matcher.scoring import admit, connection, experience, gpa, pub
 
-# Field-strength signals that should each have an EvidenceEntry with sources.
+# Field-strength signals that should each have an EvidenceEntry with sources
+# whose items list `<field>` in `supports_fields`.
 _FIELD_STRENGTH_SIGNALS = (
     "normalized_collab_top20pct",
     "collab_with_nas",
@@ -22,23 +32,26 @@ _FIELD_STRENGTH_SIGNALS = (
 )
 
 
-def _has_evidence(entry: EvidenceEntry | None) -> bool:
+def _entry_has_evidence_for(
+    entry: EvidenceEntry | None, field_name: str, *, strict: bool
+) -> bool:
     if entry is None:
         return False
-    return entry.has_evidence
+    return entry.has_evidence_for(field_name, strict=strict)
 
 
 # ---------------------------------------------------------------------------
-# Evidence coverage — split missing vs unsourced
+# Evidence coverage — claim-level audit, missing vs unsourced
 # ---------------------------------------------------------------------------
 
 @dataclass
 class EvidenceCoverage:
-    """Per-candidate audit of which signals are verified, missing, or
-    asserted-without-proof. The split surfaces two distinct risks:
+    """Per-candidate audit of which signals are verified / missing /
+    asserted-without-proof.
 
-      - `missing`: data point absent. Information gap (low confidence).
-      - `unsourced`: value claimed without sources. Hallucination risk.
+      - `missing`: data point absent (information gap, low confidence).
+      - `unsourced`: value claimed without sources backing the specific
+        field (hallucination risk).
 
     Total `unverified = missing + unsourced` drives the confidence band.
     """
@@ -69,16 +82,31 @@ def _record(
         cov.unsourced_names.append(name)
 
 
+def _path_edge_verified(edge: PathEdge, *, strict: bool) -> bool:
+    """A PathEdge is verified iff every set field has its own evidence.
+
+    For an edge with no fields set (e.g. "I searched, found nothing") it's
+    verified iff there's any evidence at all (a recorded search counts).
+    """
+    fields_set = edge.fields_set()
+    if not fields_set:
+        return edge.has_evidence
+    return all(edge.has_evidence_for(f, strict=strict) for f in fields_set)
+
+
 def evidence_coverage(
-    student: StudentProfile, candidate: CandidateAdvisor
+    student: StudentProfile,
+    candidate: CandidateAdvisor,
+    *,
+    strict: bool = False,
 ) -> EvidenceCoverage:
     """Walk every signal that needs evidence and tally verified / missing /
-    unsourced. The matcher uses `unverified = missing + unsourced` for the
-    confidence band; the split is surfaced in MatchResult for the agent
-    to communicate transparently."""
+    unsourced. In `strict` mode, only structured `items` with matching
+    `supports_fields` count — legacy bare URLs don't.
+    """
     cov = EvidenceCoverage()
 
-    # Connection paths to each advisor
+    # Connection paths to each advisor — per-set-field check
     if student.current_advisors:
         for adv in student.current_advisors:
             edge = candidate.paths_to_advisors.get(adv.id)
@@ -86,14 +114,26 @@ def evidence_coverage(
                 _record(cov, f"path:{adv.id}", is_set=False, has_ev=False)
             else:
                 is_set = edge.has_any_edge
-                has_ev = edge.has_evidence
+                has_ev = _path_edge_verified(edge, strict=strict)
                 _record(cov, f"path:{adv.id}", is_set=is_set, has_ev=has_ev)
 
-    # school_tier (always set; required field)
+    # school_tier — always required, always "set"
     school_ev = candidate.evidence.get("school_tier") if candidate.evidence else None
-    _record(cov, "school_tier", is_set=True, has_ev=_has_evidence(school_ev))
+    _record(
+        cov, "school_tier",
+        is_set=True,
+        has_ev=_entry_has_evidence_for(school_ev, "school_tier", strict=strict),
+    )
 
-    # Field-strength signals (each can be None or set)
+    # research_areas — non-empty counts as set
+    ra_ev = candidate.evidence.get("research_areas") if candidate.evidence else None
+    _record(
+        cov, "research_areas",
+        is_set=bool(candidate.research_areas),
+        has_ev=_entry_has_evidence_for(ra_ev, "research_areas", strict=strict),
+    )
+
+    # Field-strength signals
     field_pairs = [
         ("normalized_collab_top20pct", candidate.normalized_collab_top20pct),
         ("collab_with_nas", candidate.collab_with_nas),
@@ -102,12 +142,20 @@ def evidence_coverage(
     for sig, val in field_pairs:
         is_set = val is not None
         ev = candidate.evidence.get(sig) if candidate.evidence else None
-        _record(cov, sig, is_set=is_set, has_ev=_has_evidence(ev))
+        _record(
+            cov, sig,
+            is_set=is_set,
+            has_ev=_entry_has_evidence_for(ev, sig, strict=strict),
+        )
 
-    # PI signal — "missing" means not set
+    # PI signal
     is_pi_set = candidate.pi_signal != "missing"
     pi_ev = candidate.evidence.get("pi_signal") if candidate.evidence else None
-    _record(cov, "pi_signal", is_set=is_pi_set, has_ev=_has_evidence(pi_ev))
+    _record(
+        cov, "pi_signal",
+        is_set=is_pi_set,
+        has_ev=_entry_has_evidence_for(pi_ev, "pi_signal", strict=strict),
+    )
 
     return cov
 
@@ -115,13 +163,61 @@ def evidence_coverage(
 def count_unverified_signals(
     student: StudentProfile, candidate: CandidateAdvisor
 ) -> int:
-    """Back-compat wrapper. Use `evidence_coverage()` for the split."""
+    """Back-compat wrapper. Use `evidence_coverage()` for the breakdown."""
     return evidence_coverage(student, candidate).unverified
 
 
 # ---------------------------------------------------------------------------
 # Strict-evidence validator (used by --strict-evidence CLI flag)
 # ---------------------------------------------------------------------------
+
+# How to fix each unsourced signal — points the agent at the right location.
+_FIX_HINTS: dict[str, str] = {
+    "school_tier": (
+        "evidence['school_tier'].items must include an EvidenceSource "
+        "with supports_fields containing 'school_tier' (cite US News or "
+        "field-equivalent ranking page)"
+    ),
+    "research_areas": (
+        "evidence['research_areas'].items must include an EvidenceSource "
+        "with supports_fields containing 'research_areas' (cite the "
+        "candidate's faculty page or recent paper abstracts)"
+    ),
+    "normalized_collab_top20pct": (
+        "evidence['normalized_collab_top20pct'].items must include an "
+        "EvidenceSource (Google Scholar / OpenAlex profile URL with "
+        "h_index)"
+    ),
+    "collab_with_nas": (
+        "evidence['collab_with_nas'].items must include an EvidenceSource "
+        "citing the NAS / HHMI directory match"
+    ),
+    "grad_placement_quality": (
+        "evidence['grad_placement_quality'].items must include an "
+        "EvidenceSource citing the lab's alumni / former-students page"
+    ),
+    "pi_signal": (
+        "evidence['pi_signal'].items must include an EvidenceSource citing "
+        "the lab's current-students or recruiting page"
+    ),
+}
+
+
+def _fix_hint_for(name: str) -> str:
+    if name.startswith("path:"):
+        adv_id = name.split(":", 1)[1]
+        return (
+            f"paths_to_advisors['{adv_id}'].items must include "
+            f"EvidenceSource records covering each set field (e.g. "
+            f"small_team_coauthor_5y, big_collab_papers_5y, "
+            f"same_working_group, …) via supports_fields"
+        )
+    return _FIX_HINTS.get(
+        name,
+        f"evidence['{name}'].items must include an EvidenceSource "
+        f"with supports_fields containing '{name}'",
+    )
+
 
 def strict_validate(
     student: StudentProfile, candidate: CandidateAdvisor
@@ -131,14 +227,15 @@ def strict_validate(
     Missing signals (data absent, no evidence) do NOT error — they're a
     legitimate "we couldn't find this" state. Only `unsourced` claims
     (positive value, no evidence) are errors.
+
+    Strict mode rejects legacy bare `sources` as claim-level proof — only
+    structured `items` with matching `supports_fields` count.
     """
-    cov = evidence_coverage(student, candidate)
+    cov = evidence_coverage(student, candidate, strict=True)
     if cov.unsourced == 0:
         return []
     return [
-        f"candidate={candidate.id} unsourced claim: {name} "
-        f"(value set without evidence — provide evidence['{name}'].items "
-        f"or evidence['{name}'].sources)"
+        f"candidate={candidate.id} unsourced claim: {name} — {_fix_hint_for(name)}"
         for name in cov.unsourced_names
     ]
 

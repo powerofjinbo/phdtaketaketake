@@ -282,14 +282,20 @@ remains `null`/`false` + sources documenting the search), or omitted
 - `normalized_collab_top20pct` (0–1, default `null`): proxy via candidate's
   h-index from Google Scholar or OpenAlex. Formula: `min(1.0, h_index / 50)`.
   Cite the profile URL in `evidence["normalized_collab_top20pct"].sources`.
-- `collab_with_nas` (bool, default `null`): set to `true` **only if** you
-  verified a specific recent co-author against the NAS / HHMI directory.
-  Set to `false` only if you searched and confirmed no such collaborator.
-  Otherwise leave as `null`.
+- `collab_with_nas` (bool, default `null`): three-state, **strict** about
+  semantics:
+    - `null` (default) — you didn't search the NAS / HHMI directory; no
+      claim. The signal counts as missing.
+    - `false` — you searched and confirmed no recent NAS / HHMI co-author.
+      Record evidence with `supports_fields=["collab_with_nas"]` citing
+      the searched directory pages; this counts as **verified-empty**.
+    - `true` — you found a specific recent co-author in the official NAS
+      or HHMI directory. Cite the directory match in evidence.
 - `grad_placement_quality` (0–1, default `null`): only set if you read the
   lab's "alumni" / "former students" section. Top faculty placements: 0.8+,
   academia + industry mix: 0.5–0.7, mostly post-docs: 0.4. If no alumni
-  page exists, leave as `null` and surface that in the explanation.
+  page exists, leave as `null` (do **not** fall back to 0.5 — that's a
+  fake default; the matcher widens the band on its own).
 
 **Don't fill in fake defaults when you didn't check.** A 0.5 written into
 the JSON without sources counts as unverified — same as `null` without
@@ -380,19 +386,22 @@ Always close with the standard caveat:
 > search. Does not include SOP / recommendation letters / interviews. Real
 > admission decisions depend on factors beyond what this tool models.
 
-## Confidence calibration — driven by evidence coverage
+## Confidence calibration — claim-level evidence coverage
 
-The matcher's `confidence_band` widens as the count of unsourced signals
-grows. **A signal counts as unverified unless it has `sources` URLs in
-its `EvidenceEntry`.** The rules (see `phd_matcher/matching/ranker.py:count_unverified_signals`):
+The matcher's `confidence_band` widens as the count of unverified signals
+grows. **A signal counts as verified iff it has at least one
+`EvidenceSource` in `items` whose `supports_fields` includes that signal's
+field name.** Bare `sources: list[str]` URLs are accepted in default mode
+(legacy compat) but **rejected in `--strict-evidence` mode** — only
+structured items with matching `supports_fields` count.
 
-| Signal | Counts as unverified when |
-|--------|--------------------------|
-| Path to a current advisor | path entry missing entirely, OR `PathEdge.sources` is empty |
-| `normalized_collab_top20pct` | `evidence["normalized_collab_top20pct"].sources` empty (regardless of value — even 0.0 needs sources) |
-| `collab_with_nas` | `evidence["collab_with_nas"].sources` empty |
-| `grad_placement_quality` | `evidence["grad_placement_quality"].sources` empty |
-| `pi_signal` | value is `"missing"` (data point absent), OR value is non-`"missing"` and `evidence["pi_signal"].sources` is empty |
+| Signal | Verified means |
+|--------|----------------|
+| `path:<adv.id>` | for **every** non-default sub-field on `PathEdge` (small_team_coauthor_5y, big_collab_papers_5y, same_working_group, …), `items` contains an `EvidenceSource` with that field in its `supports_fields` |
+| `school_tier` | `evidence["school_tier"].items` has an `EvidenceSource` with `"school_tier"` in `supports_fields` |
+| `research_areas` | `evidence["research_areas"].items` has an `EvidenceSource` with `"research_areas"` in `supports_fields` |
+| `normalized_collab_top20pct` / `collab_with_nas` / `grad_placement_quality` | same per-field rule, signal name in `supports_fields` |
+| `pi_signal` | value is non-`"missing"` AND `evidence["pi_signal"].items` has matching `supports_fields` |
 
 | Unverified count | Confidence band |
 |-----------------|-----------------|
@@ -401,28 +410,32 @@ its `EvidenceEntry`.** The rules (see `phd_matcher/matching/ranker.py:count_unve
 | 3–4 | ±0.6 |
 | 5+ | ±0.8 (mostly unverified) |
 
-**Per the cardinal rule, a non-default claim without sources is forbidden.**
-But the matcher tolerates it — the consequence is a wide confidence band
-that honestly tells the user "this score isn't backed up". Don't game the
-band by setting fake sources; the user reading the explanation will see
-the bare URLs.
+**Per the cardinal rule, a non-default claim without claim-level evidence
+is forbidden.** Default mode tolerates it (wide band, low risk-adjusted
+rank); strict mode rejects it outright. Don't game the band — the
+explainer cites only items whose `supports_fields` matches the claim, so
+attaching unrelated URLs doesn't help.
 
-If you searched and verifiably found nothing, record that as evidence:
+If you searched and verifiably found nothing, record that as evidence
+with the right field bound:
 
 ```jsonc
 "paths_to_advisors": {
   "adv_001": {
-    "sources": [
-      "https://scholar.google.com/citations?user=...",
-      "https://api.openalex.org/works?filter=..."
-    ],
-    "note": "searched: 0 co-authored papers in 2020–2024"
+    "items": [{
+      "url": "https://scholar.google.com/citations?user=...",
+      "source_type": "google_scholar",
+      "claim": "0 co-authored papers found in 2020–2024",
+      "supports_fields": ["small_team_coauthor_5y", "big_collab_papers_5y"]
+    }],
+    "note": "searched OpenAlex + Scholar; no overlap"
   }
 }
 ```
 
 This counts as **verified empty** (0 unverified for that path) — strictly
-better than no entry (1 unverified).
+better than no entry (1 unverified) or a bare-URL `sources: [...]` (which
+fails strict mode).
 
 ## Important constraints
 

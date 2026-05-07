@@ -91,9 +91,9 @@ class EvidenceEntry(BaseModel):
     Two formats:
       - `items` (preferred): list of structured `EvidenceSource` records,
         each binding a URL to a specific claim and supports_fields list.
-      - `sources` (legacy): list of bare URLs. Kept for back-compat — the
-        matcher accepts either as proof of verification, but new code
-        should prefer `items`.
+      - `sources` (legacy): list of bare URLs. Kept for back-compat — only
+        accepted in default mode. **Strict mode rejects bare sources** as
+        claim-level proof.
 
     Empty both means the agent didn't verify this claim → matcher counts
     it as unverified.
@@ -108,11 +108,30 @@ class EvidenceEntry(BaseModel):
 
     @property
     def has_evidence(self) -> bool:
+        """True if there is any evidence at all (items or sources).
+        For per-claim auditing use `has_evidence_for(field)`."""
         return bool(self.items or self.sources)
 
     @property
     def is_empty(self) -> bool:
         return not (self.items or self.sources)
+
+    def has_evidence_for(self, field_name: str, *, strict: bool = False) -> bool:
+        """Per-claim evidence check.
+
+        - Returns True if any `EvidenceSource` in `items` lists `field_name`
+          in its `supports_fields`.
+        - In **default** mode, legacy bare `sources` URLs also count as
+          evidence (back-compat), since they pre-date the structured
+          `supports_fields` model.
+        - In **strict** mode, only structured items count.
+        """
+        for item in self.items:
+            if field_name in item.supports_fields:
+                return True
+        if not strict and self.sources:
+            return True
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +184,8 @@ class PathEdge(BaseModel):
 
     @property
     def has_evidence(self) -> bool:
+        """True if any sources or items at all (regardless of which fields
+        they back). For per-claim audit use `has_evidence_for(field)`."""
         return bool(self.items or self.sources)
 
     @property
@@ -180,6 +201,36 @@ class PathEdge(BaseModel):
             or self.collaboration_overlap_years is not None
             or self.committee_co_member
         )
+
+    def fields_set(self) -> list[str]:
+        """Names of edge sub-fields that are at non-default values. Each
+        such field needs evidence (items with matching `supports_fields`)."""
+        names: list[str] = []
+        if self.small_team_coauthor_5y is not None:
+            names.append("small_team_coauthor_5y")
+        if self.big_collab_papers_5y is not None:
+            names.append("big_collab_papers_5y")
+        if self.same_working_group:
+            names.append("same_working_group")
+        if self.analysis_contact_overlap:
+            names.append("analysis_contact_overlap")
+        if self.genealogy_relation is not None:
+            names.append("genealogy_relation")
+        if self.collaboration_overlap_years is not None:
+            names.append("collaboration_overlap_years")
+        if self.committee_co_member:
+            names.append("committee_co_member")
+        return names
+
+    def has_evidence_for(self, field_name: str, *, strict: bool = False) -> bool:
+        """Per-edge-field evidence check. Same semantics as
+        `EvidenceEntry.has_evidence_for`."""
+        for item in self.items:
+            if field_name in item.supports_fields:
+                return True
+        if not strict and self.sources:
+            return True
+        return False
 
 
 # ---------------------------------------------------------------------------
