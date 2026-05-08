@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# End-to-end demo: physics / HEP applicant strict-mode pipeline.
+# End-to-end demo: physics / HEP applicant default-mode pipeline (audit demo).
 #
 # Reproduces the 4 output JSONs (discovery_plan / candidates_enriched /
-# audit / match) using the bundled fixtures. Requires the repo to be
+# audit / match) using the bundled fixtures. Default mode (no
+# --strict-evidence) so the audit's repair queue is exercised — see
+# README.md for what's not in the demo. Requires the repo to be
 # installed via `pip install -e .` from the repo root.
 #
 # Usage (from the repo root):
-#   bash examples/physics_hep_strict/run_example.sh
+#   bash examples/physics_hep_audit_demo/run_example.sh
 
 set -euo pipefail
 

@@ -38,7 +38,7 @@ that's what the rest of the pipeline does.
 
 ```bash
 # from the repo root, with the package installed (`pip install -e .`):
-bash examples/physics_hep_strict/run_example.sh
+bash examples/physics_hep_audit_demo/run_example.sh
 ```
 
 The 4 stages overwrite their respective output JSONs in this directory.
