@@ -81,8 +81,9 @@ def main() -> int:
         ),
     )
     ap.add_argument(
-        "--out", type=Path, required=True,
-        help="Output directory (will be created; existing files overwritten)",
+        "--out", type=Path,
+        help="Output directory (will be created; existing files overwritten). "
+             "Required unless --list is given.",
     )
     ap.add_argument(
         "--list", action="store_true",
@@ -94,6 +95,9 @@ def main() -> int:
         for m in EXPORTED_MODELS:
             print(m.__name__)
         return 0
+
+    if args.out is None:
+        ap.error("--out is required (unless --list is given)")
 
     written = export_schemas(args.out)
     for p in written:

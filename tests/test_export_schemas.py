@@ -149,8 +149,9 @@ def test_cli_writes_files(tmp_path):
 
 
 def test_cli_list_flag():
+    """`--list` works without `--out` (unlike write-mode where it's required)."""
     result = subprocess.run(
-        [sys.executable, str(EXPORT_SCRIPT), "--list", "--out", "/tmp/unused"],
+        [sys.executable, str(EXPORT_SCRIPT), "--list"],
         capture_output=True, text=True, check=False,
     )
     assert result.returncode == 0
@@ -158,6 +159,16 @@ def test_cli_list_flag():
     assert "StudentProfile" in names
     assert "CandidateAdvisor" in names
     assert "MatchResult" in names
+
+
+def test_cli_errors_without_out_or_list():
+    """Without --out and without --list, the script errors (exit 2)."""
+    result = subprocess.run(
+        [sys.executable, str(EXPORT_SCRIPT)],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2
+    assert "--out is required" in result.stderr
 
 
 # ---- Drift detector ------------------------------------------------------
