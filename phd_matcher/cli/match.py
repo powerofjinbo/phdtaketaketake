@@ -138,6 +138,23 @@ def main() -> int:
         json.dump({"error": f"profile validation: {e}"}, sys.stdout)
         return 2
 
+    # Sprint-6-c2: minimum-viable-run guardrails. The matcher's
+    # connection-first invariant (w_C > w_A in every tier) loses its
+    # anchor without at least one current advisor — there is no
+    # advisor_id to attach `paths_to_advisors[<id>]` to, so every
+    # candidate's C dimension floors out. Warn loudly on stderr (not
+    # stdout, which carries the JSON result) so QClaw / Claude Code
+    # users see it in the agent transcript even though the run still
+    # produces output.
+    if not student.current_advisors:
+        print(
+            "⚠ no current_advisor on profile — connection-first matching "
+            "is degraded (no anchor for paths_to_advisors). Recommend "
+            "asking the user for their current research advisor / honors-"
+            "thesis advisor before relying on these rankings.",
+            file=sys.stderr,
+        )
+
     try:
         candidates = _load_candidates(args)
     except SystemExit as e:

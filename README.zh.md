@@ -23,11 +23,11 @@ pip install -e .
 
 ## 怎么用
 
-在任何 Claude Code session 里，自然语言（中英文都行）描述你的情况：
+在任何 Claude Code / QClaw / Codex session 里，自然语言（中英文都行）描述你的情况 —— **不需要自己写 JSON**：
 
-> *"我今年秋季申请 Physics PhD，这是我的 CV [粘贴]，帮我找匹配的导师。"*
+> *"我是 2027 fall 申请 Physics PhD，方向 ATLAS Higgs / detector ML，UCI 本科 GPA 3.85/4.0，两篇 ATLAS big-collab paper，导师 Prof. X。请帮我找美国 top 10–30 的匹配 PI 并按 phdtaketaketake 的 evidence-first 规则排序。"*
 
-> *"我是 SJTU 材料系本科，研究方向 2D 材料 photodetector，GPA 88/100，求美国 PhD 申请定位。"*
+> *"我是 SJTU 材料系本科，研究方向 2D 材料 photodetector，GPA 88/100，导师是 Prof. Y，求美国 top-30 PhD 申请定位。"*
 
 Agent 会：
 
@@ -36,6 +36,20 @@ Agent 会：
 3. 查证每个候选与你现导师的 connection（合著 paper、学术家谱、共同 collaboration）
 4. 调 `scripts/match.py` 跑确定性 4.0 制打分
 5. 返回 ranked 候选 + 各维度分项 + 引用来源的解释
+
+### 你需要给 agent 提供的信息
+
+**必需（缺了 agent 会主动问）**：
+
+- **学科 / 子方向** —— 例如 `physics / HEP`、`cs / NLP`、`bio / immunology`
+- **本科学校 + GPA**（带 scale：`4.0` / `4.3` / `4.5` / `100` / UK honours）
+- **研究方向** —— 1–2 句话即可
+- **现导师** —— 姓名 + 学校。**没有这个，connection-first 匹配会失去 anchor**，matcher 会向 stderr 打 warning 且 C 维落地。
+- **目标学校 tier 或 列表** —— `top_10` / `top_11_30` / `top_31_60` / `top_60_plus` 或具体校名
+
+**可选（提供后输出更准）**：论文（题目 / 期刊 / 状态 / 作者位置 / 总作者数）、本科科研经历、已经看好的具体候选 PI、theory ↔ experiment 偏好、签证 / funding 限制。
+
+Matcher 是 **evidence-first**：缺了可选字段 *只会让 confidence band 变宽*，**不会崩、也不会瞎填**。
 
 ### 每个候选的输出
 

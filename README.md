@@ -41,11 +41,11 @@ Claude Code auto-discovers the skill on next session. For other agents, see [Use
 
 ## Use
 
-In any Claude Code session, describe what you want in plain English (or Chinese):
+In any Claude Code / QClaw / Codex session, describe what you want in plain English (or Chinese) — you do **not** need to write JSON yourself:
 
-> *"I'm applying for Physics PhDs this fall — here's my CV [paste]. Find advisors that match."*
+> *"I'm applying for Physics PhDs this fall — ATLAS Higgs / detector ML, UCI undergrad GPA 3.85/4.0, two ATLAS big-collab papers, advisor Prof. X. Find me top 10–30 matching PIs and rank them by phdtaketaketake's evidence-first rules."*
 
-> *"我是 SJTU 材料系本科，研究方向 2D 材料 photodetector，GPA 88/100，求美国 PhD 申请定位。"*
+> *"我是 SJTU 材料系本科，研究方向 2D 材料 photodetector，GPA 88/100，导师是 Prof. Y，求美国 top-30 PhD 申请定位。"*
 
 The agent will:
 
@@ -54,6 +54,20 @@ The agent will:
 3. Verify connection edges to your current advisor (co-author papers, academic genealogy, joint collaborations)
 4. Run `scripts/match.py` for deterministic 4.0-scale scoring
 5. Present ranked candidates with per-dimension breakdown and cited sources
+
+### What you need to give the agent
+
+**Required for a useful run** (the agent will ask if you don't volunteer them):
+
+- **Field / subfield** — `physics / HEP`, `cs / NLP`, `bio / immunology`, …
+- **Undergrad institution + GPA** (with scale: `4.0` / `4.3` / `4.5` / `100` / UK honours)
+- **Research direction** — 1–2 sentences
+- **Current advisor(s)** — name + institution. Without this, connection-first matching loses its anchor; the matcher prints a stderr warning and the C pillar floors.
+- **Target school tier or list** — `top_10` / `top_11_30` / `top_31_60` / `top_60_plus`, or specific schools
+
+**Optional but improves output quality**: papers (title / venue / status / author position / total authors), prior research experiences, specific candidate PIs you already have in mind, theory ↔ experiment crossover preferences, international friendliness needs.
+
+The matcher is **evidence-first**: missing optional fields *widen the confidence band* — they don't crash and they don't get filled with guesses.
 
 ### Output per candidate
 

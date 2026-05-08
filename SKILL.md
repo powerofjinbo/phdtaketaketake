@@ -99,6 +99,69 @@ Pipeline diagram: [`docs/scoring_pipeline.md`](docs/scoring_pipeline.md).
 Full formulas: [`docs/scoring.md`](docs/scoring.md). Per-feature
 references in [`references/`](references/).
 
+## How users actually invoke this skill (natural language)
+
+Users on QClaw / Claude Code / any agent platform will not write JSON
+themselves. The expected entry shape is conversational:
+
+> "我是 2027 fall 申请 Physics PhD,方向是 ATLAS Higgs / detector ML。
+> 本科 UCI,GPA 3.85/4.0,有两篇 ATLAS big-collab paper,导师是 Prof. X。
+> 请帮我找美国 top 10–30 的匹配 PI,并按 phdtaketaketake 的 evidence-first
+> 规则给出排序和申请策略。"
+
+> *"I'm applying for biology PhDs this fall, focusing on cancer
+> immunology. Berkeley undergrad, GPA 3.9, one first-author Cell paper,
+> advisor is Prof. Y. Find me 8 advisors at top US programs."*
+
+**Your job as the agent**: translate this into the structured
+StudentProfile + candidate-discovery workflow below. Do **not** ask
+the user to fill JSON. Do **not** ask for the schema upfront. Ask for
+*missing* facts in plain English, one round at a time.
+
+### Required information to ask for (if not given)
+
+If the user's first message is missing any of these, ask before doing
+deep research — running the pipeline without them produces low-confidence
+output:
+
+1. **Field / subfield** (e.g. "physics / HEP" → resolves to FieldProfile)
+2. **Undergrad institution + GPA** (with scale: `4.0` / `4.3` / `4.5` / `100` / UK honours)
+3. **Research direction** (1–2 sentences — the matcher uses this for research_fit)
+4. **Current advisor(s)** (name + institution — drives the C pillar; **without this, connection-first matching is degraded** and the matcher prints a stderr warning)
+5. **Target school tier or list** (top_10 / top_11_30 / top_31_60 / top_60_plus, OR a list of school names)
+
+### Optional but improves output quality
+
+- **Papers**: title, venue, status (`published` / `accepted` / `submitted` / `preprint` / `in_prep`), author position, total authors. Without this, P pillar floors out; user gets an honest "no publication evidence" rather than a guess.
+- **Experiences**: lab name, duration months, output (paper / poster / thesis). Without this, E pillar floors.
+- **Specific candidate PIs**: if the user already has a target list, skip Step 3 (discovery_plan) and feed candidates straight to `collect_evidence`. If not, run discovery_plan first.
+- **Theory / experiment crossover preferences** (physics-specific): affects research_fit.theory_experiment_fit signal.
+- **International friendliness needs** (visa / funding constraints): affects program_difficulty interpretation.
+
+### Minimum viable run
+
+The smallest run that produces useful output:
+
+```
+field + undergrad + gpa + research_direction + 1 current_advisor
++ target tier (e.g. "top_10")
+```
+
+Even with no candidate list, the agent can run `discovery-plan` to
+generate per-school search queries, then `collect-evidence` on
+agent-discovered candidates, then `match`. Missing optional fields
+widen the confidence band but do not crash.
+
+### Two-layer output contract
+
+What the user sees vs what power users / strict-mode auditors get:
+
+- **Per-candidate cards** (rendered by you, the agent) — the human-
+  readable presentation. Format defined in §"How to present results
+  to the user" below.
+- **Full `match.json`** (raw MatchResult JSON) — kept as power-user
+  appendix; never the primary user-facing artifact.
+
 ## Step 0 — Load the FieldProfile
 
 Before running any deep-research, **load the FieldProfile for the user's
