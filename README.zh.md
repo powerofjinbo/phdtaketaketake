@@ -5,7 +5,9 @@
 
 中文 · [English](README.md)
 
-> ⚠️ **校准声明**：phdtaketaketake 是**专家设计的启发式决策辅助系统**，**不是**经过实证校准的录取概率预测器。所有阈值（CAPEG 权重、recency 衰减、program difficulty 各 component、strategy bucket 切分等）都是 v1/v2 默认值，需要在真实 portfolio 上慢慢校准。输出是 4.0 制的**相对匹配度 / 申请强度指数**，**不是录取概率**。设计边界见 [`docs/DESIGN.md`](docs/DESIGN.md) §11。
+> ⚠️ **产品边界**：这是一个 **4.0 制的相对申请强度指数,不是录取概率**。证据无法验证或来源被拦截时,confidence band 会变宽,**不会被猜测填充**。
+>
+> phdtaketaketake 是**专家设计的启发式决策辅助系统**,**不是**经过实证校准的录取概率预测器。所有阈值(CAPEG 权重、recency 衰减、program difficulty 各 component、strategy bucket 切分等)都是 v1/v2 默认值,需要在真实 portfolio 上慢慢校准。设计边界见 [`docs/DESIGN.md`](docs/DESIGN.md) §11,明确不做的事见 §"Frozen scope"。
 
 ## 安装
 

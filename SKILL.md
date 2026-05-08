@@ -818,53 +818,125 @@ total_signals, missing_signal_names, unsourced_signal_names, explanation).
 
 ### Step 8 — Present results
 
-Format conversationally — use the **expanded card** that surfaces evidence
-coverage, not just numbers:
+This is the user-facing rendering layer. The matcher's JSON is the
+source of truth; **you (the agent) translate it into per-candidate
+cards**. Cards are short, scannable, and product-grade — not debug
+dumps. Power users / strict-mode auditors can still inspect the full
+`match.json` separately.
+
+#### The per-candidate card format
+
+Render each ranked candidate using exactly this template (markdown
+headings, fixed field order):
 
 ```
-Top N matches for <field> (sorted by difficulty_adjusted_strength, then research_fit):
+# <rank>. <Name> — <Institution>
+Label: <strength_label>     Strategy: <apply_bucket> / <recommended_action>
+difficulty_adjusted: <D>    application_strength: <Y> ±<band>
 
-#1  Prof. <Name> — <Institution>  [<Label>]
-    Strength: <Y>/4.0 (±<band>)  ·  risk-adjusted: <Z>  ·  difficulty-adjusted: <D>  ·  lower bound: <W>
-    C: <c>  A: <a>  P: <p>  E: <e>  G: <g>
-    Research fit: <fit_score>/1.0  (or "not computed" if None)
-    Opportunity: O=<o_score>/1.0 → adj=<opportunity_adj>  (or "legacy: pi=<sig>" if no opportunity_signal)
-    Program difficulty: −<penalty>  (e.g., "school_tier=top_10 +0.70, small cohort +0.10")
-    Evidence coverage: <verified>/<total> verified · <missing> missing · <unsourced> unsourced
-    <inline explanation with cited URLs per claim>
-    ⚠️ Missing: <list>     (only if missing > 0)
-    ⚠️ Unsourced claims: <list>     (only if unsourced > 0 — high risk)
+Why ranked here:
+- <2–4 bullets, each citing a real source>
+
+Main risks:
+- <plain-English missing/unsourced/blocked signals — see Step 8.5>
+
+Next action:
+<one sentence drawn from strategy.outreach_angle / evidence_to_fix /
+recommended_action — concrete, actionable>
 ```
 
-`<D>` is the new primary sort key. `<Label>` is now applied to it
-(not to raw application strength) — so a perfect candidate at a hard
-top_10 small-subfield program may show as `Match` even with
-application_strength near 4.0.
+**Real example** (using the `physics_hep_audit_demo` output):
 
-If the run output's `input_warnings` is non-empty (e.g., co_first used in
-a field that doesn't recognize the convention), surface them once at the
-top before the candidate list — these are about the user's profile, not
-specific candidates.
+```
+# 1. Prof. Alex Hartman — MIT
+Label: Reach     Strategy: target / contact_first
+difficulty_adjusted: 2.20    application_strength: 3.30 ±0.80
 
-The agent should always emphasize:
-- `Strength` is `application_strength` — a relative-fit index, **not a
-  probability**.
-- `difficulty_adjusted_strength` is what drives the ranking post-#5 —
-  narrower band + easier program wins.
-- `lower_bound = strength − band`. Mention this when a candidate has wide
-  band: "even at the wide edge of my uncertainty, this is at least <W>".
-- The `Program difficulty` line shows the per-component penalty (school
-  tier admit-rate factor, cohort size, admission model, funding
-  structure, etc.) so the user sees *why* a program ranks where it does.
-- Unsourced claims are a **hallucination risk** — flag explicitly.
+Why ranked here:
+- Strong connection: 3 small-team coauthored papers with your advisor
+  Prof. Wang in 2022–2024 (OpenAlex)
+- Research direction overlaps ATLAS Higgs / detector ML — 5 of last 8
+  papers on H→cc̄ topics (OpenAlex recent_works)
+- Top-10 program difficulty penalty is high (school_tier=top_10 +0.70)
 
-**Every factual claim in the explanation must include its source.** This is
-a hard requirement — students will use these rankings for real decisions.
+Main risks:
+- school_tier is unsourced (used as input, no ranking page citation)
+- pi_signal / grad_placement_quality / active_funding_quality are
+  missing (lab and alumni pages not searched)
+- Confidence band wide (±0.8) — lower_bound is 2.50
 
-Examples of good vs bad explanations:
+Next action:
+Email Prof. Hartman. Lead with the shared small-team coauthorship
+through Prof. Wang on the H→cc̄ work — that's your strongest verified
+edge. Mention you're applying for fall 2027 and ask whether the lab
+is actively recruiting; this fills the missing pi_signal.
+```
 
-- ✅ "co-authored 4 papers with Prof. Wang in 2022–2024 (Google Scholar; latest: PRL 130, 2023)"
-- ✅ "co-PI on ATLAS Higgs subgroup since 2017 (per INSPIRE-HEP collaboration tracking)"
+#### Field-by-field rendering rules
+
+- **Title line**: `# <rank>. <Name> — <Institution>` (markdown H1; the rank is the post-#5 sort order).
+- **Label / Strategy line**: `<strength_label>` is applied to `difficulty_adjusted_strength` (not raw `application_strength`); `<apply_bucket>` is the strategy enum (`priority` / `target` / `reach` / `only_if_space` / `drop`); `<recommended_action>` is `apply` / `contact_first` / `investigate_evidence` / `deprioritize` / `skip`.
+- **Numbers line**: only show `difficulty_adjusted` (the actual sort key) and `application_strength ±band`. Do **not** dump c/a/p/e/g scores in the user-facing card — they go in the JSON appendix.
+- **Why ranked here**: 2–4 bullets, each one citing a real source (URL or named page). Pull from the matcher's `explanation` field but rewrite into product language. Skip pillars that are at floor (no evidence to cite).
+- **Main risks**: translate `unsourced_signal_names` / `missing_signal_names` / blocked-source attempts into plain English — see §"How to talk about missing signals to the user" for the canonical template. Always mention band width when ±band ≥ 0.6.
+- **Next action**: drawn from `strategy.outreach_angle` (when set) or `strategy.evidence_to_fix` (top item). Always concrete — name the person to contact, the page to fetch, the field to fill.
+
+#### What to put in the card vs the appendix
+
+| Always in the card | In the JSON appendix only |
+|---|---|
+| name, institution, label, strategy bucket | per-pillar c/a/p/e/g scores |
+| difficulty_adjusted_strength | risk_adjusted_strength, lower_bound |
+| application_strength ±band | confidence_band exact value |
+| 2–4 cited reasons (Why) | full `explanation` string |
+| plain-English risks (Main risks) | namespaced `missing_signal_names`, `unsourced_signal_names` |
+| one Next action | full `evidence_to_fix` queue |
+| field caveats relevant to user's discipline | `field_profile_id`, raw FieldProfile YAML |
+
+Power users invoke `phdtaketaketake-match` directly and read the JSON.
+QClaw / Claude Code users see only the cards.
+
+#### Top-of-output portfolio summary
+
+Before the per-candidate cards, surface the portfolio rollup in **one short
+paragraph** (drawn from `strategy_summary.portfolio_notes`):
+
+```
+N candidates analyzed: <p> priority · <t> target · <r> reach ·
+<o> only_if_space · <d> drop. <one-sentence verdict on portfolio shape —
+e.g., "no priority bucket fills yet — main blocker is missing pi_signal
+across the board".>
+```
+
+If the run output's `input_warnings` is non-empty (co_first used in a
+field that doesn't recognize the convention, profile-level data
+issues), surface them right after the portfolio paragraph, before the
+first candidate card.
+
+#### Mandatory product-boundary footer
+
+Every results render — even a one-candidate quick check — must end with this exact disclaimer (zh + en, since the audience spans both):
+
+> **This is a 4.0-scale relative application-strength index, not an
+> admission probability. Missing or blocked sources widen the
+> confidence band instead of being guessed.**
+>
+> 这是一个 4.0 制的相对申请强度指数,不是录取概率。证据无法验证或来源被拦截
+> 时,confidence band 会变宽,而不是被猜测填充。
+
+Do **not** drop this footer to save tokens. It is the product's most
+important boundary statement — it stops users from misreading
+`Target / Reach / Match` as actual admit probabilities, and it
+explains why some candidates have wide bands.
+
+#### Per-claim source requirement (still hard)
+
+**Every factual claim in the "Why ranked here" bullets must include its source.** This requirement is unchanged from prior versions — the card structure is just a wrapper around evidence-cited prose.
+
+Examples of good vs bad bullet phrasing:
+
+- ✅ "co-authored 4 papers with Prof. Wang in 2022–2024 (OpenAlex; latest: PRL 130, 2023)"
+- ✅ "co-PI on ATLAS Higgs subgroup since 2017 (INSPIRE-HEP collaboration tracking)"
 - ✅ "academic siblings — both PhD'd under H. Georgi at Harvard (Math Genealogy Project)"
 - ✅ "lab page lists 3 PhDs admitted in 2023; pi_signal=strong (URL)"
 - ❌ "co-authored 4 papers with Prof. Wang"  *(no source)*
@@ -872,21 +944,21 @@ Examples of good vs bad explanations:
 - ❌ "probably similar academic family"  *(guessed from name/school)*
 - ❌ "h_index ≈ 60"  *(no Google Scholar / OpenAlex citation)*
 
-Surface clearly when something is **missing** rather than estimated:
+Same for Main risks — be specific about *which* signal is missing and *why*:
+
 - ✅ "no co-authorship found in OpenAlex search; genealogy not in Math Genealogy"
 - ✅ "lab alumni page not available; grad_placement_quality left null (missing — not asserted)"
+- ❌ "evidence is a bit thin"  *(vague)*
 
-Then ask the user what they want next:
+#### Closing follow-up
+
+After the cards + footer, ask the user what they want next:
+
 - See more candidates?
 - Refine the field / subfield?
 - Drill into a specific candidate (their lab page, recent papers, students)?
-- Adjust profile?
-
-Always close with the standard caveat:
-
-> Estimates use only public academic-network signals I gathered via web
-> search. Does not include SOP / recommendation letters / interviews. Real
-> admission decisions depend on factors beyond what this tool models.
+- Adjust profile (add a paper, correct GPA scale, swap target tier)?
+- Re-run with `--strict-evidence` after fixing the unsourced claims?
 
 ## Confidence calibration — claim-level evidence coverage
 

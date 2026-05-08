@@ -5,13 +5,9 @@
 
 [中文](README.zh.md) · English
 
-> ⚠️ **Calibration disclaimer.** phdtaketaketake is an **expert-designed heuristic
-> decision-support system**, **not** an empirically calibrated admission probability
-> predictor. All thresholds (CAPEG weights, recency multipliers, program-difficulty
-> components, strategy bucket cutoffs, etc.) are v1/v2 defaults — they should be
-> recalibrated against real portfolios over time. The output is a 4.0-scale
-> *relative-fit / application-strength index*, **never a probability**.
-> See [`docs/DESIGN.md`](docs/DESIGN.md) §11 for the design boundaries.
+> ⚠️ **Product boundary.** This is a **4.0-scale relative application-strength index, not an admission probability**. Missing or blocked sources widen the confidence band instead of being guessed.
+>
+> phdtaketaketake is an **expert-designed heuristic decision-support system**, **not** an empirically calibrated admission probability predictor. All thresholds (CAPEG weights, recency multipliers, program-difficulty components, strategy bucket cutoffs, etc.) are v1/v2 defaults — they should be recalibrated against real portfolios over time. See [`docs/DESIGN.md`](docs/DESIGN.md) §11 for the design boundaries and §"Frozen scope" for what this skill explicitly will not do.
 
 ## Install
 
