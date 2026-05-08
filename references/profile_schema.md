@@ -179,15 +179,36 @@ The matcher takes the **strongest single experience** (no stacking).
     }
   },
 
-  // Roadmap-#4 — research fit (tie-breaker, NOT a pillar; null = not computed)
-  "research_fit_score": 0.78,
+  // Roadmap-#4 — research fit (tie-breaker, NOT a pillar). v2 form:
+  // structured 6-axis ResearchFit submodel. When `research_fit` is set,
+  // the matcher derives research_fit_score from the weighted formula
+  // (0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant
+  // + 0.10·background) and the legacy flat fields below are ignored.
+  // Set evidence inside `research_fit.evidence`, not the candidate-level
+  // evidence dict.
   "research_fit_summary": "5 of last 8 papers on catalysis with C-H activation focus",
-  "research_fit_axes": {
-    "material_or_system": 0.9,
-    "synthesis": 0.8,
-    "characterization": 0.6,
-    "computation": 0.4
+  "research_fit": {
+    "topic_fit": 0.90,
+    "method_fit": 0.80,
+    "system_or_dataset_fit": 0.70,
+    "theory_experiment_fit": null,         // optional; mainly physics
+    "temporal_fit": 0.85,                  // recent papers still on topic
+    "grant_fit": 0.60,
+    "student_background_fit": 0.70,
+    "evidence": {
+      "research_fit": {
+        "items": [{
+          "url": "https://scholar.google.com/citations?user=...",
+          "source_type": "google_scholar",
+          "claim": "5 of last 8 papers (2024) on C-H activation",
+          "supports_fields": ["research_fit"]
+        }]
+      }
+    }
   },
+  // Legacy v1 form (still accepted; ignored when `research_fit` set):
+  // "research_fit_score": 0.78,
+  // "research_fit_axes": {"material_or_system": 0.9, "synthesis": 0.8, ...},
 
   "evidence": {                             // claim-level sources, see references/evidence_schema.md
     "normalized_collab_top20pct": {
@@ -281,12 +302,17 @@ schema, formula, and per-component table.
 
 | Field | Range | Notes |
 |-------|-------|-------|
-| `research_fit_score` | 0–1 \| `null` | Tie-breaker only — does NOT enter the match formula. `null` means "not computed" (not counted in evidence coverage; does not widen the band). |
-| `research_fit_summary` | string \| `null` | Short prose describing the alignment. |
-| `research_fit_axes` | dict[str, float] | Per-axis breakdown; values must be in `[0, 1]`. Axes per field — see [`references/research_fit.md`](research_fit.md). |
+| `research_fit` | `ResearchFit` \| `null` | **v2 form (preferred).** Structured 6-axis submodel: `topic_fit`, `method_fit`, `system_or_dataset_fit`, `theory_experiment_fit` (optional, display-only), `temporal_fit`, `grant_fit`, `student_background_fit`. All axes 0–1. When set, derives `research_fit_score` deterministically; legacy fields below are ignored. Evidence lives in `research_fit.evidence` with `supports_fields=["research_fit"]`. |
+| `research_fit_score` | 0–1 \| `null` | **Legacy v1 form.** Free-form score; ignored when `research_fit` is set. `null` means "not computed" (not counted in evidence coverage; does not widen the band). |
+| `research_fit_summary` | string \| `null` | Short prose describing the alignment (used by both v1 and v2). |
+| `research_fit_axes` | dict[str, float] | **Legacy v1 form.** Free-form per-axis breakdown; ignored when `research_fit` is set. Values must be in `[0, 1]`. |
 
-When `research_fit_score` is set, evidence with
-`supports_fields=["research_fit"]` is required in strict mode.
+In either form, the matcher uses the score as a **tie-breaker only** —
+it does NOT enter the match formula. Strict mode requires evidence with
+`supports_fields=["research_fit"]` when a score is set (legacy path) or
+the structured submodel is used (v2 path; evidence lives on the
+submodel itself). See [`references/research_fit.md`](research_fit.md)
+for the per-field axis weights and per-discipline rubrics.
 
 ### `pi_signal` enum
 
@@ -364,10 +390,23 @@ are unverified — the confidence band will be ≥ ±0.6.
 }
 ```
 
-`application_strength` is **NOT a probability**. It's a 4.0-scale relative-fit
-index combining match_score with school competitiveness and PI recruiting
-signal. The default sort key is `risk_adjusted_strength` (= strength − band/2),
-so well-evidenced candidates outrank loosely-claimed peers even at lower
-nominal strength. See [`docs/scoring.md`](../docs/scoring.md) for the
-formula and [`references/scoring_reference.md`](scoring_reference.md) for
-the in-context cheat-sheet.
+`application_strength` is **NOT a probability**. It's a 4.0-scale
+relative-fit index: `clip(match_score + opportunity_adj, 0, 4.0)`,
+where `opportunity_adj` (post-#6a) replaces v1's `pi_adj` and is
+derived from the candidate's `OpportunitySignal` (recruiting health,
+funding, lab capacity, grant timing, application contact policy).
+
+The **primary sort key** is `difficulty_adjusted_strength`
+(`= max(0, risk_adjusted_strength − program_difficulty_penalty)`).
+Two layers happen between `application_strength` and the sort:
+
+1. `risk_adjusted_strength = application_strength − band/2` — bakes
+   evidence-coverage uncertainty in, so well-evidenced candidates
+   outrank loosely-claimed peers even at lower nominal strength.
+2. `difficulty_adjusted_strength` — subtracts the per-program
+   difficulty penalty (school_tier admit-rate factor +
+   `ProgramProfile` refinements; replaces v1's flat `tier_adj`).
+
+See [`docs/scoring.md`](../docs/scoring.md) for the per-layer formulas
+and [`references/scoring_reference.md`](scoring_reference.md) for the
+in-context cheat-sheet.

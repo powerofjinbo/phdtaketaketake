@@ -161,24 +161,26 @@ Top-level [`strategy_summary`](match.json) rolls this up:
 
 ```jsonc
 {
+  "priority_candidates":      [],
   "target_candidates":        ["cand_hartman_mit"],
   "reach_candidates":         ["cand_chen_berkeley"],
   "only_if_space_candidates": ["cand_lin_stanford"],
   "drop_candidates":          [],
   "portfolio_notes": [
-    "3 candidates: 0 priority · 1 target · 1 reach · 1 only_if_space · 0 drop",
-    "No priority or target candidates — the matcher has no high-confidence applies. Fix evidence or expand the school list."
+    "3 candidates: 0 priority · 1 target · 1 reach · 1 only_if_space · 0 drop"
   ]
 }
 ```
 
-The "no priority" note is the matcher telling the user: *to get a
-candidate into the priority bucket, you need (a) `unsourced=0`,
-(b) `risk_adjusted ≥ 2.70`, (c) `lower_bound ≥ 2.30`, (d) verified strong C
-or strong fit.* Hartman has the C, but the missing signals (no
-`pi_signal`, no `grad_placement_quality`, no `program_profile`) keep
-the band wide enough that `risk_adjusted` falls below 2.70. The next
-iteration of the agent's work would gather those signals.
+Hartman lands in `target` (clean enough connection signal + lowest
+risk band) but **misses `priority`** because the priority bucket
+requires (a) `unsourced=0`, (b) `risk_adjusted ≥ 2.70`,
+(c) `lower_bound ≥ 2.30`, (d) verified strong C or strong fit.
+The missing signals (no `pi_signal`, no `grad_placement_quality`,
+no `program_profile`) keep the band wide enough that
+`risk_adjusted` falls below 2.70. The next iteration of the
+agent's work would gather those signals — once the band tightens,
+Hartman would migrate from `target` to `priority`.
 
 ---
 
