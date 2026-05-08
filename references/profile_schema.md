@@ -355,7 +355,7 @@ are unverified — the confidence band will be ≥ ±0.6.
   "g_score": 3.85,
   "match_score": 3.49,
 
-  "application_strength": 3.49,         // post-#5: match + pi_adj only (no tier_adj). NOT a probability
+  "application_strength": 3.49,         // post-#6a: clip(match_score + opportunity_adj, 0, 4.0). NOT a probability
   "confidence_band": 0.40,
   "strength_label": "Match",            // post-#5: applied to difficulty_adjusted_strength
   "risk_adjusted_strength": 3.29,       // = strength − band/2
