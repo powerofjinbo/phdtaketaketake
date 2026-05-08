@@ -211,16 +211,24 @@ Strict mode (`--strict-evidence`) must guarantee:
 
 The result card per candidate must surface:
 
-- Match score / `application_strength` (NOT a probability)
-- `risk_adjusted_strength` (sort key) · `lower_bound` · `confidence_band`
-- 5-tier label: Reach · Target · Match · Safe · Far Reach
-- Per-dimension scores: C / P / E / G (eventually + A for advisor influence and an optional research-fit term)
-- Evidence coverage: `verified` / `missing` / `unsourced` with names
+- `difficulty_adjusted_strength` — **primary sort key (post-#5)**
+- `risk_adjusted_strength` and `lower_bound` as uncertainty views; `confidence_band` width
+- `application_strength` (`= clip(match_score + opportunity_adj, 0, 4.0)`, NOT a probability)
+- 5-tier `strength_label` applied to `difficulty_adjusted_strength`: Reach · Target · Match · Safe · Far Reach
+- **Per-pillar CAPEG scores**: C / A / P / E / G — connection-first ordering preserved
+- `o_score` and `opportunity_adj` (admit-cycle availability)
+- `program_difficulty_penalty` and `difficulty_reasons` (per-component breakdown)
+- `research_fit_score` and `research_fit_summary` when set (tie-breaker, NOT a pillar)
+- Evidence coverage: `verified` / `missing` / `unsourced` with **namespaced** signal names
 - Field-specific caveats from FieldProfile
 - "Why ranked here" — concise per-claim justification with cited URLs
-- **Next action** (planned): "gather more evidence on X" / "contact PI Y" / "expand list to top-30" / "consider subfield Z"
+- **`StrategyRecommendation`** — `apply_bucket` (priority / target / reach / only_if_space / drop), `recommended_action`, `outreach_angle`, `evidence_to_fix`, `next_steps`. Purely derivative — does not modify any score.
 
-**Goal**: the user sees at a glance what's strong, what's weak, what's uncertain, what to do next.
+**Goal**: the user sees at a glance what's strong, what's weak, what's
+uncertain, and what to do next. Presentation is layered: a per-candidate
+card for QClaw / Claude Code users (rendered by the agent following the
+SKILL.md presentation contract), plus the full MatchResult JSON for power
+users / strict-mode audit.
 
 ---
 

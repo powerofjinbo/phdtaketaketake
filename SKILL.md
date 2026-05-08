@@ -406,10 +406,16 @@ dates → `collaboration_overlap_years` (float).
   (often state "PhD under Prof. X, year")
 ```
 
-Match types:
-- Same PhD advisor (academic siblings) → `"same_advisor"` (1.0)
-- Advisor is PhD sibling / nephew of candidate → `"uncle_nephew"` (0.7)
-- Two-hop (advisors' advisors crossed paths) → `"two_hop"` (0.4)
+Match types (Connection v2 strengths):
+- Same PhD advisor (academic siblings) → `"same_advisor"` (0.65)
+- Advisor is PhD sibling / nephew of candidate → `"uncle_nephew"` (0.50)
+- Two-hop (advisors' advisors crossed paths) → `"two_hop"` (0.40)
+
+**Genealogy is a meaningful historical signal, but weaker than verified
+recent working contact.** This is why v2 lowered same_advisor from
+v1's 1.0 to 0.65 — a shared PhD advisor decades ago tells you less than
+a small-team coauthored paper in the last 5 years (which saturates at
+1.0). Don't over-weight lineage in your narrative to the user.
 
 **Don't infer from name patterns / institutional history alone.** If
 Mathematics Genealogy returns nothing and the faculty bio doesn't mention
