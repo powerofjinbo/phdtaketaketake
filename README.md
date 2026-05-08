@@ -1,6 +1,6 @@
 # phdtaketaketake
 
-> **Connection-first PhD advisor matcher**, packaged as a **Claude Code skill** (also works with Codex CLI / Cursor / any LLM coding agent that can read SKILL.md).
+> **PhD advisor matching and application triage assistant.** Connection-first, evidence-first. Packaged as a **Claude Code skill** — also works on **QClaw**, Codex CLI, Cursor, and any LLM agent that can read SKILL.md.
 > Find the right advisor by network strength, not h-index.
 
 [中文](README.zh.md) · English

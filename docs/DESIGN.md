@@ -246,6 +246,59 @@ Explicitly out of scope:
 
 ---
 
+## 13. Frozen scope (post-Sprint-6)
+
+The skill is feature-frozen as of Sprint-6 (QClaw-launch hardening).
+Adding any of the following requires an explicit roadmap revision and
+an honest re-evaluation of whether it would compromise the
+evidence-first contract:
+
+**Will not add:**
+
+- **Paid / commercial API integrations** — OpenAlex paid tier,
+  Crossref Metadata Plus, Semantic Scholar paid, etc. The skill must
+  remain runnable at $0 / month for individual users. Free-tier API
+  keys are recommended (and `phdtaketaketake-collect-evidence` should
+  support them when added), but no feature may *require* a paid key.
+- **Admission probability output** — the score is a 4.0-scale
+  relative-fit index, not P(admit). Surfacing anything that looks like
+  a probability (percentages, "75% chance", calibrated odds) is
+  forbidden — see §11.
+- **Auto-bypass / scraping of blocked sites** — Cloudflare challenges,
+  CAPTCHA-walled pages, login walls, paywalls. Blocked sources widen
+  the confidence band; the skill does not work around access controls.
+- **Large-scale HTML scraping pipelines** — the Python adapter layer is
+  restricted to official JSON APIs (OpenAlex / PubMed / DBLP /
+  Semantic Scholar). Web research is the agent's job; web *scraping
+  infrastructure* is out of scope.
+- **Fully-automated application drafting or contact emails** — the
+  skill produces ranked lists, strategy buckets, and outreach angles.
+  It does not generate or send messages on the user's behalf.
+- **"Best-guess" defaults when evidence is missing** — the matcher
+  widens the band, it does not invent. Any feature that looks like
+  "fill in 0.5 when we don't know" violates the evidence-first
+  contract and is rejected.
+
+**Preserved invariants** (will not be removed or weakened):
+
+- Connection-first weighting (`w_C > w_A` in every tier)
+- Evidence-first data integrity (Verified / Verified-empty / Missing /
+  Blocked, with strict-mode requiring claim-level supports_fields proof)
+- Audit repair queue surfacing missing + unsourced + blocked signals
+- Strategy bucket recommendation (`priority` / `target` / `reach` /
+  `only_if_space` / `drop`) as a derivative of the score, never
+  modifying it
+- Per-discipline FieldProfile caveats surfaced in every result
+- Manual evidence override path (user pastes lab page text / CV /
+  screenshot quote → counts as `source_type="cv"` or `"other"`)
+
+This frozen-scope declaration is the contract under which the skill
+goes onto QClaw and other Anthropic / Tencent skill platforms. Future
+work focuses on calibration against real portfolios, not feature
+expansion.
+
+---
+
 ## Roadmap
 
 | # | Item | Status |
@@ -277,6 +330,11 @@ Explicitly out of scope:
 | profile_schema + demo README sync (Sprint-5-c3) | ResearchFit v2 example + MatchResult prose + spurious portfolio_note | ✅ done — `references/profile_schema.md` CandidateAdvisor example now shows the v2 `ResearchFit` submodel (6 fixed axes + evidence on the submodel) instead of the legacy free-form `research_fit_axes` dict, with v1 form kept as a commented fallback; "Research-fit fields" table re-keyed with v2-preferred / v1-legacy labels; MatchResult prose rewritten to spell out the post-#5/#6a pipeline (app_strength → risk_adjusted → difficulty_adjusted as actual primary sort key). `examples/physics_hep_audit_demo/README.md` removed a spurious "No priority or target candidates" portfolio_note that contradicted actual `match.json` (Hartman is target); rewrote the explanatory paragraph to say why Hartman is target-but-not-priority (`ab57a91`) |
 | Example dir rename (Sprint-5-c4) | `physics_hep_strict/` → `physics_hep_audit_demo/` | ✅ done — see Sprint-4-c4 row above for the rename rationale and final paths (`22656db`; DESIGN backfill `1df9bc9`) |
 | Sprint-5 close-out (Sprint-5-c5) | Polish + roadmap close | ✅ done — pyproject.toml comment "the four CLIs" → "the CLIs" (forward-compat as more scripts get added); `README.md` "four CLIs" → "five CLIs" + added `phdtaketaketake-export-schemas` entry to the listed set; `docs/scoring_pipeline.md` dropped the specific test-count "(358/358 passing)" since the count drifts every sprint; this row + 4 Sprint-5 close-out rows added above (`24517fa`) |
+| Doc drift final sweep (Sprint-6-c1) | Genealogy v2 values + §11 Output goals refresh | ✅ done — `SKILL.md` Step 4 academic-genealogy ladder updated to v2 strengths (same_advisor 0.65 / uncle_nephew 0.50 / two_hop 0.40, was v1's 1.0 / 0.7 / 0.4) plus a one-paragraph note explaining the v2 framing ("genealogy is a meaningful historical signal, but weaker than verified recent working contact"); `docs/DESIGN.md` §11 Output goals rewritten to enumerate the actual MatchResult fields the card surfaces (`difficulty_adjusted_strength` as primary sort key, CAPEG with A as a first-class pillar, full StrategyRecommendation shipped — replaced "Next action (planned)") (`0b114ef`) |
+| Natural-language entry + min-viable contract (Sprint-6-c2) | QClaw-shaped agent contract | ✅ done — `SKILL.md` new "How users actually invoke this skill" section between the architecture overview and Step 0, with two example natural-language entry messages (zh + en), required-information list (field / undergrad+gpa / research_direction / current_advisors / target schools), optional-improves-quality list with floor-vs-crash semantics, minimum-viable-run definition; `phd_matcher/cli/match.py` emits a stderr warning when StudentProfile loads with empty `current_advisors` (connection-first matching is degraded — no anchor for paths_to_advisors); README.md / README.zh.md "Use" section mirrors the entry-point framing with the required-vs-optional input list (`217d6c4`) |
+| Output card format + boundary statement (Sprint-6-c3) | Per-candidate card + product disclaimer | ✅ done — `SKILL.md` Step 8 fully rewritten: replaced the old debug-style result rendering with a product-grade card template (fixed field order: title / Label / Strategy / numbers / Why-bullets / Main-risks / Next-action), concrete example using `physics_hep_audit_demo` Hartman card, "what goes in card vs JSON appendix" table, mandatory product-boundary footer in zh + en ("This is a 4.0-scale relative application-strength index, not an admission probability. Missing or blocked sources widen the confidence band instead of being guessed."); README.md / README.zh.md disclaimer block promoted the boundary statement to the top of the disclaimer (`5ceddcb`) |
+| Blocked-source user-facing language (Sprint-6-c4) | Four-state policy + Main-risks template | ✅ done — `references/data_integrity.md` new "Blocked / timeout / CAPTCHA is not verified-empty" subsection introducing the fourth state alongside Verified / Verified-empty / Missing, with symptom→treatment table (200 OK / 403 / 429 / timeout / CAPTCHA / page-loaded-but-data-missing) and explicit manual evidence path (user pastes page content → recorded as `source_type="cv"` or `"other"`); `SKILL.md` new Step 8.5 "How to talk about missing signals to the user" with namespaced-signal → plain-English mapping table (path:adv_id, school_tier, pi_signal, opportunity:* / program:* signals), canonical "Main risks" template using user's preferred wording ("I couldn't verify the following signals — they're counted as missing and widen the confidence band ... you can manually paste lab page text, an alumni list, or a screenshot"), three-things-to-never-say + three-things-to-always-say checklists. No code changes — pure agent contract (`4864139`) |
+| Product positioning + frozen-scope + closeout (Sprint-6-c5) | QClaw-launch hardening close | ✅ done — README.md tagline → "PhD advisor matching and application triage assistant. Connection-first, evidence-first." + QClaw mention; README.zh.md tagline → "基于真实学术网络证据的 PhD 导师匹配与申请优先级工具" + QClaw 提及; `docs/DESIGN.md` new §13 "Frozen scope (post-Sprint-6)" enumerates "will not add" items (paid APIs, admission-probability output, auto-bypass scraping, large-scale HTML scraping, fully-automated drafting, best-guess defaults) and "preserved invariants" (connection-first / evidence-first / audit queue / strategy / field caveats / manual evidence override); this row + 4 Sprint-6 close-out rows above (`<COMMIT-PENDING-c5>`) |
 
 ---
 

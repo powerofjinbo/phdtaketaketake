@@ -1,7 +1,7 @@
 # phdtaketaketake
 
-> **以人脉关系网络为先**的 PhD 导师匹配工具，打包成 **Claude Code skill**（也兼容 Codex CLI / Cursor / 任何能读 SKILL.md 的 LLM agent）。
-> 不靠 h-index，靠 connection 找对的导师。
+> **基于真实学术网络证据的 PhD 导师匹配与申请优先级工具。** Connection-first,evidence-first。打包成 **Claude Code skill** —— 也支持 **QClaw**、Codex CLI、Cursor 以及任何能读 SKILL.md 的 LLM agent。
+> 不靠 h-index,靠 connection 找对的导师。
 
 中文 · [English](README.md)
 
