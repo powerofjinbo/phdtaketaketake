@@ -184,6 +184,40 @@ better than:
 - using bare `sources: [...]` (rejected by `--strict-evidence`; only
   passes default mode for legacy back-compat).
 
+### ✅ Blocked / timeout / CAPTCHA is not verified-empty
+
+A fourth honest state sits alongside Verified / Verified-empty / Missing:
+**Blocked** — you tried to fetch the source but the page returned a hard
+access failure (403 / 429 / CAPTCHA / paywall / login wall / connection
+timeout / DNS failure / Cloudflare challenge). Treat blocked exactly
+like missing for evidence purposes. **Do not record a verified-empty
+EvidenceSource** when the source was actually unreachable — that would
+let the strict-mode auditor pass on a signal you couldn't actually verify.
+
+| Symptom | Correct treatment |
+|---|---|
+| 200 OK + page content shows the value | **Verified** — set value + cite URL in `evidence[<field>].items` |
+| 200 OK + page explicitly says "no result" / "not in directory" | **Verified-empty** — leave value at default + cite the search/directory URL with `claim` describing the empty result |
+| 403 / 401 / login wall / paywall / Cloudflare challenge | **Blocked → Missing** — leave value at default, do NOT cite the failed URL as evidence |
+| 429 / rate-limit / temporary 5xx | **Blocked → Missing** — same; can retry later |
+| Connection timeout / DNS failure / page changed and no longer has the data | **Blocked → Missing** |
+| CAPTCHA / "are you a robot" wall (Google Scholar, some lab pages) | **Blocked → Missing** |
+| Page loads but the specific data you wanted isn't there | **Verified-empty** if you can cite the page showing the absence; otherwise **Missing** |
+
+The user-facing presentation should distinguish *why* a signal is missing
+(see SKILL.md §"How to talk about missing signals to the user") so the
+user knows whether to manually provide a CV / lab page text / screenshot
+to fill it. But for the matcher's scoring purposes,
+**blocked = missing**: the band widens, scoring does not invent a default,
+and strict mode does not pass.
+
+If the user manually provides the page content, a screenshot quote, a
+CV PDF, or text they pasted in, that **is** valid evidence — record it
+as `source_type="cv"` or `source_type="other"` with the user's quoted
+text in `claim`. The skill explicitly supports manual evidence as a
+fallback path for hostile-to-scrape sources (US News, login-walled
+alumni pages, Cloudflare-protected lab pages, etc.).
+
 ### ✅ Even non-default values need claim-level evidence
 
 This is enforced. The matcher checks each non-default field against

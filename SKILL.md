@@ -960,6 +960,83 @@ After the cards + footer, ask the user what they want next:
 - Adjust profile (add a paper, correct GPA scale, swap target tier)?
 - Re-run with `--strict-evidence` after fixing the unsourced claims?
 
+### Step 8.5 — How to talk about missing signals to the user
+
+The matcher reports missing / unsourced / verified-empty signals as
+namespaced JSON field names (`path:adv_001`, `program:cohort_size_estimate`,
+`pi_signal`, etc.). **Do not show those raw field names to QClaw / Claude
+Code users.** Translate them into plain English using the template below.
+
+#### The four states (canonical)
+
+| Internal state | What happened | What to tell the user |
+|---|---|---|
+| **Verified** | searched, found a value, cited URL | (don't surface — implicit when bullet has source) |
+| **Verified-empty** | searched, page said "no result" | "I confirmed via <source> that there's no <signal> for this PI" — counts as evidence, narrows the band |
+| **Missing** | didn't search this signal | "I haven't checked <source> for <signal> yet — you can ask me to fill it in" |
+| **Blocked** (subset of missing) | tried, source unreachable (403 / CAPTCHA / paywall / timeout / login wall) | "I tried to verify <signal> but <source> blocked the request — counts as missing; you can paste the page text or a screenshot" |
+
+The blocked state is **not** a system failure; it's expected — Google
+Scholar throws CAPTCHAs, US News has a paywall, some school CDNs
+(Cloudflare) refuse fetches. The skill is designed to handle this:
+blocked sources widen the confidence band rather than getting filled
+with guesses. See [`references/data_integrity.md`](references/data_integrity.md)
+§"Blocked / timeout / CAPTCHA is not verified-empty" for the policy.
+
+#### The Main risks template (canonical wording)
+
+When rendering "Main risks:" in a per-candidate card (Step 8), use this
+shape — translating namespaced signals to plain English, grouping by
+state, and offering the recovery path:
+
+```
+Main risks:
+- I couldn't verify the following signals — they're counted as missing
+  and widen the confidence band:
+  • school_tier — ranking page (US News graduate program ranking) was
+    blocked by a login wall
+  • pi_signal — lab page would not load (Cloudflare challenge / 403)
+  • grad_placement_quality — no alumni / "former students" page found
+- This is not a negative conclusion; the matcher just has less to go on.
+  You can manually paste lab page text, an alumni list, or a screenshot
+  of the ranking page and I'll re-run with that as evidence.
+```
+
+#### Specific signal → plain-English mapping
+
+| Namespaced signal | Plain English |
+|---|---|
+| `path:<adv_id>` | "verified path between this PI and your advisor <name>" |
+| `school_tier` | "school's program ranking" |
+| `pi_signal` | "whether the PI is actively recruiting (lab page check)" |
+| `grad_placement_quality` | "alumni placement track record" |
+| `active_funding_quality` | "PI's active grants (NIH RePORTER / NSF Award Search)" |
+| `collab_with_nas` | "NAS / HHMI co-author" |
+| `normalized_collab_top20pct` | "PI's h-index / collaboration percentile" |
+| `program:cohort_size_estimate` | "incoming cohort size" |
+| `program:admission_model` | "rotation vs direct-admit" |
+| `program:funding_structure` | "funding model (guaranteed vs on-paper)" |
+| `program:faculty_count_in_area` | "number of faculty in your subfield" |
+| `program:international_friendliness` | "international-student friendliness" |
+| `research_fit` | "research-direction overlap" |
+| `opportunity:lab_open_positions` | "open PhD slots this cycle" |
+| `opportunity:application_contact_policy` | "preferred contact channel (email / through program / do-not-contact)" |
+
+#### Three things to never say
+
+- ❌ "Error 403 on lab.stanford.edu" *(raw HTTP error — not user-facing)*
+- ❌ "evidence is a bit thin" *(vague; the user can't act on it)*
+- ❌ "h_index unavailable, defaulting to 0.5" *(invented default — never; the matcher does not do this)*
+
+#### Three things to always say when surfacing blocked sources
+
+- ✅ name the *signal* in plain English (not the namespaced field)
+- ✅ name the *source* that was blocked (so the user knows what to manually provide)
+- ✅ name the *recovery* — paste page text, paste a screenshot, give a URL the agent can fetch
+
+This is the canonical user-facing language. Use it consistently across
+cards, portfolio rollup, and follow-up questions.
+
 ## Confidence calibration — claim-level evidence coverage
 
 The matcher's `confidence_band` widens as the count of unverified signals
