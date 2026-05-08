@@ -45,16 +45,59 @@ before doing any connection research.
 
 ---
 
-This skill ranks candidate PhD advisors for a student by **network-connection
-strength** to the student's current research advisor, on a 4.0 scale across:
+This skill ranks candidate PhD advisors using a **5-layer deterministic
+pipeline** — each layer composes the layer below; every score traces
+back to cited evidence:
 
-- **Connection (C)** — co-author + genealogy + joint collaborations + committee
-- **Publication (P)** — journal tier × author position decay (5+ author rule)
-- **Experience (E)** — lab × duration × output (output-weighted 50%)
-- **GPA (G)** — direct, with multi-system normalization
+```
+1. CAPEG match_score  = w_C·C + w_A·A + w_P·P + w_E·E + w_G·G
+                        (tier-adaptive weights; w_C > w_A in every tier
+                         — connection-first invariant)
+2. application_strength = clip(match_score + opportunity_adj, 0, 4.0)
+3. risk_adjusted_strength       = application_strength − band/2
+4. difficulty_adjusted_strength = max(0, risk_adjusted_strength − program_penalty)
+                                  ← PRIMARY SORT KEY (post-#5)
+5. strategy bucket  = bucket(difficulty_adjusted, evidence, …)
+                      → priority / target / reach / only_if_space / drop
+                      (purely derivative — never modifies any score)
+```
 
-Final scores tier-adaptively weighted by school competitiveness. Admit
-likelihood incorporates the candidate PI's recruiting signal.
+5 CAPEG pillars on a 4.0 scale:
+
+- **Connection (C)** — verified path between candidate PI ↔ student's
+  current advisor: small-team coauthor, big-collab paper overlap,
+  working group, analysis contact, genealogy, shared grant,
+  co-mentored student, committee/exam, same center, prior-institution
+  overlap, conference session. v2 aggregation: `strongest +
+  0.10·second_strongest`, capped at 1.0, scaled by recency.
+- **Advisor influence (A)** — PI **reputation only** (post-#6a):
+  `0.40·influence + 0.30·elite_status + 0.30·grad_placement_quality`.
+  Funding and recruiting moved to **Opportunity (O)**.
+- **Publication (P)** — field-aware tier × author-role × status ×
+  recency × contribution-bonus, with big-collab and consortium
+  guardrails (`min(0.10, n/100)` cap on alphabetical co-authorship).
+- **Experience (E)** — `0.20·lab_prestige + 0.30·duration +
+  0.50·output`, strongest single experience.
+- **GPA (G)** — direct on 4.0; 4.3 / 4.5 / 100 / UK honours normalized.
+
+3 non-CAPEG dimensions:
+
+- **Opportunity (O)** — admit-cycle availability: `recruiting_health
+  + active_funding_quality + lab_capacity + grant_timing +
+  availability`. Drives `opportunity_adj` (replaces v1 `pi_adj`);
+  `not_recruiting` forces `application_strength=0`.
+- **Program difficulty (D)** — per-program penalty 0–0.8 from school-
+  tier admit rate + cohort size + admission model + funding structure
+  + faculty count + international friendliness. Subtracted from
+  `risk_adjusted_strength` to form `difficulty_adjusted_strength`
+  (the **primary sort key**, replaces v1 `tier_adj`).
+- **Research fit (R)** — structured 6-axis tie-breaker: `0.30·topic
+  + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant +
+  0.10·background`. Never a 6th pillar; sorts ties only.
+
+Pipeline diagram: [`docs/scoring_pipeline.md`](docs/scoring_pipeline.md).
+Full formulas: [`docs/scoring.md`](docs/scoring.md). Per-feature
+references in [`references/`](references/).
 
 ## Step 0 — Load the FieldProfile
 
@@ -411,12 +454,15 @@ verified-with-sources, verified-empty (value remains `null`/`false`
 + sources documenting the search), or omitted (no value, no sources →
 counts as unverified).
 
-The A composite (sum to 1.0):
-- 0.30 · influence (h-index proxy)
-- 0.20 · elite_status (NAS / HHMI / NAE / field fellow)
-- 0.20 · active_funding_quality
-- 0.20 · grad_placement_quality
-- 0.10 · recruiting_health (derived from pi_signal)
+The A composite, **reputation-only** post-roadmap-#6a (sums to 1.0):
+- 0.40 · influence (h-index proxy)
+- 0.30 · elite_status (NAS / HHMI / NAE / field fellow)
+- 0.30 · grad_placement_quality
+
+`active_funding_quality` and `pi_signal` (recruiting health) are no
+longer A components — they live on `OpportunitySignal` and feed the
+**O dimension** (drives `opportunity_adj`, not the match score). See
+**Step 5.5** for where to put those fields.
 
 Fields:
 
@@ -453,11 +499,12 @@ Fields:
   page exists, leave as `null` (do **not** fall back to 0.5 — that's a
   fake default; the matcher widens the band on its own).
 
-- `active_funding_quality` (0–1, default `null`): cite NIH RePORTER /
-  NSF Award Search / DOE Office of Science / ERC / DARPA grant records.
-  Active R01 + NSF CAREER ≈ 0.85. Single small grant ≈ 0.4.
-  No active grants found ≈ 0.0 (verified-empty with sources). Leave
-  as `null` if you didn't search.
+- `active_funding_quality` — **fill on `opportunity_signal`, not the top-
+  level candidate** (see Step 5.5). The top-level field is kept for
+  backward compatibility but is no longer part of A. Field semantics
+  (0–1 scale, NIH RePORTER / NSF Award Search / DOE / ERC / DARPA
+  citations, R01+CAREER ≈ 0.85, single small grant ≈ 0.4, verified-
+  empty 0.0, `null` if not searched) apply to either location.
 
 - Discipline-specific elite signals (use `collab_with_nas=true` and cite):
     - bio: HHMI investigator, NAS / NAM membership
