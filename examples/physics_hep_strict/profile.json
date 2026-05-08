@@ -1,0 +1,48 @@
+{
+  "name": "Demo Applicant",
+  "field": "physics",
+  "undergrad_institution": "Tsinghua University",
+  "gpa_raw": 3.85,
+  "gpa_scale": "4.0",
+  "research_direction": "ATLAS Higgs precision measurements (H to cc-bar / VH cross-section). Interested in continuing on Higgs / EW sector analyses with detector-side machine learning.",
+
+  "current_advisors": [
+    {
+      "id": "adv_001",
+      "name": "Prof. Lisa Wang",
+      "institution": "Tsinghua University"
+    }
+  ],
+
+  "papers": [
+    {
+      "title": "Search for H to cc-bar with the ATLAS detector",
+      "journal": "Physical Review Letters",
+      "journal_tier": 1,
+      "author_position": 456,
+      "year": 2024,
+      "status": "published",
+      "venue_type": "journal",
+      "total_authors": 3000
+    },
+    {
+      "title": "ATLAS dijet analysis (Run 3)",
+      "journal": "Physical Review D",
+      "journal_tier": 3,
+      "author_position": 312,
+      "year": 2023,
+      "status": "published",
+      "venue_type": "journal",
+      "total_authors": 3100
+    }
+  ],
+
+  "experiences": [
+    {
+      "lab_pi_name": "Prof. Lisa Wang",
+      "lab_tier": "strong_us_or_top_cn",
+      "duration_months": 18,
+      "output_type": "honors_thesis"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+[
+  {"id": "W101", "title": "H to cc-bar with ATLAS Run 3 — small-team analysis paper",
+   "venue": "Physical Review Letters", "year": 2024, "author_count": 6,
+   "url": "https://openalex.org/works/W101",
+   "concepts": ["Higgs boson", "ATLAS", "particle physics"]},
+  {"id": "W110", "title": "VH cross-section with ATLAS",
+   "venue": "JHEP", "year": 2024, "author_count": 8,
+   "url": "https://openalex.org/works/W110",
+   "concepts": ["Higgs boson", "ATLAS"]},
+  {"id": "W111", "title": "Machine learning for Higgs analyses",
+   "venue": "Physics Reports", "year": 2023, "author_count": 4,
+   "url": "https://openalex.org/works/W111",
+   "concepts": ["Higgs boson", "machine learning", "particle physics"]}
+]

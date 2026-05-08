@@ -1,0 +1,22 @@
+[
+  {"id": "W101", "title": "H to cc-bar with ATLAS Run 3 — small-team analysis paper",
+   "venue": "Physical Review Letters", "year": 2024, "author_count": 6,
+   "url": "https://openalex.org/works/W101",
+   "concepts": ["Higgs boson", "ATLAS"]},
+  {"id": "W102", "title": "Charm-quark Yukawa: a primer",
+   "venue": "JHEP", "year": 2024, "author_count": 5,
+   "url": "https://openalex.org/works/W102",
+   "concepts": ["Higgs boson", "particle physics"]},
+  {"id": "W103", "title": "Detector calibration note for H→cc̄",
+   "venue": "JINST", "year": 2023, "author_count": 4,
+   "url": "https://openalex.org/works/W103",
+   "concepts": ["calibration", "instrumentation"]},
+  {"id": "W104", "title": "ATLAS Higgs+jets cross-section (full collaboration)",
+   "venue": "Physical Review D", "year": 2024, "author_count": 3000,
+   "url": "https://openalex.org/works/W104",
+   "concepts": ["ATLAS", "Higgs boson"]},
+  {"id": "W105", "title": "ATLAS Run-3 dijet measurement (full collaboration)",
+   "venue": "Physical Review D", "year": 2023, "author_count": 3100,
+   "url": "https://openalex.org/works/W105",
+   "concepts": ["ATLAS"]}
+]

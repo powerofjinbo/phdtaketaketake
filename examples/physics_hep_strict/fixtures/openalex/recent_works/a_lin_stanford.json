@@ -1,0 +1,14 @@
+[
+  {"id": "W301", "title": "Effective field theory of dark matter",
+   "venue": "JHEP", "year": 2024, "author_count": 4,
+   "url": "https://openalex.org/works/W301",
+   "concepts": ["dark matter", "effective field theory", "particle physics"]},
+  {"id": "W302", "title": "BSM EFT review",
+   "venue": "Annual Review", "year": 2023, "author_count": 2,
+   "url": "https://openalex.org/works/W302",
+   "concepts": ["effective field theory", "Standard Model"]},
+  {"id": "W303", "title": "Light dark matter searches: theory perspectives",
+   "venue": "Physical Review D", "year": 2022, "author_count": 3,
+   "url": "https://openalex.org/works/W303",
+   "concepts": ["dark matter", "particle physics"]}
+]

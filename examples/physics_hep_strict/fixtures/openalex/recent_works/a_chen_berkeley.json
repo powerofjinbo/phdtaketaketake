@@ -1,0 +1,10 @@
+[
+  {"id": "W210", "title": "ATLAS dark matter search (full collaboration)",
+   "venue": "Physical Review D", "year": 2024, "author_count": 3000,
+   "url": "https://openalex.org/works/W210",
+   "concepts": ["ATLAS", "dark matter"]},
+  {"id": "W211", "title": "BSM Higgs scenarios review",
+   "venue": "Annual Review", "year": 2023, "author_count": 3,
+   "url": "https://openalex.org/works/W211",
+   "concepts": ["Higgs boson", "BSM searches"]}
+]

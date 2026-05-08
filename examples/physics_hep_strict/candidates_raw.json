@@ -1,0 +1,23 @@
+[
+  {
+    "id": "cand_hartman_mit",
+    "name": "Prof. Alex Hartman",
+    "institution": "MIT",
+    "school_tier": "top_10",
+    "field": "physics"
+  },
+  {
+    "id": "cand_chen_berkeley",
+    "name": "Prof. Riley Chen",
+    "institution": "UC Berkeley",
+    "school_tier": "top_10",
+    "field": "physics"
+  },
+  {
+    "id": "cand_lin_stanford",
+    "name": "Prof. Casey Lin",
+    "institution": "Stanford",
+    "school_tier": "top_10",
+    "field": "physics"
+  }
+]

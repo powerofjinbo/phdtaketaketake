@@ -1,0 +1,645 @@
+{
+  "input_field": "physics",
+  "field_profile_id": "physics",
+  "field_caveats": [
+    "Big-collab papers (ATLAS / CMS / LIGO / etc.) require analyzer / convener / paper-editor evidence beyond simple author-list overlap. Use same_working_group or analysis_contact_overlap edges for these.",
+    "Theory vs experiment matters for advisor matching — check candidate's recent papers.",
+    "INSPIRE-HEP collaboration tracking is more authoritative than Google Scholar for HEP author lists."
+  ],
+  "input_warnings": [],
+  "strategy_summary": {
+    "priority_candidates": [],
+    "target_candidates": [
+      "cand_hartman_mit"
+    ],
+    "reach_candidates": [
+      "cand_chen_berkeley"
+    ],
+    "only_if_space_candidates": [
+      "cand_lin_stanford"
+    ],
+    "drop_candidates": [],
+    "evidence_fix_queue": [
+      {
+        "candidate_id": "cand_chen_berkeley",
+        "signal": "school_tier",
+        "severity": "high"
+      },
+      {
+        "candidate_id": "cand_hartman_mit",
+        "signal": "school_tier",
+        "severity": "high"
+      },
+      {
+        "candidate_id": "cand_lin_stanford",
+        "signal": "school_tier",
+        "severity": "high"
+      },
+      {
+        "candidate_id": "cand_chen_berkeley",
+        "signal": "collab_with_nas",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_chen_berkeley",
+        "signal": "grad_placement_quality",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_chen_berkeley",
+        "signal": "pi_signal",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_chen_berkeley",
+        "signal": "active_funding_quality",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_hartman_mit",
+        "signal": "collab_with_nas",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_hartman_mit",
+        "signal": "grad_placement_quality",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_hartman_mit",
+        "signal": "pi_signal",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_hartman_mit",
+        "signal": "active_funding_quality",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_lin_stanford",
+        "signal": "collab_with_nas",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_lin_stanford",
+        "signal": "grad_placement_quality",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_lin_stanford",
+        "signal": "pi_signal",
+        "severity": "medium"
+      },
+      {
+        "candidate_id": "cand_lin_stanford",
+        "signal": "active_funding_quality",
+        "severity": "medium"
+      }
+    ],
+    "portfolio_notes": [
+      "3 candidates: 0 priority · 1 target · 1 reach · 1 only_if_space · 0 drop"
+    ]
+  },
+  "results": [
+    {
+      "candidate": {
+        "id": "cand_hartman_mit",
+        "name": "Prof. Alex Hartman",
+        "institution": "MIT",
+        "school_tier": "top_10",
+        "field": "physics",
+        "research_areas": [
+          "Higgs boson",
+          "ATLAS",
+          "particle physics",
+          "collider physics"
+        ],
+        "recent_papers": [],
+        "paths_to_advisors": {
+          "adv_001": {
+            "small_team_coauthor_5y": 3,
+            "big_collab_papers_5y": 2,
+            "same_working_group": false,
+            "analysis_contact_overlap": false,
+            "genealogy_relation": null,
+            "collaboration_overlap_years": null,
+            "committee_co_member": false,
+            "same_period": false,
+            "shared_grant_count_5y": null,
+            "co_mentored_student_count": null,
+            "committee_or_exam_overlap": false,
+            "same_center_or_institute": false,
+            "prior_institution_overlap_years": null,
+            "conference_session_overlap_5y": null,
+            "most_recent_connection_year": 2024,
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_WANG_THU",
+                "source_type": "openalex",
+                "claim": "3 small-team (≤10 authors) + 2 big-collab (>10 authors) coauthored works in 2021–2026",
+                "supports_fields": [
+                  "small_team_coauthor_5y",
+                  "big_collab_papers_5y"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": "enriched via openalex"
+          }
+        },
+        "normalized_collab_top20pct": 0.76,
+        "collab_with_nas": null,
+        "grad_placement_quality": null,
+        "active_funding_quality": null,
+        "research_fit": null,
+        "research_fit_score": null,
+        "research_fit_summary": null,
+        "research_fit_axes": {},
+        "pi_signal": "missing",
+        "recent_phd_count": null,
+        "opportunity_signal": null,
+        "program_profile": null,
+        "evidence": {
+          "research_areas": {
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_HARTMAN_MIT",
+                "source_type": "openalex",
+                "claim": "top concepts from openalex: Higgs boson, ATLAS, particle physics, collider physics",
+                "supports_fields": [
+                  "research_areas"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          },
+          "normalized_collab_top20pct": {
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_HARTMAN_MIT",
+                "source_type": "openalex",
+                "claim": "h_index=38 → min(1.0, 38/50) = 0.760",
+                "supports_fields": [
+                  "normalized_collab_top20pct"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          },
+          "research_fit": {
+            "items": [
+              {
+                "url": "https://openalex.org/works/W101",
+                "source_type": "openalex",
+                "claim": "recent paper 'H to cc-bar with ATLAS Run 3 — small-team analysis paper' (2024) overlaps research_direction",
+                "supports_fields": [
+                  "research_fit"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              },
+              {
+                "url": "https://openalex.org/works/W110",
+                "source_type": "openalex",
+                "claim": "recent paper 'VH cross-section with ATLAS' (2024) overlaps research_direction",
+                "supports_fields": [
+                  "research_fit"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              },
+              {
+                "url": "https://openalex.org/works/W111",
+                "source_type": "openalex",
+                "claim": "recent paper 'Machine learning for Higgs analyses' (2023) overlaps research_direction",
+                "supports_fields": [
+                  "research_fit"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          }
+        },
+        "searched_sources": []
+      },
+      "c_score": 3.7,
+      "a_score": 2.8,
+      "p_score": 3.26,
+      "e_score": 3.25,
+      "g_score": 3.85,
+      "match_score": 3.4,
+      "application_strength": 3.3,
+      "confidence_band": 0.8,
+      "strength_label": "Reach",
+      "explanation": "Evidence coverage: 3/8 verified · 4 missing (collab_with_nas, grad_placement_quality, pi_signal) · 1 unsourced (school_tier) · co-authored 3 small-team paper(s) with Prof. Lisa Wang in last 5y [https://openalex.org/authors/A_WANG_THU · openalex] · shared 2 big-collab paper(s) with Prof. Lisa Wang (alphabetical author list) [https://openalex.org/authors/A_WANG_THU · openalex] · research: Higgs boson, ATLAS, particle physics [https://openalex.org/authors/A_HARTMAN_MIT · openalex]",
+      "unverified_signals": 5,
+      "missing_signals": 4,
+      "unsourced_signals": 1,
+      "total_signals": 8,
+      "missing_signal_names": [
+        "collab_with_nas",
+        "grad_placement_quality",
+        "pi_signal",
+        "active_funding_quality"
+      ],
+      "unsourced_signal_names": [
+        "school_tier"
+      ],
+      "risk_adjusted_strength": 2.9,
+      "lower_bound": 2.5,
+      "program_difficulty_penalty": 0.7,
+      "difficulty_adjusted_strength": 2.2,
+      "difficulty_reasons": [
+        "school_tier=top_10 admit-rate factor +0.70"
+      ],
+      "field_profile_id": "physics",
+      "research_fit_score": null,
+      "research_fit_summary": null,
+      "research_fit_axes": {},
+      "o_score": null,
+      "opportunity_adj": -0.1,
+      "strategy": {
+        "apply_bucket": "target",
+        "recommended_action": "contact_first",
+        "why_this_rank": [
+          "risk_adjusted_strength=2.90 ≥ 2.3",
+          "strong connection (C=3.70)"
+        ],
+        "main_risks": [
+          "1 unsourced claim(s) — the band is wider than it looks",
+          "wide confidence band (±0.8) — true strength may be 2.50–4.10",
+          "program difficulty penalty 0.70 (top-tier admit pressure / small cohort / tight funding)"
+        ],
+        "evidence_to_fix": [
+          "school_tier",
+          "collab_with_nas",
+          "grad_placement_quality",
+          "pi_signal",
+          "active_funding_quality"
+        ],
+        "outreach_angle": "Lead with the shared small-team coauthorship with adv_001 (3 papers) as the connection.",
+        "next_steps": [
+          "Email the PI; mention the sourced connection above.",
+          "Optionally tighten 4 missing signal(s) for a narrower band."
+        ]
+      }
+    },
+    {
+      "candidate": {
+        "id": "cand_chen_berkeley",
+        "name": "Prof. Riley Chen",
+        "institution": "UC Berkeley",
+        "school_tier": "top_10",
+        "field": "physics",
+        "research_areas": [
+          "ATLAS",
+          "particle physics",
+          "dark matter",
+          "BSM searches"
+        ],
+        "recent_papers": [],
+        "paths_to_advisors": {
+          "adv_001": {
+            "small_team_coauthor_5y": null,
+            "big_collab_papers_5y": 1,
+            "same_working_group": false,
+            "analysis_contact_overlap": false,
+            "genealogy_relation": null,
+            "collaboration_overlap_years": null,
+            "committee_co_member": false,
+            "same_period": false,
+            "shared_grant_count_5y": null,
+            "co_mentored_student_count": null,
+            "committee_or_exam_overlap": false,
+            "same_center_or_institute": false,
+            "prior_institution_overlap_years": null,
+            "conference_session_overlap_5y": null,
+            "most_recent_connection_year": 2023,
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_WANG_THU",
+                "source_type": "openalex",
+                "claim": "0 small-team (≤10 authors) + 1 big-collab (>10 authors) coauthored works in 2021–2026",
+                "supports_fields": [
+                  "small_team_coauthor_5y",
+                  "big_collab_papers_5y"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": "enriched via openalex"
+          }
+        },
+        "normalized_collab_top20pct": 0.64,
+        "collab_with_nas": null,
+        "grad_placement_quality": null,
+        "active_funding_quality": null,
+        "research_fit": null,
+        "research_fit_score": null,
+        "research_fit_summary": null,
+        "research_fit_axes": {},
+        "pi_signal": "missing",
+        "recent_phd_count": null,
+        "opportunity_signal": null,
+        "program_profile": null,
+        "evidence": {
+          "research_areas": {
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_CHEN_BERKELEY",
+                "source_type": "openalex",
+                "claim": "top concepts from openalex: ATLAS, particle physics, dark matter, BSM searches",
+                "supports_fields": [
+                  "research_areas"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          },
+          "normalized_collab_top20pct": {
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_CHEN_BERKELEY",
+                "source_type": "openalex",
+                "claim": "h_index=32 → min(1.0, 32/50) = 0.640",
+                "supports_fields": [
+                  "normalized_collab_top20pct"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          },
+          "research_fit": {
+            "items": [
+              {
+                "url": "https://openalex.org/works/W210",
+                "source_type": "openalex",
+                "claim": "recent paper 'ATLAS dark matter search (full collaboration)' (2024) overlaps research_direction",
+                "supports_fields": [
+                  "research_fit"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              },
+              {
+                "url": "https://openalex.org/works/W211",
+                "source_type": "openalex",
+                "claim": "recent paper 'BSM Higgs scenarios review' (2023) overlaps research_direction",
+                "supports_fields": [
+                  "research_fit"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          }
+        },
+        "searched_sources": []
+      },
+      "c_score": 2.3,
+      "a_score": 2.8,
+      "p_score": 3.26,
+      "e_score": 3.25,
+      "g_score": 3.85,
+      "match_score": 2.86,
+      "application_strength": 2.76,
+      "confidence_band": 0.8,
+      "strength_label": "Far Reach",
+      "explanation": "Evidence coverage: 3/8 verified · 4 missing (collab_with_nas, grad_placement_quality, pi_signal) · 1 unsourced (school_tier) · shared 1 big-collab paper(s) with Prof. Lisa Wang (alphabetical author list) [https://openalex.org/authors/A_WANG_THU · openalex] · research: ATLAS, particle physics, dark matter [https://openalex.org/authors/A_CHEN_BERKELEY · openalex]",
+      "unverified_signals": 5,
+      "missing_signals": 4,
+      "unsourced_signals": 1,
+      "total_signals": 8,
+      "missing_signal_names": [
+        "collab_with_nas",
+        "grad_placement_quality",
+        "pi_signal",
+        "active_funding_quality"
+      ],
+      "unsourced_signal_names": [
+        "school_tier"
+      ],
+      "risk_adjusted_strength": 2.36,
+      "lower_bound": 1.96,
+      "program_difficulty_penalty": 0.7,
+      "difficulty_adjusted_strength": 1.66,
+      "difficulty_reasons": [
+        "school_tier=top_10 admit-rate factor +0.70"
+      ],
+      "field_profile_id": "physics",
+      "research_fit_score": null,
+      "research_fit_summary": null,
+      "research_fit_axes": {},
+      "o_score": null,
+      "opportunity_adj": -0.1,
+      "strategy": {
+        "apply_bucket": "reach",
+        "recommended_action": "investigate_evidence",
+        "why_this_rank": [
+          "application_strength=2.76 ≥ 2.4 but risk-adjusted 2.36 < 2.4 — wide confidence band"
+        ],
+        "main_risks": [
+          "1 unsourced claim(s) — the band is wider than it looks",
+          "wide confidence band (±0.8) — true strength may be 1.96–3.56",
+          "program difficulty penalty 0.70 (top-tier admit pressure / small cohort / tight funding)"
+        ],
+        "evidence_to_fix": [
+          "school_tier",
+          "collab_with_nas",
+          "grad_placement_quality",
+          "pi_signal",
+          "active_funding_quality"
+        ],
+        "outreach_angle": null,
+        "next_steps": [
+          "Fix unsourced claims (highest priority): school_tier",
+          "Optionally tighten 4 missing signal(s) for a narrower band."
+        ]
+      }
+    },
+    {
+      "candidate": {
+        "id": "cand_lin_stanford",
+        "name": "Prof. Casey Lin",
+        "institution": "Stanford",
+        "school_tier": "top_10",
+        "field": "physics",
+        "research_areas": [
+          "effective field theory",
+          "Standard Model",
+          "theoretical particle physics"
+        ],
+        "recent_papers": [],
+        "paths_to_advisors": {
+          "adv_001": {
+            "small_team_coauthor_5y": null,
+            "big_collab_papers_5y": null,
+            "same_working_group": false,
+            "analysis_contact_overlap": false,
+            "genealogy_relation": null,
+            "collaboration_overlap_years": null,
+            "committee_co_member": false,
+            "same_period": false,
+            "shared_grant_count_5y": null,
+            "co_mentored_student_count": null,
+            "committee_or_exam_overlap": false,
+            "same_center_or_institute": false,
+            "prior_institution_overlap_years": null,
+            "conference_session_overlap_5y": null,
+            "most_recent_connection_year": null,
+            "items": [
+              {
+                "url": "",
+                "source_type": "openalex",
+                "claim": "searched openalex 2021–2026: 0 coauthored works between Prof. Lisa Wang and Prof. Casey Lin",
+                "supports_fields": [
+                  "path:adv_001"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": "verified-empty via openalex"
+          }
+        },
+        "normalized_collab_top20pct": 0.44,
+        "collab_with_nas": null,
+        "grad_placement_quality": null,
+        "active_funding_quality": null,
+        "research_fit": null,
+        "research_fit_score": null,
+        "research_fit_summary": null,
+        "research_fit_axes": {},
+        "pi_signal": "missing",
+        "recent_phd_count": null,
+        "opportunity_signal": null,
+        "program_profile": null,
+        "evidence": {
+          "research_areas": {
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_LIN_STANFORD",
+                "source_type": "openalex",
+                "claim": "top concepts from openalex: effective field theory, Standard Model, theoretical particle physics",
+                "supports_fields": [
+                  "research_areas"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          },
+          "normalized_collab_top20pct": {
+            "items": [
+              {
+                "url": "https://openalex.org/authors/A_LIN_STANFORD",
+                "source_type": "openalex",
+                "claim": "h_index=22 → min(1.0, 22/50) = 0.440",
+                "supports_fields": [
+                  "normalized_collab_top20pct"
+                ],
+                "quote_or_snippet": null,
+                "last_checked": null
+              }
+            ],
+            "sources": [],
+            "note": null,
+            "last_checked": null
+          }
+        },
+        "searched_sources": []
+      },
+      "c_score": 2.3,
+      "a_score": 2.3,
+      "p_score": 3.26,
+      "e_score": 3.25,
+      "g_score": 3.85,
+      "match_score": 2.78,
+      "application_strength": 2.68,
+      "confidence_band": 0.8,
+      "strength_label": "Far Reach",
+      "explanation": "Evidence coverage: 3/8 verified · 4 missing (collab_with_nas, grad_placement_quality, pi_signal) · 1 unsourced (school_tier) · research: effective field theory, Standard Model, theoretical particle physics [https://openalex.org/authors/A_LIN_STANFORD · openalex]",
+      "unverified_signals": 5,
+      "missing_signals": 4,
+      "unsourced_signals": 1,
+      "total_signals": 8,
+      "missing_signal_names": [
+        "collab_with_nas",
+        "grad_placement_quality",
+        "pi_signal",
+        "active_funding_quality"
+      ],
+      "unsourced_signal_names": [
+        "school_tier"
+      ],
+      "risk_adjusted_strength": 2.28,
+      "lower_bound": 1.88,
+      "program_difficulty_penalty": 0.7,
+      "difficulty_adjusted_strength": 1.58,
+      "difficulty_reasons": [
+        "school_tier=top_10 admit-rate factor +0.70"
+      ],
+      "field_profile_id": "physics",
+      "research_fit_score": null,
+      "research_fit_summary": null,
+      "research_fit_axes": {},
+      "o_score": null,
+      "opportunity_adj": -0.1,
+      "strategy": {
+        "apply_bucket": "only_if_space",
+        "recommended_action": "investigate_evidence",
+        "why_this_rank": [
+          "no verified connection path AND no strong research fit — thin reasons to apply"
+        ],
+        "main_risks": [
+          "1 unsourced claim(s) — the band is wider than it looks",
+          "wide confidence band (±0.8) — true strength may be 1.88–3.48",
+          "program difficulty penalty 0.70 (top-tier admit pressure / small cohort / tight funding)"
+        ],
+        "evidence_to_fix": [
+          "school_tier",
+          "collab_with_nas",
+          "grad_placement_quality",
+          "pi_signal",
+          "active_funding_quality"
+        ],
+        "outreach_angle": null,
+        "next_steps": [
+          "Fix unsourced claims (highest priority): school_tier",
+          "Optionally tighten 4 missing signal(s) for a narrower band."
+        ]
+      }
+    }
+  ]
+}

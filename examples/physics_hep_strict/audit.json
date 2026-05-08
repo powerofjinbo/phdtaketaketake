@@ -1,0 +1,152 @@
+{
+  "input_field": "physics",
+  "field_profile_id": "physics",
+  "strict_evidence_mode": false,
+  "strict_ready": false,
+  "blocking_issues": [],
+  "repair_queue": [
+    {
+      "candidate_id": "cand_hartman_mit",
+      "signal": "school_tier",
+      "severity": "high",
+      "kind": "unsourced",
+      "hint": "evidence['school_tier'].items must include an EvidenceSource with supports_fields containing 'school_tier' (cite US News or field-equivalent ranking page)"
+    },
+    {
+      "candidate_id": "cand_hartman_mit",
+      "signal": "collab_with_nas",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "evidence['collab_with_nas'].items must include an EvidenceSource citing the NAS / HHMI directory match"
+    },
+    {
+      "candidate_id": "cand_hartman_mit",
+      "signal": "grad_placement_quality",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "evidence['grad_placement_quality'].items must include an EvidenceSource citing the lab's alumni / former-students page"
+    },
+    {
+      "candidate_id": "cand_hartman_mit",
+      "signal": "pi_signal",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "either evidence['pi_signal'].items (legacy) OR opportunity_signal.evidence['pi_signal'].items must include an EvidenceSource citing the lab's current-students or recruiting page. Use supports_fields=['pi_signal'] for the legacy form or supports_fields=['opportunity:pi_signal'] for the new form."
+    },
+    {
+      "candidate_id": "cand_hartman_mit",
+      "signal": "active_funding_quality",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "either evidence['active_funding_quality'].items (legacy) OR opportunity_signal.evidence['active_funding_quality'].items must include an EvidenceSource citing active grant records (NIH RePORTER / NSF Award Search / DOE Office of Science / ERC). Use supports_fields=['active_funding_quality'] for the legacy form or supports_fields=['opportunity:active_funding_quality'] for the new form."
+    },
+    {
+      "candidate_id": "cand_chen_berkeley",
+      "signal": "school_tier",
+      "severity": "high",
+      "kind": "unsourced",
+      "hint": "evidence['school_tier'].items must include an EvidenceSource with supports_fields containing 'school_tier' (cite US News or field-equivalent ranking page)"
+    },
+    {
+      "candidate_id": "cand_chen_berkeley",
+      "signal": "collab_with_nas",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "evidence['collab_with_nas'].items must include an EvidenceSource citing the NAS / HHMI directory match"
+    },
+    {
+      "candidate_id": "cand_chen_berkeley",
+      "signal": "grad_placement_quality",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "evidence['grad_placement_quality'].items must include an EvidenceSource citing the lab's alumni / former-students page"
+    },
+    {
+      "candidate_id": "cand_chen_berkeley",
+      "signal": "pi_signal",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "either evidence['pi_signal'].items (legacy) OR opportunity_signal.evidence['pi_signal'].items must include an EvidenceSource citing the lab's current-students or recruiting page. Use supports_fields=['pi_signal'] for the legacy form or supports_fields=['opportunity:pi_signal'] for the new form."
+    },
+    {
+      "candidate_id": "cand_chen_berkeley",
+      "signal": "active_funding_quality",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "either evidence['active_funding_quality'].items (legacy) OR opportunity_signal.evidence['active_funding_quality'].items must include an EvidenceSource citing active grant records (NIH RePORTER / NSF Award Search / DOE Office of Science / ERC). Use supports_fields=['active_funding_quality'] for the legacy form or supports_fields=['opportunity:active_funding_quality'] for the new form."
+    },
+    {
+      "candidate_id": "cand_lin_stanford",
+      "signal": "school_tier",
+      "severity": "high",
+      "kind": "unsourced",
+      "hint": "evidence['school_tier'].items must include an EvidenceSource with supports_fields containing 'school_tier' (cite US News or field-equivalent ranking page)"
+    },
+    {
+      "candidate_id": "cand_lin_stanford",
+      "signal": "collab_with_nas",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "evidence['collab_with_nas'].items must include an EvidenceSource citing the NAS / HHMI directory match"
+    },
+    {
+      "candidate_id": "cand_lin_stanford",
+      "signal": "grad_placement_quality",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "evidence['grad_placement_quality'].items must include an EvidenceSource citing the lab's alumni / former-students page"
+    },
+    {
+      "candidate_id": "cand_lin_stanford",
+      "signal": "pi_signal",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "either evidence['pi_signal'].items (legacy) OR opportunity_signal.evidence['pi_signal'].items must include an EvidenceSource citing the lab's current-students or recruiting page. Use supports_fields=['pi_signal'] for the legacy form or supports_fields=['opportunity:pi_signal'] for the new form."
+    },
+    {
+      "candidate_id": "cand_lin_stanford",
+      "signal": "active_funding_quality",
+      "severity": "medium",
+      "kind": "missing",
+      "hint": "either evidence['active_funding_quality'].items (legacy) OR opportunity_signal.evidence['active_funding_quality'].items must include an EvidenceSource citing active grant records (NIH RePORTER / NSF Award Search / DOE Office of Science / ERC). Use supports_fields=['active_funding_quality'] for the legacy form or supports_fields=['opportunity:active_funding_quality'] for the new form."
+    }
+  ],
+  "coverage_summary": {
+    "candidates_total": 3,
+    "candidates_strict_ready": 0,
+    "candidates_with_unsourced": 3,
+    "candidates_with_missing": 3,
+    "total_signals_audited": 24,
+    "verified_count": 9,
+    "missing_count": 12,
+    "unsourced_count": 3,
+    "by_signal": {
+      "collab_with_nas": {
+        "verified": 0,
+        "missing": 3,
+        "unsourced": 0
+      },
+      "grad_placement_quality": {
+        "verified": 0,
+        "missing": 3,
+        "unsourced": 0
+      },
+      "pi_signal": {
+        "verified": 0,
+        "missing": 3,
+        "unsourced": 0
+      },
+      "active_funding_quality": {
+        "verified": 0,
+        "missing": 3,
+        "unsourced": 0
+      },
+      "school_tier": {
+        "verified": 0,
+        "missing": 0,
+        "unsourced": 3
+      }
+    }
+  },
+  "input_warnings": []
+}

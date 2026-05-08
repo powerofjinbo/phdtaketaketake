@@ -1,0 +1,108 @@
+{
+  "field_profile_id": "physics",
+  "field_display_name": "Physics / HEP / Astrophysics",
+  "schools": [
+    "MIT",
+    "UC Berkeley",
+    "Stanford"
+  ],
+  "keywords": "ATLAS Higgs precision",
+  "queries": [
+    {
+      "engine": "google_scholar",
+      "query": "\"MIT\" \"ATLAS Higgs precision\" site:scholar.google.com",
+      "purpose": "Find scholars at MIT working on ATLAS Higgs precision"
+    },
+    {
+      "engine": "inspire",
+      "query": "ATLAS Higgs precision site:inspirehep.net",
+      "purpose": "HEP-specific paper / institution search"
+    },
+    {
+      "engine": "arxiv",
+      "query": "ATLAS Higgs precision MIT site:arxiv.org",
+      "purpose": "Recent preprints"
+    },
+    {
+      "engine": "faculty_page",
+      "query": "MIT physics department faculty ATLAS Higgs precision",
+      "purpose": "Department directory"
+    },
+    {
+      "engine": "atlas_glance",
+      "query": "ATLAS Higgs precision site:atlas-glance.cern.ch",
+      "purpose": "ATLAS / CMS subgroup membership and conveners (HEP-specific)"
+    },
+    {
+      "engine": "google_scholar",
+      "query": "\"UC Berkeley\" \"ATLAS Higgs precision\" site:scholar.google.com",
+      "purpose": "Find scholars at UC Berkeley working on ATLAS Higgs precision"
+    },
+    {
+      "engine": "inspire",
+      "query": "ATLAS Higgs precision site:inspirehep.net",
+      "purpose": "HEP-specific paper / institution search"
+    },
+    {
+      "engine": "arxiv",
+      "query": "ATLAS Higgs precision UC Berkeley site:arxiv.org",
+      "purpose": "Recent preprints"
+    },
+    {
+      "engine": "faculty_page",
+      "query": "UC Berkeley physics department faculty ATLAS Higgs precision",
+      "purpose": "Department directory"
+    },
+    {
+      "engine": "atlas_glance",
+      "query": "ATLAS Higgs precision site:atlas-glance.cern.ch",
+      "purpose": "ATLAS / CMS subgroup membership and conveners (HEP-specific)"
+    },
+    {
+      "engine": "google_scholar",
+      "query": "\"Stanford\" \"ATLAS Higgs precision\" site:scholar.google.com",
+      "purpose": "Find scholars at Stanford working on ATLAS Higgs precision"
+    },
+    {
+      "engine": "inspire",
+      "query": "ATLAS Higgs precision site:inspirehep.net",
+      "purpose": "HEP-specific paper / institution search"
+    },
+    {
+      "engine": "arxiv",
+      "query": "ATLAS Higgs precision Stanford site:arxiv.org",
+      "purpose": "Recent preprints"
+    },
+    {
+      "engine": "faculty_page",
+      "query": "Stanford physics department faculty ATLAS Higgs precision",
+      "purpose": "Department directory"
+    },
+    {
+      "engine": "atlas_glance",
+      "query": "ATLAS Higgs precision site:atlas-glance.cern.ch",
+      "purpose": "ATLAS / CMS subgroup membership and conveners (HEP-specific)"
+    }
+  ],
+  "primary_databases": [
+    "INSPIRE-HEP",
+    "arXiv (hep-ex / hep-ph / hep-th / astro-ph / cond-mat)",
+    "OpenAlex",
+    "Google Scholar"
+  ],
+  "ranking_source_url": "https://www.usnews.com/best-graduate-schools/top-science-schools/physics-rankings",
+  "field_caveats": [
+    "Big-collab papers (ATLAS / CMS / LIGO / etc.) require analyzer / convener / paper-editor evidence beyond simple author-list overlap. Use same_working_group or analysis_contact_overlap edges for these.",
+    "Theory vs experiment matters for advisor matching — check candidate's recent papers.",
+    "INSPIRE-HEP collaboration tracking is more authoritative than Google Scholar for HEP author lists."
+  ],
+  "exclusion_rules": [
+    "no matching paper in last 3 years (the candidate has pivoted away or stopped publishing)",
+    "emeritus / dean / chair-only / full admin role (not actively running a lab)",
+    "fully pivoted to industry (no current academic affiliation)",
+    "no PhD students currently in the lab (check the 'people' / 'group' page)",
+    "explicitly 'not recruiting' on the lab / faculty page",
+    "lab page returned 404 / no group page exists (cannot verify recruiting)"
+  ],
+  "field_profile_loaded": true
+}
