@@ -5,6 +5,8 @@
 
 中文 · [English](README.md)
 
+> ⚠️ **校准声明**：phdtaketaketake 是**专家设计的启发式决策辅助系统**，**不是**经过实证校准的录取概率预测器。所有阈值（CAPEG 权重、recency 衰减、program difficulty 各 component、strategy bucket 切分等）都是 v1/v2 默认值，需要在真实 portfolio 上慢慢校准。输出是 4.0 制的**相对匹配度 / 申请强度指数**，**不是录取概率**。设计边界见 [`docs/DESIGN.md`](docs/DESIGN.md) §11。
+
 ## 安装
 
 ```bash
@@ -37,13 +39,19 @@ Agent 会：
 
 ### 每个候选的输出
 
-- **Match score**（0–4.0）+ **application_strength**（0–4.0，**不是概率**），带置信区间 ±
-- **risk_adjusted_strength** = `application_strength − band/2` —— **这是默认排序键**，evidence 充分的候选能压过证据稀薄但 nominal strength 更高的对手
-- **lower_bound** = `application_strength − band` —— 不确定性宽边的保守读数
-- **5 档定性标签**：Reach · Target · Match · Safe · Far Reach
-- **分项分**：Connection / Publication / Experience / GPA
+- **`match_score`**（0–4.0）—— CAPEG 综合
+- **`application_strength`**（0–4.0，**不是录取概率**）= `match + opportunity_adj`
+- **`risk_adjusted_strength`** = `application_strength − band/2`
+- **`difficulty_adjusted_strength`** = `max(0, risk_adjusted − program_penalty)` —— **主排序键（post-#5）**
+- **`lower_bound`** = `application_strength − band` —— 不确定性宽边的保守读数
+- **5 档定性标签**（应用在 `difficulty_adjusted_strength`）：Far Reach · Reach · Target · Match · Safe
+- **5 维 pillar**：`c_score` / `a_score` / `p_score` / `e_score` / `g_score`
+- **辅助 feature**：`o_score`（opportunity）· `program_difficulty_penalty` + `difficulty_reasons` · `research_fit_score` + 各 axis
 - **Evidence 分项**：`total_signals` / `verified` / `missing` / `unsourced`（带具体哪些 signal 落在每档）
+- **Strategy（post-#7）**：`apply_bucket`（priority / target / reach / only_if_space / drop）+ `recommended_action`（apply / contact_first / investigate_evidence / deprioritize / skip）+ `outreach_angle`（仅在有 sourced 材料时）+ `evidence_to_fix` 修复队列
 - **匹配原因** —— 引用真实搜索来源：例如 *"与 Prof. Wang 2022–2024 合著 4 篇 small-team 论文 (Google Scholar) · 同属 ATLAS H→cc̄ working group (ATLAS Glance)"*
+
+CLI 输出还有顶层 **`strategy_summary`**：portfolio 级别的 priority/target/reach/only_if_space/drop 候选 ID 列表 + evidence_fix_queue + portfolio_notes。
 
 ## 架构：无静态缓存，只用真实数据
 
@@ -93,16 +101,33 @@ agent 检索质量决定结果质量 —— 数据永远新鲜（没有缓存）
 
 ## 打分哲学
 
-4 维度 4.0 制（对齐 GPA），按学校档位自适应加权：
+整套打分是**5 层 deterministic Python pipeline**，每个分数都能 trace 回引用过的 evidence：
 
-- **Connection (C)** —— 候选导师 ↔ 你现导师 的合著 + 家谱 + 共同 collab + 委员会同台
-- **Publication (P)** —— 期刊 tier × 作者位次衰减；5+ 作者大组论文特殊化
-- **Experience (E)** —— 实验室声誉 × 时长 × 产出，产出主导（50%）
-- **GPA (G)** —— 直接 4.0 制；百分制 / 4.3 / 4.5 / 英制 honours 自动转换
+```
+match_score          = w_C·C + w_A·A + w_P·P + w_E·E + w_G·G        # CAPEG，按学校档位自适应权重
+application_strength = clip(match_score + opportunity_adj, 0, 4.0)   # 加上招生周期可用性
+risk_adjusted        = application_strength − band/2                 # band 越宽排序越靠后
+difficulty_adjusted  = max(0, risk_adjusted − program_penalty)       # ← 主排序键
+strategy             = bucket(difficulty_adjusted, evidence, …)      # → priority/target/reach/only_if_space/drop
+```
 
-`application_strength = match_score + tier_adjustment + pi_recruiting_signal`，clip 到 [0, 4.0]。
+5 个 **CAPEG** pillar，4.0 制，按学校档位 tier-adaptive 加权：
 
-完整公式：[docs/scoring.md](docs/scoring.md) · Skill 指令：[SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema：[references/profile_schema.md](references/profile_schema.md)。
+- **Connection (C)** —— 候选导师 ↔ 你现导师/推荐人之间的真实人脉路径：合著（区分 small-team vs big-collab）、学术家谱、共同 grant、co-mentored student、working group / analysis contact 重叠、committee/exam、同 institute、prior institution overlap、conference session 重叠。v2 聚合公式：`strongest + 0.10·second_strongest`，cap 到 1.0，再乘 recency 衰减。
+- **Advisor influence (A)** —— **纯声誉**（post-#6a 重构）：h-index proxy + elite status + grad placement quality。Funding 和 recruiting 已拆到 **Opportunity (O)**。
+- **Publication (P)** —— field-aware：venue tier × author role × status × recency × contribution-bonus，含 big-collab 和 consortium guardrail。Top-3 加权聚合。
+- **Experience (E)** —— `0.20·lab_prestige + 0.30·duration + 0.50·output`，取最强单段。
+- **GPA (G)** —— 4.0 直接对齐；4.3 / 4.5 / 100 / UK honours 全部归一化。
+
+3 个**非 CAPEG** 维度：
+
+- **Opportunity (O)** —— 招生周期可用性：recruiting health + active funding + lab capacity + accessibility。派生 `opportunity_adj`（替代 v1 `pi_adj`）。`not_recruiting` 强制 `application_strength=0`。
+- **Program difficulty (D)** —— per-program penalty 0–0.8：school tier admit-rate factor + cohort size + admission model + funding structure + faculty count + international friendliness。从 `risk_adjusted_strength` 减掉得到 `difficulty_adjusted_strength`（**主排序键**）。
+- **Research fit (R)** —— 结构化 6 轴 tie-breaker：`0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant + 0.10·background`。永远不当 6th pillar，仅作排序 tie-break。
+
+5 档定性标签（应用在 `difficulty_adjusted_strength` 上）：**Far Reach · Reach · Target · Match · Safe**。
+
+完整公式：[docs/scoring.md](docs/scoring.md) · 流水线图：[docs/scoring_pipeline.md](docs/scoring_pipeline.md) · Skill 指令：[SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema：[references/profile_schema.md](references/profile_schema.md)。
 
 ## 与其他 agent 配合
 

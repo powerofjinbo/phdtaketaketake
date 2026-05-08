@@ -5,6 +5,14 @@
 
 [中文](README.zh.md) · English
 
+> ⚠️ **Calibration disclaimer.** phdtaketaketake is an **expert-designed heuristic
+> decision-support system**, **not** an empirically calibrated admission probability
+> predictor. All thresholds (CAPEG weights, recency multipliers, program-difficulty
+> components, strategy bucket cutoffs, etc.) are v1/v2 defaults — they should be
+> recalibrated against real portfolios over time. The output is a 4.0-scale
+> *relative-fit / application-strength index*, **never a probability**.
+> See [`docs/DESIGN.md`](docs/DESIGN.md) §11 for the design boundaries.
+
 ## Install
 
 ```bash
@@ -48,13 +56,19 @@ The agent will:
 
 ### Output per candidate
 
-- **Match score** (0–4.0) + **application_strength** (0–4.0, *not* a probability) with ±confidence band
-- **risk_adjusted_strength** = `application_strength − band/2` — **this is the default sort key**, so well-evidenced candidates outrank loosely-claimed peers even at lower nominal strength
-- **lower_bound** = `application_strength − band` — conservative reading at the wide edge of uncertainty
-- **5-tier label**: Reach · Target · Match · Safe · Far Reach
-- **Per-dimension**: Connection / Publication / Experience / GPA
+- **`match_score`** (0–4.0) — CAPEG composite
+- **`application_strength`** (0–4.0, **not** a probability) — `match + opportunity_adj`
+- **`risk_adjusted_strength`** = `application_strength − band/2`
+- **`difficulty_adjusted_strength`** = `max(0, risk_adjusted − program_penalty)` — **primary sort key (post-#5)**
+- **`lower_bound`** = `application_strength − band` — conservative reading
+- **5-tier label** (on `difficulty_adjusted_strength`): Far Reach · Reach · Target · Match · Safe
+- **Per-pillar**: `c_score` / `a_score` / `p_score` / `e_score` / `g_score`
+- **Per-feature**: `o_score` (opportunity) · `program_difficulty_penalty` + `difficulty_reasons` · `research_fit_score` + axes
 - **Evidence breakdown**: `total_signals` / `verified` / `missing` / `unsourced` (with names of which signals fall in each)
+- **Strategy** (post-#7): `apply_bucket` (priority / target / reach / only_if_space / drop) + `recommended_action` (apply / contact_first / investigate_evidence / deprioritize / skip) + `outreach_angle` (only if sourced material exists) + `evidence_to_fix` queue
 - **Why matched** — cited from real searches: e.g., *"co-authored 4 small-team papers with Prof. Wang in 2022–2024 (Google Scholar) · same ATLAS H→cc̄ working group (ATLAS Glance)"*
+
+Top-level CLI output also includes a **`strategy_summary`** rolling up the full portfolio (priority/target/reach/only_if_space/drop candidate IDs + evidence_fix_queue + portfolio_notes).
 
 ## Architecture: no static cache, real data only
 
@@ -109,16 +123,33 @@ Adding a tier YAML for a new field: see [CONTRIBUTING.md](CONTRIBUTING.md). PRs 
 
 ## Scoring philosophy
 
-Four dimensions, all on a 4.0 scale (matching GPA), tier-adaptively weighted by school competitiveness:
+The matcher uses a **5-layered scoring pipeline** — each layer is deterministic Python, every score traceable back to cited evidence:
 
-- **Connection (C)** — paths between candidate ↔ your current advisor (co-author / genealogy / joint collaborations / committee)
-- **Publication (P)** — journal tier × author position decay; 5+ author papers handled specially for big-collaboration physics
-- **Experience (E)** — lab × duration × output, output-weighted (50%)
-- **GPA (G)** — direct on 4.0; percentage / 4.3 / 4.5 / UK honours all normalized
+```
+match_score          = w_C·C + w_A·A + w_P·P + w_E·E + w_G·G        # CAPEG, tier-adaptive weights
+application_strength = clip(match_score + opportunity_adj, 0, 4.0)   # adds admit-cycle availability
+risk_adjusted        = application_strength − band/2                 # widens band → lower rank
+difficulty_adjusted  = max(0, risk_adjusted − program_penalty)       # ← primary sort key
+strategy             = bucket(difficulty_adjusted, evidence, …)      # → priority/target/reach/only_if_space/drop
+```
 
-`application_strength = match_score + tier_adjustment + pi_recruiting_signal`, clipped to [0, 4.0].
+Five **CAPEG** pillars on a 4.0 scale, tier-adaptively weighted by school competitiveness:
 
-Full formulas: [docs/scoring.md](docs/scoring.md) · Skill instructions: [SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema: [references/profile_schema.md](references/profile_schema.md).
+- **Connection (C)** — paths between candidate ↔ your current advisor: co-author (small-team vs big-collab differentiated), academic genealogy, shared grants, co-mentored students, working-group / analysis-contact overlap, committee/exam, same center, prior-institution overlap, conference sessions. v2 aggregation: `strongest + 0.10·second_strongest`, capped at 1.0, scaled by recency.
+- **Advisor influence (A)** — reputation only (post-#6a refactor): h-index proxy + elite status + grad placement quality. Funding and recruiting moved to **Opportunity (O)**.
+- **Publication (P)** — field-aware tier × author-role × status × recency × contribution-bonus, with big-collab and consortium guardrails. Top-3 weighted aggregate.
+- **Experience (E)** — `0.20·lab_prestige + 0.30·duration + 0.50·output`, strongest single experience.
+- **GPA (G)** — direct on 4.0; 4.3 / 4.5 / 100 / UK honours normalized.
+
+Three **non-CAPEG** dimensions:
+
+- **Opportunity (O)** — admit-cycle availability: recruiting health + funding + lab capacity + accessibility. Drives `opportunity_adj` (replaces v1 `pi_adj`); `not_recruiting` forces `application_strength=0`.
+- **Program difficulty (D)** — per-program penalty 0–0.8 from school-tier admit rate + cohort size + admission model + funding structure + faculty count + international friendliness. Subtracted to form `difficulty_adjusted_strength` (the **primary sort key**).
+- **Research fit (R)** — structured 6-axis tie-breaker: `0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant + 0.10·background`. Never a 6th pillar; sorts ties only.
+
+5-tier label (applied to `difficulty_adjusted_strength`): **Far Reach · Reach · Target · Match · Safe**.
+
+Full formulas: [docs/scoring.md](docs/scoring.md) · Pipeline diagram: [docs/scoring_pipeline.md](docs/scoring_pipeline.md) · Skill instructions: [SKILL.md](SKILL.md) · Profile + CandidateAdvisor schema: [references/profile_schema.md](references/profile_schema.md).
 
 ## Use with non-Claude agents
 
