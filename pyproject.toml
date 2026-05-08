@@ -46,8 +46,9 @@ Homepage = "https://github.com/powerofjinbo/phdtaketaketake"
 Repository = "https://github.com/powerofjinbo/phdtaketaketake"
 Issues = "https://github.com/powerofjinbo/phdtaketaketake/issues"
 
-# Sprint-3-c5: console scripts. After `pip install`, the four CLIs are
-# available on $PATH without needing the scripts/ directory.
+# Sprint-3-c5: console scripts. After `pip install`, the CLIs below
+# are available on $PATH without needing the scripts/ directory.
+# (Sprint-4-c3 added phdtaketaketake-export-schemas.)
 [project.scripts]
 phdtaketaketake-match            = "phd_matcher.cli.match:main"
 phdtaketaketake-audit            = "phd_matcher.cli.audit_candidates:main"

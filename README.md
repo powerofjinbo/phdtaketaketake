@@ -23,13 +23,14 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
-After install, four CLIs are on `$PATH`:
+After install, five CLIs are on `$PATH`:
 
 ```bash
 phdtaketaketake-match            # rank candidates given profile + JSON
 phdtaketaketake-audit            # report evidence repair queue
 phdtaketaketake-collect-evidence # auto-fill evidence from OpenAlex / PubMed / DBLP / Semantic Scholar
 phdtaketaketake-discovery-plan   # per-field PI-search recipe
+phdtaketaketake-export-schemas   # write Pydantic models out to JSON Schema (Draft 2020-12)
 ```
 
 You can also invoke them via `python scripts/<name>.py …` from a checkout (without install).

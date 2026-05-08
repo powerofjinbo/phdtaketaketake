@@ -180,7 +180,9 @@ in the descending sort key ladder, never overrides
 
 ## Hard architectural invariants
 
-These are pinned by the test suite (358/358 passing):
+These are pinned by the test suite (each invariant has at least one
+named test enforcing it; running `python -m pytest -q` from the repo
+root exercises the full set):
 
 1. **Strategy is purely derivative.** The strategy layer never modifies
    any scoring field. `test_strategy_does_not_change_scores` pins this.
