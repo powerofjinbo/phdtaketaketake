@@ -1,0 +1,283 @@
+{
+  "$defs": {
+    "EvidenceEntry": {
+      "additionalProperties": false,
+      "description": "Sources backing a signal, with audit trail.\n\nTwo formats:\n  - `items` (preferred): list of structured `EvidenceSource` records,\n    each binding a URL to a specific claim and supports_fields list.\n  - `sources` (legacy): list of bare URLs. Kept for back-compat — only\n    accepted in default mode. **Strict mode rejects bare sources** as\n    claim-level proof.\n\nEmpty both means the agent didn't verify this claim → matcher counts\nit as unverified.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "title": "EvidenceEntry",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "lab_page",
+            "faculty_page",
+            "google_scholar",
+            "openalex",
+            "inspire",
+            "pubmed",
+            "europe_pmc",
+            "semantic_scholar",
+            "arxiv",
+            "biorxiv",
+            "dblp",
+            "openreview",
+            "csrankings",
+            "mathscinet",
+            "math_genealogy",
+            "us_news",
+            "nas",
+            "hhmi",
+            "nih_reporter",
+            "clinicaltrials_gov",
+            "genealogy",
+            "paper",
+            "cv",
+            "other"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "supports_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports Fields",
+          "type": "array"
+        },
+        "quote_or_snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Or Snippet"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "required": [
+        "url",
+        "source_type",
+        "claim"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Program-level difficulty / accessibility signals (post-roadmap-#5).\n\nSits next to `school_tier` on a `CandidateAdvisor`: school_tier is\nthe coarse tier from a ranking page; ProgramProfile is the\nfine-grained \"what's it actually like to apply here\" data — cohort\nsize, admission model, funding structure, subfield coverage.\n\nAll signals are optional and default to \"didn't check\". Each\nnon-default field that contributes to `program_difficulty_penalty`\nneeds a matching entry in `evidence` with\n`supports_fields=[\"program:<field>\"]` for strict mode.",
+  "properties": {
+    "department": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Department"
+    },
+    "admission_model": {
+      "default": "unknown",
+      "enum": [
+        "direct_admit",
+        "rotation",
+        "centralized",
+        "mixed",
+        "unknown"
+      ],
+      "title": "Admission Model",
+      "type": "string"
+    },
+    "rotation_supported": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rotation Supported"
+    },
+    "direct_admit_required": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Direct Admit Required"
+    },
+    "gre_required": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gre Required"
+    },
+    "application_deadline": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Application Deadline"
+    },
+    "cohort_size_estimate": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cohort Size Estimate"
+    },
+    "faculty_count_in_area": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Faculty Count In Area"
+    },
+    "international_friendliness": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "International Friendliness"
+    },
+    "funding_structure": {
+      "default": "unknown",
+      "enum": [
+        "guaranteed",
+        "pi_grant",
+        "fellowship_first",
+        "mixed",
+        "unknown"
+      ],
+      "title": "Funding Structure",
+      "type": "string"
+    },
+    "program_selectivity_score": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Program Selectivity Score"
+    },
+    "evidence": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EvidenceEntry"
+      },
+      "title": "Evidence",
+      "type": "object"
+    }
+  },
+  "title": "ProgramProfile",
+  "type": "object"
+}

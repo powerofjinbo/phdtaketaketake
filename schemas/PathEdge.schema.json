@@ -1,0 +1,276 @@
+{
+  "$defs": {
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "lab_page",
+            "faculty_page",
+            "google_scholar",
+            "openalex",
+            "inspire",
+            "pubmed",
+            "europe_pmc",
+            "semantic_scholar",
+            "arxiv",
+            "biorxiv",
+            "dblp",
+            "openreview",
+            "csrankings",
+            "mathscinet",
+            "math_genealogy",
+            "us_news",
+            "nas",
+            "hhmi",
+            "nih_reporter",
+            "clinicaltrials_gov",
+            "genealogy",
+            "paper",
+            "cv",
+            "other"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "supports_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports Fields",
+          "type": "array"
+        },
+        "quote_or_snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Or Snippet"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "required": [
+        "url",
+        "source_type",
+        "claim"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Per-(student-advisor, candidate) connection signals.\n\nAll fields optional. The matcher takes the **max** strength across present\nsignals (no stacking). `sources` is required by the data-integrity policy\nfor any non-default claim — empty `sources` makes the path count as\nunverified.\n\nStrict schema: unknown keys raise. Negative counts / out-of-range floats\nraise.",
+  "properties": {
+    "small_team_coauthor_5y": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Distinct papers in last 5y where both names appear, ≤10 total authors",
+      "title": "Small Team Coauthor 5Y"
+    },
+    "big_collab_papers_5y": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Distinct papers in last 5y where both names appear, >10 authors (alphabetical author list bulk; weak signal)",
+      "title": "Big Collab Papers 5Y"
+    },
+    "same_working_group": {
+      "default": false,
+      "title": "Same Working Group",
+      "type": "boolean"
+    },
+    "analysis_contact_overlap": {
+      "default": false,
+      "title": "Analysis Contact Overlap",
+      "type": "boolean"
+    },
+    "genealogy_relation": {
+      "anyOf": [
+        {
+          "enum": [
+            "same_advisor",
+            "uncle_nephew",
+            "two_hop"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Genealogy Relation"
+    },
+    "collaboration_overlap_years": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Collaboration Overlap Years"
+    },
+    "committee_co_member": {
+      "default": false,
+      "title": "Committee Co Member",
+      "type": "boolean"
+    },
+    "same_period": {
+      "default": false,
+      "title": "Same Period",
+      "type": "boolean"
+    },
+    "shared_grant_count_5y": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "NSF/NIH/DOE shared-grant count between advisor and candidate in last 5y",
+      "title": "Shared Grant Count 5Y"
+    },
+    "co_mentored_student_count": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Students jointly mentored by advisor and candidate (committee co-mentorship counts)",
+      "title": "Co Mentored Student Count"
+    },
+    "committee_or_exam_overlap": {
+      "default": false,
+      "title": "Committee Or Exam Overlap",
+      "type": "boolean"
+    },
+    "same_center_or_institute": {
+      "default": false,
+      "title": "Same Center Or Institute",
+      "type": "boolean"
+    },
+    "prior_institution_overlap_years": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Years overlapped at the same institution before either's current role",
+      "title": "Prior Institution Overlap Years"
+    },
+    "conference_session_overlap_5y": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Conferences in last 5y where both presented at the same session/track",
+      "title": "Conference Session Overlap 5Y"
+    },
+    "most_recent_connection_year": {
+      "anyOf": [
+        {
+          "minimum": 1900,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Year of most recent direct interaction. Drives the recency multiplier (0–2y → 1.0, 3–5y → 0.85, 6–10y → 0.60, 10y+ → 0.35, None → 0.75).",
+      "title": "Most Recent Connection Year"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/EvidenceSource"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    }
+  },
+  "title": "PathEdge",
+  "type": "object"
+}

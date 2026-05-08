@@ -1,0 +1,82 @@
+{
+  "additionalProperties": false,
+  "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+  "properties": {
+    "url": {
+      "title": "Url",
+      "type": "string"
+    },
+    "source_type": {
+      "enum": [
+        "lab_page",
+        "faculty_page",
+        "google_scholar",
+        "openalex",
+        "inspire",
+        "pubmed",
+        "europe_pmc",
+        "semantic_scholar",
+        "arxiv",
+        "biorxiv",
+        "dblp",
+        "openreview",
+        "csrankings",
+        "mathscinet",
+        "math_genealogy",
+        "us_news",
+        "nas",
+        "hhmi",
+        "nih_reporter",
+        "clinicaltrials_gov",
+        "genealogy",
+        "paper",
+        "cv",
+        "other"
+      ],
+      "title": "Source Type",
+      "type": "string"
+    },
+    "claim": {
+      "title": "Claim",
+      "type": "string"
+    },
+    "supports_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Supports Fields",
+      "type": "array"
+    },
+    "quote_or_snippet": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Quote Or Snippet"
+    },
+    "last_checked": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Checked"
+    }
+  },
+  "required": [
+    "url",
+    "source_type",
+    "claim"
+  ],
+  "title": "EvidenceSource",
+  "type": "object"
+}

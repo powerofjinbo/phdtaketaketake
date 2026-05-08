@@ -1,0 +1,246 @@
+{
+  "$defs": {
+    "EvidenceEntry": {
+      "additionalProperties": false,
+      "description": "Sources backing a signal, with audit trail.\n\nTwo formats:\n  - `items` (preferred): list of structured `EvidenceSource` records,\n    each binding a URL to a specific claim and supports_fields list.\n  - `sources` (legacy): list of bare URLs. Kept for back-compat — only\n    accepted in default mode. **Strict mode rejects bare sources** as\n    claim-level proof.\n\nEmpty both means the agent didn't verify this claim → matcher counts\nit as unverified.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "title": "EvidenceEntry",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "lab_page",
+            "faculty_page",
+            "google_scholar",
+            "openalex",
+            "inspire",
+            "pubmed",
+            "europe_pmc",
+            "semantic_scholar",
+            "arxiv",
+            "biorxiv",
+            "dblp",
+            "openreview",
+            "csrankings",
+            "mathscinet",
+            "math_genealogy",
+            "us_news",
+            "nas",
+            "hhmi",
+            "nih_reporter",
+            "clinicaltrials_gov",
+            "genealogy",
+            "paper",
+            "cv",
+            "other"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "supports_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports Fields",
+          "type": "array"
+        },
+        "quote_or_snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Or Snippet"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "required": [
+        "url",
+        "source_type",
+        "claim"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Time-sensitive admit-cycle availability (post-roadmap-#6a).\n\nThe A pillar (Advisor Influence) is reputation / standing / placement.\nOpportunitySignal is the orthogonal \"is this PI taking students this\ncycle, with active funding, with reasonable lab capacity, and is the\napplication path open?\" question.\n\n`pi_signal` and `active_funding_quality` mirror legacy fields on\n`CandidateAdvisor` for migration; the matcher applies a **field-by-\nfield merge** (opportunity_signal value wins iff explicitly set,\notherwise falls back to the legacy top-level value). This avoids\nlosing data when an agent fills in only some opportunity fields and\nleaves the rest on the legacy schema.\n\nEach non-default field that contributes to `opportunity_score` needs\na matching entry in `evidence` with\n`supports_fields=[\"opportunity:<field>\"]` for strict mode. Strict\nmode also accepts the legacy top-level `evidence[\"pi_signal\"]` /\n`evidence[\"active_funding_quality\"]` form for back-compat.",
+  "properties": {
+    "pi_signal": {
+      "default": "missing",
+      "enum": [
+        "strong",
+        "normal",
+        "shrinking",
+        "missing",
+        "not_recruiting"
+      ],
+      "title": "Pi Signal",
+      "type": "string"
+    },
+    "lab_open_positions": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lab Open Positions"
+    },
+    "current_student_count": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Current Student Count"
+    },
+    "recent_phd_graduations": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Recent Phd Graduations"
+    },
+    "active_funding_quality": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Active Funding Quality"
+    },
+    "grant_end_years": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Grant End Years"
+    },
+    "sabbatical_or_admin_load": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sabbatical Or Admin Load"
+    },
+    "application_contact_policy": {
+      "default": "unknown",
+      "enum": [
+        "email_first",
+        "apply_through_program",
+        "do_not_contact",
+        "unknown"
+      ],
+      "title": "Application Contact Policy",
+      "type": "string"
+    },
+    "evidence": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EvidenceEntry"
+      },
+      "title": "Evidence",
+      "type": "object"
+    }
+  },
+  "title": "OpportunitySignal",
+  "type": "object"
+}

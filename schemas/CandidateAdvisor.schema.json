@@ -1,0 +1,1070 @@
+{
+  "$defs": {
+    "EvidenceEntry": {
+      "additionalProperties": false,
+      "description": "Sources backing a signal, with audit trail.\n\nTwo formats:\n  - `items` (preferred): list of structured `EvidenceSource` records,\n    each binding a URL to a specific claim and supports_fields list.\n  - `sources` (legacy): list of bare URLs. Kept for back-compat — only\n    accepted in default mode. **Strict mode rejects bare sources** as\n    claim-level proof.\n\nEmpty both means the agent didn't verify this claim → matcher counts\nit as unverified.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "title": "EvidenceEntry",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "lab_page",
+            "faculty_page",
+            "google_scholar",
+            "openalex",
+            "inspire",
+            "pubmed",
+            "europe_pmc",
+            "semantic_scholar",
+            "arxiv",
+            "biorxiv",
+            "dblp",
+            "openreview",
+            "csrankings",
+            "mathscinet",
+            "math_genealogy",
+            "us_news",
+            "nas",
+            "hhmi",
+            "nih_reporter",
+            "clinicaltrials_gov",
+            "genealogy",
+            "paper",
+            "cv",
+            "other"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "supports_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports Fields",
+          "type": "array"
+        },
+        "quote_or_snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Or Snippet"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "required": [
+        "url",
+        "source_type",
+        "claim"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    },
+    "OpportunitySignal": {
+      "additionalProperties": false,
+      "description": "Time-sensitive admit-cycle availability (post-roadmap-#6a).\n\nThe A pillar (Advisor Influence) is reputation / standing / placement.\nOpportunitySignal is the orthogonal \"is this PI taking students this\ncycle, with active funding, with reasonable lab capacity, and is the\napplication path open?\" question.\n\n`pi_signal` and `active_funding_quality` mirror legacy fields on\n`CandidateAdvisor` for migration; the matcher applies a **field-by-\nfield merge** (opportunity_signal value wins iff explicitly set,\notherwise falls back to the legacy top-level value). This avoids\nlosing data when an agent fills in only some opportunity fields and\nleaves the rest on the legacy schema.\n\nEach non-default field that contributes to `opportunity_score` needs\na matching entry in `evidence` with\n`supports_fields=[\"opportunity:<field>\"]` for strict mode. Strict\nmode also accepts the legacy top-level `evidence[\"pi_signal\"]` /\n`evidence[\"active_funding_quality\"]` form for back-compat.",
+      "properties": {
+        "pi_signal": {
+          "default": "missing",
+          "enum": [
+            "strong",
+            "normal",
+            "shrinking",
+            "missing",
+            "not_recruiting"
+          ],
+          "title": "Pi Signal",
+          "type": "string"
+        },
+        "lab_open_positions": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lab Open Positions"
+        },
+        "current_student_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current Student Count"
+        },
+        "recent_phd_graduations": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recent Phd Graduations"
+        },
+        "active_funding_quality": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Funding Quality"
+        },
+        "grant_end_years": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grant End Years"
+        },
+        "sabbatical_or_admin_load": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sabbatical Or Admin Load"
+        },
+        "application_contact_policy": {
+          "default": "unknown",
+          "enum": [
+            "email_first",
+            "apply_through_program",
+            "do_not_contact",
+            "unknown"
+          ],
+          "title": "Application Contact Policy",
+          "type": "string"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceEntry"
+          },
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "title": "OpportunitySignal",
+      "type": "object"
+    },
+    "Paper": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "journal": {
+          "default": "",
+          "title": "Journal",
+          "type": "string"
+        },
+        "journal_tier": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Journal Tier"
+        },
+        "author_position": {
+          "minimum": 1,
+          "title": "Author Position",
+          "type": "integer"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "status": {
+          "default": "published",
+          "enum": [
+            "published",
+            "accepted",
+            "in_press",
+            "submitted",
+            "preprint",
+            "in_prep"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "venue_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "journal",
+                "conference",
+                "workshop",
+                "preprint",
+                "clinical_trial"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Type"
+        },
+        "author_role": {
+          "anyOf": [
+            {
+              "enum": [
+                "first",
+                "co_first",
+                "middle",
+                "senior",
+                "corresponding",
+                "consortium"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Role"
+        },
+        "total_authors": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Authors"
+        },
+        "contribution_role": {
+          "anyOf": [
+            {
+              "enum": [
+                "lead_analysis",
+                "method_developer",
+                "data_collection",
+                "writing",
+                "unclear"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contribution Role"
+        },
+        "contribution_evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Contribution Evidence",
+          "type": "array"
+        },
+        "citations_optional": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citations Optional"
+        },
+        "field_normalized_impact": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Normalized Impact"
+        }
+      },
+      "required": [
+        "journal_tier",
+        "author_position"
+      ],
+      "title": "Paper",
+      "type": "object"
+    },
+    "PathEdge": {
+      "additionalProperties": false,
+      "description": "Per-(student-advisor, candidate) connection signals.\n\nAll fields optional. The matcher takes the **max** strength across present\nsignals (no stacking). `sources` is required by the data-integrity policy\nfor any non-default claim — empty `sources` makes the path count as\nunverified.\n\nStrict schema: unknown keys raise. Negative counts / out-of-range floats\nraise.",
+      "properties": {
+        "small_team_coauthor_5y": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Distinct papers in last 5y where both names appear, ≤10 total authors",
+          "title": "Small Team Coauthor 5Y"
+        },
+        "big_collab_papers_5y": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Distinct papers in last 5y where both names appear, >10 authors (alphabetical author list bulk; weak signal)",
+          "title": "Big Collab Papers 5Y"
+        },
+        "same_working_group": {
+          "default": false,
+          "title": "Same Working Group",
+          "type": "boolean"
+        },
+        "analysis_contact_overlap": {
+          "default": false,
+          "title": "Analysis Contact Overlap",
+          "type": "boolean"
+        },
+        "genealogy_relation": {
+          "anyOf": [
+            {
+              "enum": [
+                "same_advisor",
+                "uncle_nephew",
+                "two_hop"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Genealogy Relation"
+        },
+        "collaboration_overlap_years": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Collaboration Overlap Years"
+        },
+        "committee_co_member": {
+          "default": false,
+          "title": "Committee Co Member",
+          "type": "boolean"
+        },
+        "same_period": {
+          "default": false,
+          "title": "Same Period",
+          "type": "boolean"
+        },
+        "shared_grant_count_5y": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "NSF/NIH/DOE shared-grant count between advisor and candidate in last 5y",
+          "title": "Shared Grant Count 5Y"
+        },
+        "co_mentored_student_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Students jointly mentored by advisor and candidate (committee co-mentorship counts)",
+          "title": "Co Mentored Student Count"
+        },
+        "committee_or_exam_overlap": {
+          "default": false,
+          "title": "Committee Or Exam Overlap",
+          "type": "boolean"
+        },
+        "same_center_or_institute": {
+          "default": false,
+          "title": "Same Center Or Institute",
+          "type": "boolean"
+        },
+        "prior_institution_overlap_years": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Years overlapped at the same institution before either's current role",
+          "title": "Prior Institution Overlap Years"
+        },
+        "conference_session_overlap_5y": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Conferences in last 5y where both presented at the same session/track",
+          "title": "Conference Session Overlap 5Y"
+        },
+        "most_recent_connection_year": {
+          "anyOf": [
+            {
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Year of most recent direct interaction. Drives the recency multiplier (0–2y → 1.0, 3–5y → 0.85, 6–10y → 0.60, 10y+ → 0.35, None → 0.75).",
+          "title": "Most Recent Connection Year"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "title": "PathEdge",
+      "type": "object"
+    },
+    "ProgramProfile": {
+      "additionalProperties": false,
+      "description": "Program-level difficulty / accessibility signals (post-roadmap-#5).\n\nSits next to `school_tier` on a `CandidateAdvisor`: school_tier is\nthe coarse tier from a ranking page; ProgramProfile is the\nfine-grained \"what's it actually like to apply here\" data — cohort\nsize, admission model, funding structure, subfield coverage.\n\nAll signals are optional and default to \"didn't check\". Each\nnon-default field that contributes to `program_difficulty_penalty`\nneeds a matching entry in `evidence` with\n`supports_fields=[\"program:<field>\"]` for strict mode.",
+      "properties": {
+        "department": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department"
+        },
+        "admission_model": {
+          "default": "unknown",
+          "enum": [
+            "direct_admit",
+            "rotation",
+            "centralized",
+            "mixed",
+            "unknown"
+          ],
+          "title": "Admission Model",
+          "type": "string"
+        },
+        "rotation_supported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rotation Supported"
+        },
+        "direct_admit_required": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Direct Admit Required"
+        },
+        "gre_required": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gre Required"
+        },
+        "application_deadline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Application Deadline"
+        },
+        "cohort_size_estimate": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cohort Size Estimate"
+        },
+        "faculty_count_in_area": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Faculty Count In Area"
+        },
+        "international_friendliness": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "International Friendliness"
+        },
+        "funding_structure": {
+          "default": "unknown",
+          "enum": [
+            "guaranteed",
+            "pi_grant",
+            "fellowship_first",
+            "mixed",
+            "unknown"
+          ],
+          "title": "Funding Structure",
+          "type": "string"
+        },
+        "program_selectivity_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Program Selectivity Score"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceEntry"
+          },
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "title": "ProgramProfile",
+      "type": "object"
+    },
+    "ResearchFit": {
+      "additionalProperties": false,
+      "description": "Structured 6-axis research-fit score (Sprint-2-c3).\n\nReplaces the free-form `research_fit_axes` dict with a fixed schema\nthat the matcher can score deterministically. When set, the matcher\nderives `research_fit_score` from the weighted formula:\n\n  research_fit_score = 0.30·topic_fit\n                     + 0.20·method_fit\n                     + 0.15·system_or_dataset_fit\n                     + 0.15·temporal_fit\n                     + 0.10·grant_fit\n                     + 0.10·student_background_fit\n\n`theory_experiment_fit` is stored for display (especially physics)\nbut does NOT enter the formula in v1 — keeps the score additive\nover a meaningful 6-axis basis. Future calibration may include it.\n\nAll axes are 0–1 (Pydantic-bounded). When `research_fit` is set,\nlegacy `research_fit_score` / `research_fit_axes` are ignored — the\nstructured submodel wins.\n\nStrict mode: when `research_fit` is set, evidence must live in\n`research_fit.evidence` with `supports_fields=[\"research_fit\"]`\n(or the legacy candidate-level `evidence[\"research_fit\"]` for\nback-compat with v1 research-fit data).",
+      "properties": {
+        "topic_fit": {
+          "description": "Subfield / problem-area alignment with student's research_direction",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Topic Fit",
+          "type": "number"
+        },
+        "method_fit": {
+          "description": "Methodology / technique alignment",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Method Fit",
+          "type": "number"
+        },
+        "system_or_dataset_fit": {
+          "description": "System / dataset / material / organism / detector alignment",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "System Or Dataset Fit",
+          "type": "number"
+        },
+        "theory_experiment_fit": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Theory ↔ experiment alignment (mainly physics; stored for display, not in v1 formula)",
+          "title": "Theory Experiment Fit"
+        },
+        "temporal_fit": {
+          "description": "Is the candidate still actively working in the topic? (High if recent papers are on the topic; low if the PI has pivoted away.)",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Temporal Fit",
+          "type": "number"
+        },
+        "grant_fit": {
+          "description": "Active grants / funded projects align with student's interests",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Grant Fit",
+          "type": "number"
+        },
+        "student_background_fit": {
+          "description": "Student's coursework / prior research prepares them for this PI's lab (strict math / wet-lab / etc. requirements)",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Student Background Fit",
+          "type": "number"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "$ref": "#/$defs/EvidenceEntry"
+          },
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "required": [
+        "topic_fit",
+        "method_fit",
+        "system_or_dataset_fit",
+        "temporal_fit",
+        "grant_fit",
+        "student_background_fit"
+      ],
+      "title": "ResearchFit",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "institution": {
+      "title": "Institution",
+      "type": "string"
+    },
+    "school_tier": {
+      "enum": [
+        "top_10",
+        "top_11_30",
+        "top_31_60",
+        "top_60_plus"
+      ],
+      "title": "School Tier",
+      "type": "string"
+    },
+    "field": {
+      "title": "Field",
+      "type": "string"
+    },
+    "research_areas": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Research Areas",
+      "type": "array"
+    },
+    "recent_papers": {
+      "items": {
+        "$ref": "#/$defs/Paper"
+      },
+      "title": "Recent Papers",
+      "type": "array"
+    },
+    "paths_to_advisors": {
+      "additionalProperties": {
+        "$ref": "#/$defs/PathEdge"
+      },
+      "title": "Paths To Advisors",
+      "type": "object"
+    },
+    "normalized_collab_top20pct": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Normalized Collab Top20Pct"
+    },
+    "collab_with_nas": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Collab With Nas"
+    },
+    "grad_placement_quality": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Grad Placement Quality"
+    },
+    "active_funding_quality": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Active Funding Quality"
+    },
+    "research_fit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResearchFit"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "research_fit_score": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Research Fit Score"
+    },
+    "research_fit_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Research Fit Summary"
+    },
+    "research_fit_axes": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Research Fit Axes",
+      "type": "object"
+    },
+    "pi_signal": {
+      "default": "missing",
+      "enum": [
+        "strong",
+        "normal",
+        "shrinking",
+        "missing",
+        "not_recruiting"
+      ],
+      "title": "Pi Signal",
+      "type": "string"
+    },
+    "recent_phd_count": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Recent Phd Count"
+    },
+    "opportunity_signal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OpportunitySignal"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "program_profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProgramProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "evidence": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EvidenceEntry"
+      },
+      "title": "Evidence",
+      "type": "object"
+    },
+    "searched_sources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Searched Sources",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "institution",
+    "school_tier",
+    "field"
+  ],
+  "title": "CandidateAdvisor",
+  "type": "object"
+}

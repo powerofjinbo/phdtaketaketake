@@ -53,6 +53,7 @@ phdtaketaketake-match            = "phd_matcher.cli.match:main"
 phdtaketaketake-audit            = "phd_matcher.cli.audit_candidates:main"
 phdtaketaketake-collect-evidence = "phd_matcher.cli.collect_evidence:main"
 phdtaketaketake-discovery-plan   = "phd_matcher.cli.build_discovery_plan:main"
+phdtaketaketake-export-schemas   = "phd_matcher.cli.export_schemas:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["phd_matcher"]

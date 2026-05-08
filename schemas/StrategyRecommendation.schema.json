@@ -1,0 +1,74 @@
+{
+  "additionalProperties": false,
+  "description": "Per-candidate strategy recommendation derived from `MatchResult`.\n\nThe strategy layer sits **on top** of scoring and is purely\nderivative — it does NOT change `match_score`,\n`application_strength`, `risk_adjusted_strength`,\n`difficulty_adjusted_strength`, or `research_fit_score`. Pinned by\n`test_strategy_does_not_change_scores`.\n\nBucket precedence (hard-risk first; first match wins):\n  drop → only_if_space → reach → target → priority",
+  "properties": {
+    "apply_bucket": {
+      "enum": [
+        "priority",
+        "target",
+        "reach",
+        "only_if_space",
+        "drop"
+      ],
+      "title": "Apply Bucket",
+      "type": "string"
+    },
+    "recommended_action": {
+      "enum": [
+        "apply",
+        "contact_first",
+        "investigate_evidence",
+        "deprioritize",
+        "skip"
+      ],
+      "title": "Recommended Action",
+      "type": "string"
+    },
+    "why_this_rank": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Why This Rank",
+      "type": "array"
+    },
+    "main_risks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Main Risks",
+      "type": "array"
+    },
+    "evidence_to_fix": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence To Fix",
+      "type": "array"
+    },
+    "outreach_angle": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outreach Angle"
+    },
+    "next_steps": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Next Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "apply_bucket",
+    "recommended_action"
+  ],
+  "title": "StrategyRecommendation",
+  "type": "object"
+}

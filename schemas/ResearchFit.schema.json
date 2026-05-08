@@ -1,0 +1,210 @@
+{
+  "$defs": {
+    "EvidenceEntry": {
+      "additionalProperties": false,
+      "description": "Sources backing a signal, with audit trail.\n\nTwo formats:\n  - `items` (preferred): list of structured `EvidenceSource` records,\n    each binding a URL to a specific claim and supports_fields list.\n  - `sources` (legacy): list of bare URLs. Kept for back-compat — only\n    accepted in default mode. **Strict mode rejects bare sources** as\n    claim-level proof.\n\nEmpty both means the agent didn't verify this claim → matcher counts\nit as unverified.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "title": "EvidenceEntry",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "lab_page",
+            "faculty_page",
+            "google_scholar",
+            "openalex",
+            "inspire",
+            "pubmed",
+            "europe_pmc",
+            "semantic_scholar",
+            "arxiv",
+            "biorxiv",
+            "dblp",
+            "openreview",
+            "csrankings",
+            "mathscinet",
+            "math_genealogy",
+            "us_news",
+            "nas",
+            "hhmi",
+            "nih_reporter",
+            "clinicaltrials_gov",
+            "genealogy",
+            "paper",
+            "cv",
+            "other"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "supports_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports Fields",
+          "type": "array"
+        },
+        "quote_or_snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Or Snippet"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "required": [
+        "url",
+        "source_type",
+        "claim"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structured 6-axis research-fit score (Sprint-2-c3).\n\nReplaces the free-form `research_fit_axes` dict with a fixed schema\nthat the matcher can score deterministically. When set, the matcher\nderives `research_fit_score` from the weighted formula:\n\n  research_fit_score = 0.30·topic_fit\n                     + 0.20·method_fit\n                     + 0.15·system_or_dataset_fit\n                     + 0.15·temporal_fit\n                     + 0.10·grant_fit\n                     + 0.10·student_background_fit\n\n`theory_experiment_fit` is stored for display (especially physics)\nbut does NOT enter the formula in v1 — keeps the score additive\nover a meaningful 6-axis basis. Future calibration may include it.\n\nAll axes are 0–1 (Pydantic-bounded). When `research_fit` is set,\nlegacy `research_fit_score` / `research_fit_axes` are ignored — the\nstructured submodel wins.\n\nStrict mode: when `research_fit` is set, evidence must live in\n`research_fit.evidence` with `supports_fields=[\"research_fit\"]`\n(or the legacy candidate-level `evidence[\"research_fit\"]` for\nback-compat with v1 research-fit data).",
+  "properties": {
+    "topic_fit": {
+      "description": "Subfield / problem-area alignment with student's research_direction",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Topic Fit",
+      "type": "number"
+    },
+    "method_fit": {
+      "description": "Methodology / technique alignment",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Method Fit",
+      "type": "number"
+    },
+    "system_or_dataset_fit": {
+      "description": "System / dataset / material / organism / detector alignment",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "System Or Dataset Fit",
+      "type": "number"
+    },
+    "theory_experiment_fit": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Theory ↔ experiment alignment (mainly physics; stored for display, not in v1 formula)",
+      "title": "Theory Experiment Fit"
+    },
+    "temporal_fit": {
+      "description": "Is the candidate still actively working in the topic? (High if recent papers are on the topic; low if the PI has pivoted away.)",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Temporal Fit",
+      "type": "number"
+    },
+    "grant_fit": {
+      "description": "Active grants / funded projects align with student's interests",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Grant Fit",
+      "type": "number"
+    },
+    "student_background_fit": {
+      "description": "Student's coursework / prior research prepares them for this PI's lab (strict math / wet-lab / etc. requirements)",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Student Background Fit",
+      "type": "number"
+    },
+    "evidence": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EvidenceEntry"
+      },
+      "title": "Evidence",
+      "type": "object"
+    }
+  },
+  "required": [
+    "topic_fit",
+    "method_fit",
+    "system_or_dataset_fit",
+    "temporal_fit",
+    "grant_fit",
+    "student_background_fit"
+  ],
+  "title": "ResearchFit",
+  "type": "object"
+}

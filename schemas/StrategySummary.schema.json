@@ -1,0 +1,58 @@
+{
+  "additionalProperties": false,
+  "description": "Portfolio-level rollup across all candidates.",
+  "properties": {
+    "priority_candidates": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Priority Candidates",
+      "type": "array"
+    },
+    "target_candidates": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Target Candidates",
+      "type": "array"
+    },
+    "reach_candidates": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reach Candidates",
+      "type": "array"
+    },
+    "only_if_space_candidates": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Only If Space Candidates",
+      "type": "array"
+    },
+    "drop_candidates": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Drop Candidates",
+      "type": "array"
+    },
+    "evidence_fix_queue": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Evidence Fix Queue",
+      "type": "array"
+    },
+    "portfolio_notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Portfolio Notes",
+      "type": "array"
+    }
+  },
+  "title": "StrategySummary",
+  "type": "object"
+}

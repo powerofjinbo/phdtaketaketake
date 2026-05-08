@@ -1,0 +1,124 @@
+{
+  "additionalProperties": false,
+  "description": "Per-discipline calibration: publication culture, source priorities,\nadvisor-influence rules, ranking sources, caveats. Loaded from\n`data/field_profiles/<id>.yaml`.\n\nThe deterministic scoring engine is field-agnostic; FieldProfile is\nmetadata that the agent consults to (a) bucket papers correctly,\n(b) search the right primary databases, and (c) surface field-specific\ncaveats in the result presentation.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "aliases": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Aliases",
+      "type": "array"
+    },
+    "venue_system": {
+      "enum": [
+        "journal_first",
+        "conference_first",
+        "preprint_first",
+        "trial_first",
+        "mixed"
+      ],
+      "title": "Venue System",
+      "type": "string"
+    },
+    "big_collab_threshold": {
+      "default": 10,
+      "minimum": 2,
+      "title": "Big Collab Threshold",
+      "type": "integer"
+    },
+    "co_first_supported": {
+      "default": false,
+      "title": "Co First Supported",
+      "type": "boolean"
+    },
+    "senior_author_position": {
+      "default": "n/a",
+      "enum": [
+        "last",
+        "first",
+        "n/a"
+      ],
+      "title": "Senior Author Position",
+      "type": "string"
+    },
+    "primary_databases": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Primary Databases",
+      "type": "array"
+    },
+    "ranking_source_url_template": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ranking Source Url Template"
+    },
+    "genealogy_resources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Genealogy Resources",
+      "type": "array"
+    },
+    "advisor_influence_signals": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Advisor Influence Signals",
+      "type": "array"
+    },
+    "caveats": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Caveats",
+      "type": "array"
+    },
+    "paper_status_weight_overrides": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Paper Status Weight Overrides",
+      "type": "object"
+    },
+    "scoring_weight_overrides": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "type": "object"
+      },
+      "title": "Scoring Weight Overrides",
+      "type": "object"
+    },
+    "research_fit_axes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Research Fit Axes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "display_name",
+    "venue_system"
+  ],
+  "title": "FieldProfile",
+  "type": "object"
+}

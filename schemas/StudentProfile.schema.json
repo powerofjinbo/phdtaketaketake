@@ -1,0 +1,425 @@
+{
+  "$defs": {
+    "CurrentAdvisor": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "institution": {
+          "title": "Institution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "institution"
+      ],
+      "title": "CurrentAdvisor",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "description": "A single, structured piece of evidence for one or more claims.\n\nGoes inside `EvidenceEntry.items` (preferred over the legacy bare-URL\n`sources` list). A URL alone doesn't tell the matcher *what* it\nsupports; this structure binds a URL to a human-readable claim and\nthe field name(s) it backs, so an audit can verify each claim\nindividually.",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "lab_page",
+            "faculty_page",
+            "google_scholar",
+            "openalex",
+            "inspire",
+            "pubmed",
+            "europe_pmc",
+            "semantic_scholar",
+            "arxiv",
+            "biorxiv",
+            "dblp",
+            "openreview",
+            "csrankings",
+            "mathscinet",
+            "math_genealogy",
+            "us_news",
+            "nas",
+            "hhmi",
+            "nih_reporter",
+            "clinicaltrials_gov",
+            "genealogy",
+            "paper",
+            "cv",
+            "other"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "supports_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supports Fields",
+          "type": "array"
+        },
+        "quote_or_snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Or Snippet"
+        },
+        "last_checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Checked"
+        }
+      },
+      "required": [
+        "url",
+        "source_type",
+        "claim"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    },
+    "Experience": {
+      "additionalProperties": false,
+      "properties": {
+        "lab_pi_name": {
+          "title": "Lab Pi Name",
+          "type": "string"
+        },
+        "lab_tier": {
+          "enum": [
+            "world_class",
+            "top_us",
+            "strong_us_or_top_cn",
+            "good_us_or_985",
+            "211_or_overseas",
+            "other"
+          ],
+          "title": "Lab Tier",
+          "type": "string"
+        },
+        "duration_months": {
+          "minimum": 0,
+          "title": "Duration Months",
+          "type": "integer"
+        },
+        "output_type": {
+          "enum": [
+            "paper",
+            "conference_oral",
+            "conference_poster",
+            "honors_thesis",
+            "participation_only"
+          ],
+          "title": "Output Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lab_pi_name",
+        "lab_tier",
+        "duration_months",
+        "output_type"
+      ],
+      "title": "Experience",
+      "type": "object"
+    },
+    "Paper": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "journal": {
+          "default": "",
+          "title": "Journal",
+          "type": "string"
+        },
+        "journal_tier": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Journal Tier"
+        },
+        "author_position": {
+          "minimum": 1,
+          "title": "Author Position",
+          "type": "integer"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "status": {
+          "default": "published",
+          "enum": [
+            "published",
+            "accepted",
+            "in_press",
+            "submitted",
+            "preprint",
+            "in_prep"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "venue_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "journal",
+                "conference",
+                "workshop",
+                "preprint",
+                "clinical_trial"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Type"
+        },
+        "author_role": {
+          "anyOf": [
+            {
+              "enum": [
+                "first",
+                "co_first",
+                "middle",
+                "senior",
+                "corresponding",
+                "consortium"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Role"
+        },
+        "total_authors": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Authors"
+        },
+        "contribution_role": {
+          "anyOf": [
+            {
+              "enum": [
+                "lead_analysis",
+                "method_developer",
+                "data_collection",
+                "writing",
+                "unclear"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contribution Role"
+        },
+        "contribution_evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSource"
+          },
+          "title": "Contribution Evidence",
+          "type": "array"
+        },
+        "citations_optional": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citations Optional"
+        },
+        "field_normalized_impact": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Normalized Impact"
+        }
+      },
+      "required": [
+        "journal_tier",
+        "author_position"
+      ],
+      "title": "Paper",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "field": {
+      "title": "Field",
+      "type": "string"
+    },
+    "undergrad_institution": {
+      "title": "Undergrad Institution",
+      "type": "string"
+    },
+    "master_institution": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Master Institution"
+    },
+    "gpa_raw": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Gpa Raw"
+    },
+    "gpa_scale": {
+      "default": "4.0",
+      "enum": [
+        "4.0",
+        "4.3",
+        "4.5",
+        "100",
+        "uk"
+      ],
+      "title": "Gpa Scale",
+      "type": "string"
+    },
+    "research_direction": {
+      "title": "Research Direction",
+      "type": "string"
+    },
+    "current_advisors": {
+      "items": {
+        "$ref": "#/$defs/CurrentAdvisor"
+      },
+      "title": "Current Advisors",
+      "type": "array"
+    },
+    "papers": {
+      "items": {
+        "$ref": "#/$defs/Paper"
+      },
+      "title": "Papers",
+      "type": "array"
+    },
+    "experiences": {
+      "items": {
+        "$ref": "#/$defs/Experience"
+      },
+      "title": "Experiences",
+      "type": "array"
+    }
+  },
+  "required": [
+    "field",
+    "undergrad_institution",
+    "gpa_raw",
+    "research_direction"
+  ],
+  "title": "StudentProfile",
+  "type": "object"
+}
