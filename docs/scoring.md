@@ -318,8 +318,10 @@ Default values without sources count the same as `None` — both treated as
 
 ### Risk-adjusted ranking (post-review)
 
-The matcher's primary sort key is `risk_adjusted_strength`, not raw
-`application_strength`:
+`risk_adjusted_strength` is an **intermediate** between
+`application_strength` and the actual primary sort key
+`difficulty_adjusted_strength` (defined in the next section). It bakes
+the evidence-coverage band into the score:
 
 ```
 risk_adjusted_strength = application_strength − confidence_band / 2
@@ -329,7 +331,8 @@ Half the band is subtracted as a downside discount. A well-sourced 3.0 ±0.2
 candidate (risk-adjusted 2.9) outranks a loosely-claimed 3.2 ±0.8 candidate
 (risk-adjusted 2.8). This means **the agent literally can't get a top rank
 by writing nice numbers without sources** — the band would widen and the
-risk-adjusted score would drop.
+risk-adjusted score would drop. The program-difficulty layer (post-#5)
+then subtracts further; see the next section.
 
 ### 5-tier label (applied to `difficulty_adjusted_strength` post-roadmap-#5)
 
@@ -351,7 +354,7 @@ post-review additions:
 | Field | Meaning |
 |-------|---------|
 | `match_score` | CAPEG weighted composite, 0–4.0 |
-| `application_strength` | `match + pi_adj`, clipped 0–4.0 (NOT a probability) |
+| `application_strength` | `clip(match_score + opportunity_adj, 0, 4.0)` (NOT a probability; `opportunity_adj` replaces v1 `pi_adj` post-#6a) |
 | `confidence_band` | ±0.2 / 0.4 / 0.6 / 0.8 by evidence coverage |
 | `strength_label` | `Far Reach` / `Reach` / `Target` / `Match` / `Safe` — applied to `difficulty_adjusted_strength` (post-#5) |
 | --- | --- |
@@ -377,14 +380,25 @@ post-review additions:
   `min(3.5, …)` floor balances this.
 - **Big-collab differentiation**: 5 ATLAS papers as alphabetical co-authors
   is a much weaker signal than 5 small-team papers — `big_collab_papers_5y`
-  caps at 0.4 strength while `small_team_coauthor_5y` saturates at 1.0.
+  is capped at `min(0.10, n / 100)` (i.e. 100 alphabetical-author papers
+  to even reach 0.10 of an edge), while `small_team_coauthor_5y`
+  saturates at 1.0. The v2 cap was tightened from v1's 0.4 after the
+  ATLAS / CMS-scale recalibration; rationale in
+  [`references/connection_v2.md`](../references/connection_v2.md).
 - **Tier-adaptive weights**: top-10 schools care more about your network
   and pubs; top-60+ weight GPA more.
 - **Output-dominant Experience**: just being in a famous lab without
   producing matters less than producing something tangible.
-- **Steep top-10 admit penalty (−1.0)**: top-10 PhD programs reject ~90–95%
-  of applicants. The −1.0 forces even a perfect 4.0 candidate to land at
-  `Match` (3.0), not `Safe` — honest about top-school selectivity.
+- **Program difficulty as a separate layer (post-#5)**: top-10 PhD
+  programs reject ~90–95% of applicants — but admit-rate isn't the only
+  axis (cohort size, rotation vs direct-admit, funding model, faculty
+  count, international friendliness all matter). v2 captures this as
+  `program_difficulty_penalty` (0–0.8) on
+  `difficulty_adjusted_strength`, replacing v1's flat tier-based
+  `tier_adj` in `application_strength`. School_tier alone gives
+  `top_10=0.70 / top_11_30=0.50 / top_31_60=0.30 / top_60+=0.00`; a
+  filled `program_profile` refines this. Full schema in
+  [`references/program_profile.md`](../references/program_profile.md).
 - **Risk-adjusted ranking**: evidence has to drive ranking, not just
   decorate it. Wide bands move candidates down the list.
 - **Paper status weights**: `published` / `accepted` get full credit;
