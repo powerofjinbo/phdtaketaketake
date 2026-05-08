@@ -1,8 +1,12 @@
-# Scoring formulas — v0.3 (post-review)
+# Scoring formulas
 
-> All four dimensions on a 4.0 scale (matching GPA), tier-adaptively weighted
-> by school competitiveness. **Real-data-only** — see
-> [`references/data_integrity.md`](../references/data_integrity.md).
+> 5-pillar **CAPEG** + 3 non-CAPEG dimensions (Opportunity / Program
+> difficulty / Research fit) + Strategy bucket, all on a 4.0 scale,
+> tier-adaptively weighted by school competitiveness. **Real-data-only** —
+> see [`references/data_integrity.md`](../references/data_integrity.md).
+>
+> Pipeline overview: [`docs/scoring_pipeline.md`](scoring_pipeline.md)
+> (Mermaid diagram + layer-by-layer explanation).
 
 ## Dimensions
 
