@@ -263,7 +263,7 @@ Explicitly out of scope:
 | Pipeline diagram (Sprint-4-c2) | Mermaid 5-layer flowchart | ✅ done — new `docs/scoring_pipeline.md` with end-to-end Mermaid flowchart (Inputs → CAPEG → application_strength → risk-adjusted → difficulty-adjusted → strategy bucket); enumerates the 6 test-pinned architectural invariants; embedded as the first reference at the top of `docs/scoring.md` (`e8ec9ea`) |
 | JSON Schema export (Sprint-4-c3) | `schemas/*.schema.json` + drift detector | ✅ done — 12 Pydantic top-level models exported as JSON Schema (Draft 2020-12) under `schemas/`; new console script `phdtaketaketake-export-schemas`; `extra="forbid"` → `additionalProperties: false`, Literals → enums, Field bounds → minimum/maximum; drift-detector test fails if Pydantic models change without regenerating (`ccaeb18` + follow-up `65eaa15`) |
 | End-to-end demo (Sprint-4-c4) | `examples/physics_hep_strict/` | ✅ done — full 4-stage pipeline (discovery_plan → collect_evidence → audit → match) on a fictional Tsinghua-undergrad ATLAS-Higgs applicant with 3 candidates landing in target / reach / only_if_space buckets; bundled fixtures replace live API calls; reproducible via `bash examples/physics_hep_strict/run_example.sh`; `examples/README.md` index for adding new demos (`0179078`) |
-| DESIGN.md close-out (Sprint-4-c5) | Roadmap closed | ✅ done (`<COMMIT-PENDING>`) |
+| DESIGN.md close-out (Sprint-4-c5) | Roadmap closed | ✅ done (`b59c05f`) |
 
 ---
 
