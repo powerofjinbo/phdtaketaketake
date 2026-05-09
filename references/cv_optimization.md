@@ -190,6 +190,154 @@ After tailoring, surface a 2–3 line summary of the moves you made:
 The user can push back on any of these. **Tailoring is a starting
 point, not the final answer.**
 
+## Worked example — end-to-end tailoring
+
+Concrete walkthrough using the bundled `examples/physics_hep_audit_demo`
+data. The "user" is the demo's profile (Tsinghua undergrad, ATLAS
+Higgs precision focus, 18 months in Prof. Wang's lab, two ATLAS
+big-collab papers). They've already run the matching pipeline; the
+result is `examples/physics_hep_audit_demo/match.json`.
+
+### Step T-0: Read the match output
+
+The top three from `match.json` (excerpted):
+
+| Rank | Name | Institution | Strategy | research_areas | outreach_angle |
+|------|------|-------------|----------|----------------|----------------|
+| 1 | Prof. Alex Hartman | MIT | **target / contact_first** | Higgs boson, ATLAS, particle physics, collider physics | "Lead with the shared small-team coauthorship with adv_001 (3 papers) as the connection." |
+| 2 | Prof. Riley Chen | UC Berkeley | reach / investigate_evidence | ATLAS, particle physics, dark matter, BSM searches | (none — investigate first) |
+| 3 | Prof. Casey Lin | Stanford | only_if_space / investigate_evidence | effective field theory, Standard Model, theoretical particle physics | (none) |
+
+Only `target_candidates` get a `contact_first` outreach angle, so we
+**tailor for Hartman first** — that's the highest-confidence apply.
+For the others, generic CV is fine until the user gathers more
+evidence.
+
+### Step T-1: Pull the target's signal vector
+
+Hartman's relevant fields:
+
+- `research_areas`: Higgs boson, ATLAS, particle physics, collider physics
+- `c_score`: 3.7 (top of the field — driven by 3 small-team coauthored papers with the user's advisor Prof. Wang)
+- `outreach_angle`: lead with the small-team coauthorship
+
+So the CV should:
+
+1. Surface the **ATLAS Higgs** content first (topic match)
+2. Surface the **Prof. Wang collaboration** indirectly via the same papers (the connection narrative gets reinforced by the small-team coauthorship being prominent)
+3. Keep but de-emphasize work outside the topic (BSM, dark matter, theory) since this user happens to also have a BSM-flavoured time-dependent-DM project — useful breadth, but not the lead
+
+### Step T-2: Reorder Research Experience
+
+Suppose the user's CV (post-Step CV-3 fill) has these research
+experiences in the order they wrote them in:
+
+1. ✅ ATLAS H→cc̄ analysis with Prof. Wang at Tsinghua (18 months)
+2. ⚠ Time-dependent BSM signatures with Prof. Whiteson at UCI (CATHODE method)
+3. ⚠ Photometric high-z galaxy survey with Prof. Cooray at UCI
+4. ⚠ Nanophotonic ENZ materials with Prof. Lee at UCI
+
+**Tailoring decisions:**
+
+- **#1 stays #1.** Strong overlap (ATLAS Higgs is the literal topic of Hartman's research areas). This is the user's anchor experience and Hartman's outreach_angle explicitly references the connection through Wang.
+- **#2 moves to #2.** Moderate overlap (LHC + ML on dark matter — the LHC + ML half overlaps "particle physics, collider physics" + the detector-ML angle Hartman cares about; the dark matter half is closer to Chen than Hartman, but the methodology is shared).
+- **#3 stays in middle / moves down.** Weak overlap (astrophysics — not collider, not particle physics). Could justify keeping for breadth narrative ("computational physics across scales") but should not be earlier than the on-topic items.
+- **#4 stays last.** Almost no overlap with Hartman (nanophotonic materials is a different field). Don't delete though — > 2 years old and it's a real published paper, so keep at the bottom for completeness.
+
+In LaTeX terms: this is just reordering the four `\resumeSubheading{...}{...}{...}{}` + `\resumeItemListStart` / `End` blocks. No content edits.
+
+### Step T-3: Reorder bullets within the lead experience
+
+Within the ATLAS H→cc̄ experience, the user might have written bullets
+in chronological order. Hartman cares about detector ML — so the
+detector-ML / classifier bullet should lead, not "implemented
+preselection cuts" (which is generic ATLAS work).
+
+Original order:
+
+1. Implemented preselection cuts and event filtering on H→cc̄ candidates
+2. Built a CNN-based jet-flavour tagger improving signal efficiency by 12%
+3. Co-author on PRD precision measurement paper (alphabetical author list)
+
+Tailored order:
+
+1. **Built a CNN-based jet-flavour tagger improving signal efficiency by 12%** ← detector-ML, target topic
+2. Implemented preselection cuts and event filtering on H→cc̄ candidates
+3. Co-author on PRD precision measurement paper
+
+Same content, different lead. The first bullet now matches Hartman's
+`research_areas` ∩ "detector ML" sweet spot.
+
+### Step T-4: Reorder Publications
+
+Same logic. Suppose user's Selected Papers has:
+
+- ATLAS Collaboration. ``Measurement of H→cc̄ ...'' Phys. Rev. D (2024).
+- ATLAS Collaboration. ``Search for BSM dark matter ...'' JHEP (2023).
+
+Hartman's areas favour the first; reorder accordingly. Within Work in
+Progress, lead with anything mentioning `H→cc̄` / `Higgs precision` /
+`detector ML`. **Do not change** the citations themselves, the author
+order, or the paper status.
+
+### Step T-5: Reorder Technical Skills
+
+Suppose the original "Physics Software" line is:
+
+```latex
+\textbf{Physics Software}: MadGraph5, Pythia8, Delphes, Geant4, FastJet
+```
+
+Hartman's group works heavily with the ATLAS detector simulation +
+analysis stack. Reorder to put detector-relevant tools first:
+
+```latex
+\textbf{Physics Software}: Geant4, FastJet, Delphes, MadGraph5, Pythia8
+```
+
+Same six items, different order. The first three are the ones an ATLAS
+detector / Higgs analysis person scans for.
+
+### Step T-6: Surface what changed to the user
+
+Before saving the tailored `cv.tex`, tell the user what you did. The
+canonical form (from SKILL.md Step CV-6):
+
+> Tailored for **Prof. Alex Hartman (MIT, ATLAS Higgs / detector ML)**:
+>
+> - Kept the ATLAS H→cc̄ project at top of Research Experience —
+>   strongest overlap with Hartman's research areas + reinforces the
+>   connection through Prof. Wang noted in the matcher's
+>   `outreach_angle`.
+> - Moved the time-dependent BSM project (Whiteson) to #2 — shares
+>   LHC + ML methodology even though the physics target differs.
+> - Within the ATLAS experience, led with the CNN jet-flavour tagger
+>   bullet (detector-ML angle Hartman emphasizes).
+> - Reordered the "Physics Software" line to lead with Geant4, FastJet,
+>   Delphes — the ATLAS analysis stack.
+> - Did NOT change any paper citations, author orders, or content.
+>   No experience was deleted (the photometric and nanophotonic projects
+>   stay for breadth, just lower in the section).
+>
+> If you want to tailor a separate version for **Prof. Riley Chen
+> (Berkeley, BSM / dark matter)**, the time-dependent DM project would
+> swap to #1 and the ATLAS Higgs work to #2 — reach out and I'll
+> generate it.
+
+The user can push back on any of these. Tailoring is a starting point,
+not the final answer.
+
+### What did NOT change in this example
+
+- ❌ Hartman's connection edges (the matcher's job, not the CV's)
+- ❌ Any author lists, paper venues, or paper statuses
+- ❌ GPA, dates, institution names
+- ❌ Any factual content — the user's experiences are exactly as they
+  reported them, just in a different order
+
+This is the entire tailoring contract: **reorder, prune (with user
+consent), surface the lead. Never invent.**
+
 ## What this skill does NOT do
 
 - ❌ **Write or revise SoPs / personal statements / cover letters.** Frozen scope (DESIGN.md §13).

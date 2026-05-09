@@ -53,6 +53,22 @@ Agent 会：
 
 Matcher 是 **evidence-first**：缺了可选字段 *只会让 confidence band 变宽*，**不会崩、也不会瞎填**。
 
+### 并行 workflow：CV 优化
+
+Matcher 跑完拿到 top candidates 之后，同一个 skill 可以帮你做 **LaTeX 排版的 PhD 申请 CV**，并可选针对 top 目标 tailor：
+
+> *"现在帮我针对上面这 3 个 PI 做一份 CV。"*
+> *"用 match.json 帮我做一份针对 Hartman 的 tailored CV。"*
+
+底层两个 CLI：
+
+```bash
+phdtaketaketake-cv-template --print > cv.tex   # 内置 LaTeX 模板
+phdtaketaketake-cv-compile cv.tex              # → cv.pdf，latexmk / pdflatex 自动跑
+```
+
+模板默认包含全部 section（Education / Research Experience / Publications & Presentations / Technical Skills / Teaching / Leadership / Honors）；agent 通过对话填充内容；有 `match.json` 时会按目标 PI 的 research_areas 重新排序、修剪。**Tailoring 只重排不发明** —— 不会编造经历、论文、技能。PDF 编译需要 TeX（MacTeX / TeX Live / MiKTeX）；最小化安装可能需要 `tlmgr install titlesec enumitem`。本地无 TeX 时 fallback 到"粘贴到 Overleaf"。Agent 操作约定见 [`SKILL.md`](SKILL.md) §"CV optimization (parallel workflow)"，per-section 编辑规则见 [`references/cv_optimization.md`](references/cv_optimization.md)。
+
 ### 每个候选的输出
 
 - **`match_score`**（0–4.0）—— CAPEG 综合

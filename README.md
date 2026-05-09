@@ -65,6 +65,22 @@ The agent will:
 
 The matcher is **evidence-first**: missing optional fields *widen the confidence band* — they don't crash and they don't get filled with guesses.
 
+### Parallel workflow: CV optimization
+
+Once the matcher has surfaced your top candidates, the same skill can help you produce a **LaTeX-formatted PhD-application CV**, optionally tailored for the top targets:
+
+> *"Now help me make a CV for these top 3 PIs."*
+> *"用上面的 match.json 帮我做一份针对 Hartman 的 tailored CV。"*
+
+Two CLIs back this:
+
+```bash
+phdtaketaketake-cv-template --print > cv.tex   # bundled LaTeX template
+phdtaketaketake-cv-compile cv.tex              # → cv.pdf via latexmk / pdflatex
+```
+
+The template ships with all sections present by default (Education, Research Experience, Publications & Presentations, Technical Skills, Teaching, Leadership, Honors); the agent fills it from your conversational input and, given a `match.json`, reorders + prunes for the target. **Tailoring is reordering only — never invention** (no fabricated experiences, papers, or skills). PDF compile requires a TeX install (MacTeX / TeX Live / MiKTeX); minimal installs may need `tlmgr install titlesec enumitem`. Falls back cleanly to "paste into Overleaf" when local TeX is unavailable. Full agent contract in [`SKILL.md`](SKILL.md) §"CV optimization (parallel workflow)" and [`references/cv_optimization.md`](references/cv_optimization.md).
+
 ### Output per candidate
 
 - **`match_score`** (0–4.0) — CAPEG composite
