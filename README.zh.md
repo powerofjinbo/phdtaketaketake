@@ -11,6 +11,47 @@
 
 ## 安装
 
+### 推荐：一行命令安装到 host
+
+```bash
+# Claude Code
+npx @powerofjinbo/phdtaketaketake install --claude
+
+# OpenAI Codex（用户级）
+npx @powerofjinbo/phdtaketaketake install --codex
+
+# Cursor（项目规则）
+npx @powerofjinbo/phdtaketaketake install --cursor --project .
+
+# 一次安装到所有检测到的 host
+npx @powerofjinbo/phdtaketaketake install --all
+```
+
+npx installer 是非常薄的一层壳：**不**修改你的 shell，**不**注册 postinstall hook，**不**替你跑 `pip`。每个 host 的处理：
+
+- `--claude` 优先尝试 `claude plugin marketplace add` + `claude plugin install`（如果 `$PATH` 上有 `claude` CLI）；否则打印你可以在 Claude Code session 内运行的 slash 命令。也可以用 `--manual-copy` 直接把包拷贝到 `~/.claude/plugins/local/phdtaketaketake/`。
+- `--codex` 把包拷到 `$HOME/.agents/skills/phdtaketaketake/`（用户级）或 `<project>/.agents/skills/phdtaketaketake/`（带 `--project` 时）。
+- `--cursor --project <path>` 在 `<path>/.cursor/rules/phdtaketaketake.mdc` 写一个 Project Rule（**指向 `SKILL.md` 的指针**，不是拷贝 —— 避免多源漂移）。
+
+Host 安装完成后，在你想用的 Python 环境里启用 7 个 Python CLI：
+
+```bash
+python -m pip install -e <installer-打印的-path>
+```
+
+故意保持显式 —— installer 永远不会替你选 Python 环境（conda / venv / system / pipx 真实环境里同时存在,你自己最清楚要装到哪个）。
+
+跑一下健康检查验证安装：
+
+```bash
+npx @powerofjinbo/phdtaketaketake doctor
+# 检查 Node / Python / claude CLI / manifest / 版本同步
+```
+
+### 手动 / 开发模式安装
+
+想 clone repo（要贡献代码、或不想走 npm/npx）：
+
 ```bash
 git clone https://github.com/powerofjinbo/phdtaketaketake.git \
   ~/.claude/skills/phdtaketaketake
@@ -19,7 +60,7 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
-安装完成后，`$PATH` 上有 7 个 CLI：
+### `pip install -e .` 后 `$PATH` 上的 7 个 CLI
 
 ```bash
 # Workflow A —— 导师匹配 / triage

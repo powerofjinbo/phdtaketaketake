@@ -11,6 +11,49 @@
 
 ## Install
 
+### Recommended: one-line installer (per host)
+
+```bash
+# Claude Code
+npx @powerofjinbo/phdtaketaketake install --claude
+
+# OpenAI Codex (user-level)
+npx @powerofjinbo/phdtaketaketake install --codex
+
+# Cursor (project rule)
+npx @powerofjinbo/phdtaketaketake install --cursor --project .
+
+# Or all detected hosts in one shot
+npx @powerofjinbo/phdtaketaketake install --all
+```
+
+The npx installer is a thin shim: it does NOT modify your shell, does
+NOT add a postinstall hook, and does NOT run `pip` for you. For each
+host:
+
+- `--claude` prefers `claude plugin marketplace add` + `claude plugin install` if the `claude` CLI is on `$PATH`; otherwise prints the canonical slash-commands you can run inside Claude Code (or use `--manual-copy` to drop the package directly into `~/.claude/plugins/local/phdtaketaketake/`).
+- `--codex` copies the package into `$HOME/.agents/skills/phdtaketaketake/` (user-level) or `<project>/.agents/skills/phdtaketaketake/` (with `--project`).
+- `--cursor --project <path>` writes `<path>/.cursor/rules/phdtaketaketake.mdc` (a Project Rule pointer to `SKILL.md`, not a copy).
+
+After the host install, enable the Python CLIs in the Python environment of your choice:
+
+```bash
+python -m pip install -e <path-printed-by-installer>
+```
+
+This is intentionally explicit — the installer never picks a Python environment for you (conda / venv / system / pipx all coexist on real boxes; the user knows their setup).
+
+Verify the install with the bundled health check:
+
+```bash
+npx @powerofjinbo/phdtaketaketake doctor
+# Checks Node, Python, claude CLI, manifests, and version sync.
+```
+
+### Manual / development install
+
+If you want to clone the repo (e.g. to contribute, or to run from a checkout without npm/npx):
+
 ```bash
 git clone https://github.com/powerofjinbo/phdtaketaketake.git \
   ~/.claude/skills/phdtaketaketake
@@ -19,7 +62,7 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
-After install, seven CLIs are on `$PATH`:
+### CLIs on `$PATH` after `pip install -e .`
 
 ```bash
 # Workflow A — advisor matching / triage
