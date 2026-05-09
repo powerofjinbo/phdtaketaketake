@@ -33,14 +33,30 @@ from typing import Literal
 
 CompileStatus = Literal["ok", "failed", "tex_not_installed"]
 
+FailureKind = Literal[
+    "missing_package",      # File 'X.sty' not found / File 'X.cls' not found
+    "structure",            # missing \item, "Something's wrong--perhaps a missing \item"
+    "undefined_command",    # ! Undefined control sequence
+    "unescaped_chars",      # Misplaced alignment tab character; Math should be ...
+    "unknown",              # nothing in our pattern library matched
+]
+
 
 @dataclass
 class CompileResult:
     """Structured return value of :func:`compile_cv`.
 
     ``status``: tri-state. ``ok`` → ``pdf_path`` populated. ``failed``
-    → ``error_excerpt`` populated (and ``full_log_path`` if the log
-    was preserved). ``tex_not_installed`` → ``install_hint`` populated.
+    → ``error_excerpt`` and ``failure_kind`` populated (plus
+    ``full_log_path`` if the log was preserved). ``tex_not_installed``
+    → ``install_hint`` populated.
+
+    ``failure_kind`` (only set when ``status == "failed"``) classifies
+    the most likely cause so the CLI can emit a targeted recovery hint
+    instead of the generic "unescaped chars" advice that fits the
+    actual failure mode roughly 1 time in 4. Sprint-7-c6 introduced
+    this after a real-user run reported the wrong hint on a missing-
+    package and a missing-\\item failure.
     """
 
     status: CompileStatus
@@ -50,6 +66,8 @@ class CompileResult:
     error_excerpt: list[str] = field(default_factory=list)
     full_log_path: Path | None = None
     install_hint: str | None = None
+    failure_kind: FailureKind | None = None
+    missing_packages: list[str] = field(default_factory=list)
 
 
 # -- Compiler discovery --------------------------------------------------------
@@ -78,10 +96,18 @@ INSTALL_HINT = (
     "  - Fedora/RHEL:   sudo dnf install texlive-latex texlive-latexmk\n"
     "  - Windows:       TeX Live (https://tug.org/texlive/) or MiKTeX\n"
     "\n"
-    "Minimal installs (BasicTeX, TinyTeX) may also need:\n"
-    "  tlmgr install titlesec enumitem\n"
-    "(the bundled CV template uses these for section styling and "
-    "list margins).\n"
+    "Minimal installs (BasicTeX, TinyTeX) may also need these packages:\n"
+    "  tlmgr install titlesec enumitem fancyhdr\n"
+    "(the bundled CV template uses titlesec for section styling,\n"
+    "enumitem for list margins, and fancyhdr to clear page headers /\n"
+    "footers.)\n"
+    "\n"
+    "If TinyTeX rejects `tlmgr install` with a TeX-Live-version mismatch\n"
+    "(e.g., local 2025 vs remote 2026), point tlmgr at the historic\n"
+    "mirror first:\n"
+    "  tlmgr option repository \\\n"
+    "    https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/<YEAR>/tlnet-final\n"
+    "(replace <YEAR> with your local TeX Live release year).\n"
     "\n"
     "Or, paste the .tex content into Overleaf (https://overleaf.com) — "
     "the bundled CV template is fully Overleaf-compatible."
@@ -122,6 +148,71 @@ def extract_error_excerpt(log_text: str, max_lines: int = 30) -> list[str]:
             if len(excerpt) >= max_lines:
                 break
     return excerpt
+
+
+# -- Failure classification (Sprint-7-c6) ---------------------------------
+
+_MISSING_PACKAGE_RE = re.compile(
+    r"File\s+[`'](?P<name>[^`'\s]+)\.(?:sty|cls)['`]\s+not\s+found"
+)
+
+
+def classify_failure(excerpt: list[str]) -> tuple[FailureKind, list[str]]:
+    """Pick the most likely cause given the diagnostic excerpt.
+
+    Returns ``(kind, missing_packages)``. ``missing_packages`` is non-empty
+    only for ``kind == "missing_package"`` and lists the bare package names
+    (without ``.sty`` / ``.cls`` extension), suitable for splatting into
+    ``tlmgr install <names...>``.
+
+    The classifier checks patterns in priority order — the first match wins.
+    Order matters: a missing-package failure can manifest with a downstream
+    "Undefined control sequence" later in the log, so missing-package
+    detection runs before undefined-command detection.
+    """
+    joined = "\n".join(excerpt)
+
+    # 1. Missing TeX package (.sty / .cls). Highest priority because a
+    # missing package can downstream-trigger undefined-command errors.
+    missing_pkgs: list[str] = []
+    for line in excerpt:
+        m = _MISSING_PACKAGE_RE.search(line)
+        if m:
+            pkg = m.group("name")
+            if pkg not in missing_pkgs:
+                missing_pkgs.append(pkg)
+    if missing_pkgs:
+        return "missing_package", missing_pkgs
+
+    # 2. Itemize / list structure errors. The "Something's wrong--perhaps
+    # a missing \\item" message is what the user-found-bug template
+    # variants triggered — bare \\vspace before first \\item, two
+    # \\begin{itemize} without an \\item between, etc.
+    if (
+        "missing \\item" in joined
+        or "perhaps a missing \\item" in joined
+        or "perhaps a missing list" in joined
+    ):
+        return "structure", []
+
+    # 3. Undefined control sequence. After missing-package because a
+    # missing package can manifest this way too — but if we got here the
+    # missing-package check already failed, so this is a real typo / bad
+    # macro.
+    if "Undefined control sequence" in joined:
+        return "undefined_command", []
+
+    # 4. Unescaped LaTeX-special character symptoms. "Misplaced alignment
+    # tab character &" → unescaped &; "Math should be ..." or "$ inserted"
+    # → unescaped $ / _ / ^.
+    if (
+        "Misplaced alignment tab character" in joined
+        or "Missing $ inserted" in joined
+        or "Math should be" in joined
+    ):
+        return "unescaped_chars", []
+
+    return "unknown", []
 
 
 # -- Main entry ---------------------------------------------------------------
@@ -180,12 +271,16 @@ def compile_cv(
                 passes=1,
             )
         log_text = _read_or_fallback(log_path, result)
+        excerpt = extract_error_excerpt(log_text)
+        kind, missing = classify_failure(excerpt)
         return CompileResult(
             status="failed",
             compiler="latexmk",
             passes=1,
-            error_excerpt=extract_error_excerpt(log_text),
+            error_excerpt=excerpt,
             full_log_path=log_path if log_path.exists() else None,
+            failure_kind=kind,
+            missing_packages=missing,
         )
 
     # pdflatex path: run up to max_passes times, stop early once the
@@ -208,12 +303,16 @@ def compile_cv(
         last_returncode = result.returncode
         log_text = _read_or_fallback(log_path, result)
         if result.returncode != 0:
+            excerpt = extract_error_excerpt(log_text)
+            kind, missing = classify_failure(excerpt)
             return CompileResult(
                 status="failed",
                 compiler="pdflatex",
                 passes=attempt,
-                error_excerpt=extract_error_excerpt(log_text),
+                error_excerpt=excerpt,
                 full_log_path=log_path if log_path.exists() else None,
+                failure_kind=kind,
+                missing_packages=missing,
             )
         # Successful run; check whether another pass is needed.
         if "Rerun" not in log_text:
@@ -227,13 +326,16 @@ def compile_cv(
             passes=last_attempt,
         )
     # Edge case: pdflatex returned 0 but no PDF (extremely unusual).
+    excerpt = extract_error_excerpt(log_text) or ["pdflatex exited 0 but no PDF was produced"]
+    kind, missing = classify_failure(excerpt)
     return CompileResult(
         status="failed",
         compiler="pdflatex",
         passes=last_attempt,
-        error_excerpt=extract_error_excerpt(log_text)
-        or ["pdflatex exited 0 but no PDF was produced"],
+        error_excerpt=excerpt,
         full_log_path=log_path if log_path.exists() else None,
+        failure_kind=kind,
+        missing_packages=missing,
     )
 
 

@@ -24,6 +24,7 @@ session — one is allowed to enter `cv.tex`, the other is not:
 | `StudentProfile` fields the user typed (`current_advisors`, `experiences[].mentor`, paper citations, GPA, etc.) | ✅ yes | every body field of the CV |
 | User-pasted CV text / Overleaf source / ORCID export | ✅ yes (preserve, just reformat) | body fields |
 | User-uploaded PDF / screenshot the user confirmed | ✅ yes (quote with attribution) | body fields |
+| **Suggested deletion of demonstrably weak user-typed items** (vague skill filler like "Microsoft Office" / "various AI tools", clearly off-topic experiences) | ✅ allowed to *trim* — but **must flag the deletion in the Step T-6 / CV-6 handoff** so the user can re-add. Never silently drop content. | the one direction the no-invention rule lets the agent *reduce* user content |
 | `CandidateAdvisor` records from `match.json` | ❌ no | **ranking / ordering signal only**: drives Step T-2..T-5 reorder decisions |
 | `research_areas` / `c_score` / `research_fit_axes` on a candidate | ❌ no | ranking signal only |
 | Names / institutions returned by `collect_evidence` / web research | ❌ no | candidate enrichment, never CV body |

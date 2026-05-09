@@ -1102,10 +1102,31 @@ The user may not give everything in one round. That's expected. Fill what you ha
 | ✅ User typed it in conversation | "my advisor is Prof. Wang at Tsinghua" → `Mentor: Prof. Wang, Tsinghua University` |
 | ✅ User pasted from their old CV / Overleaf / ORCID | preserve as-is, just reformat |
 | ✅ User uploaded a PDF / screenshot and confirmed contents | quote from the user-supplied file |
+| ✅ Suggest deletion of demonstrably weak user-typed items (vague skill listings like "Microsoft Office", "various AI tools"; stale or off-topic experiences) | **always flag the deletion in the handoff** so the user can re-add. Never silently drop content. |
 | ❌ A `CandidateAdvisor` from `match.json` | target PIs are **ranking signals**, not CV content |
 | ❌ A `research_areas` field from a candidate record | this is the matcher's view of the target PI, not the user's experience |
 | ❌ Names / institutions surfaced by `collect_evidence` web research | these belong to candidate enrichment, not the CV |
 | ❌ Anything the agent infers from training memory | guessed publications, GPA scales, lab names |
+
+**On the "suggest deletion" path**: this is the one direction the agent
+is allowed to *trim* user-supplied content (still strict no-invention
+on adding). The trigger is content that any CV consultant would flag —
+generic "Microsoft Office" / "All kinds of AI tools" / "Detail-oriented
+team player" filler, or experiences clearly off-topic for a PhD
+application. The non-negotiable rule: **always tell the user what you
+removed in the Step CV-6 handoff**, in a form they can act on:
+
+> I removed these items because they read as filler for a PhD-application
+> CV — let me know if you want any of them back:
+> - Skills line: "Microsoft Office, Google Docs"
+> - Experience: "Cashier at Starbucks (Summer 2022)"
+>
+> If anything here was actually load-bearing (e.g., the cashier role
+> was your funding source during a specific period), tell me and I'll
+> put it back.
+
+Never silently drop content. The user should always be able to recover
+their full input.
 
 The most subtle violation: a target PI from `match.json` (e.g., Prof. Hartman at MIT) accidentally landing in the CV body as a co-author or mentor. **Target PIs never appear inside `cv.tex`.** They appear in `match.json` (the matcher's output) and they drive ordering decisions (Step CV-4), but their names, institutions, and research areas stay there.
 

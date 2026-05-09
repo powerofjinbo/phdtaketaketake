@@ -25,25 +25,31 @@
 %       * Relevant Coursework table (under Education)
 %       * Multi-affiliation extra emails (under Header)
 %
+% OPTIONAL_BLOCK convention: the descriptive prose that explains *when*
+% to enable a block lives ABOVE the OPTIONAL_BLOCK_START marker. The
+% block itself contains only LaTeX code (each line prefixed with `% `),
+% so "uncommenting all lines between START and END" gives you valid
+% LaTeX without leaking description text into the document body.
+%
 % Tailoring for a target PI / program: see references/cv_optimization.md
 % §"Tailoring playbook". The skill never invents content — tailoring is
-% reordering and pruning only.
+% reordering and user-approved pruning only.
 %------------------------
 
 \documentclass[a4paper,11pt]{article}
 
 % --- Required packages ---
 % Most are in any standard TeX install (BasicTeX, MacTeX, TeX Live,
-% MiKTeX). The two exceptions, marked below, ship with the
+% MiKTeX). The three exceptions, marked below, ship with the
 % "texlive-latex-extra" / "texlive-fonts-extra" bundles on Debian-style
 % distros — minimal-TeX users (e.g. TinyTeX) may need to install them
-% explicitly with `tlmgr install titlesec enumitem`.
+% explicitly with `tlmgr install titlesec enumitem fancyhdr`.
 \usepackage[a4paper,top=0.5in,bottom=0.5in,left=0.5in,right=0.5in]{geometry}
 \usepackage{titlesec}      % (texlive-latex-extra) — \titleformat for section styling
 \usepackage[usenames,dvipsnames]{color}
 \usepackage{enumitem}      % (texlive-latex-extra) — leftmargin / label opts on itemize
 \usepackage[pdftex]{hyperref}
-\usepackage{fancyhdr}
+\usepackage{fancyhdr}      % (texlive-latex-extra) — \pagestyle{fancy} + clearing headers/footers
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -65,12 +71,6 @@
 %-------------------------
 % Custom resume commands — DO NOT EDIT BELOW THIS LINE UNTIL \begin{document}
 
-\newcommand{\resumeItem}[2]{
-  \item\small{
-    \textbf{#1}{: #2 \vspace{-2pt}}
-  }
-}
-
 \newcommand{\resumeItemWithoutTitle}[1]{
   \item\small{
     #1 \vspace{-2pt}
@@ -85,9 +85,6 @@
     \end{tabular*}\vspace{-5pt}
 }
 
-\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-3pt}}
-\newcommand{\resumePaper}[2]{\item\small{#1 \hfill \textit{#2} \vspace{-2pt}}}
-
 \renewcommand{\labelitemii}{\textbullet}
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
@@ -101,14 +98,18 @@
 \begin{document}
 
 %----------HEADING-----------------
+%
+% Optional content: extra emails for users with multiple affiliations
+% (REU host institution, summer-program domain, dual-affiliated lab).
+% Add as many lines as you need; each renders as a separate email
+% under the primary one. To enable: uncomment the lines between
+% OPTIONAL_BLOCK_START and OPTIONAL_BLOCK_END below.
+%
 \begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
   \textbf{\LARGE <Your Full Name>} &
   \begin{tabular}[t]{r}
     Email: \href{mailto:<primary@example.edu>}{<primary@example.edu>} \\
 % --- OPTIONAL_BLOCK_START: Multi-affiliation extra emails ---
-% Uncomment for users with multiple affiliations (REU host institution,
-% summer-program domain, dual-affiliated lab). Add as many lines as you
-% need; each renders as a separate email under the primary one.
 %    \href{mailto:<secondary@example.edu>}{<secondary@example.edu>} \\
 %    \href{mailto:<tertiary@example.edu>}{<tertiary@example.edu>} \\
 % --- OPTIONAL_BLOCK_END: Multi-affiliation extra emails ---
@@ -123,20 +124,24 @@
       {<University Name>}{<Start Date> - <End Date or "Expected June YYYY">}
       {<Degree, e.g., Bachelor of Science in Physics>; GPA: <X.XX>}{<City, State>}
 
-% --- OPTIONAL_BLOCK_START: Relevant Coursework ---
-% Uncomment the block below to surface a coursework table. Useful when
-% applying to programs that explicitly weigh coursework (most physics /
-% applied math / theory CS PhDs). Less useful for experimental bio /
-% chem / wet-lab disciplines, where coursework is assumed.
+% Optional content: Relevant Coursework table.
+% Useful when applying to programs that explicitly weigh coursework
+% (most physics / applied math / theory CS PhDs). Less useful for
+% experimental bio / chem / wet-lab disciplines, where coursework is
+% assumed. To enable: uncomment the lines between OPTIONAL_BLOCK_START
+% and OPTIONAL_BLOCK_END below; the leading `\item[]` is required so
+% the tabular attaches to a fresh (label-less) itemize entry.
 %
-% \vspace{4.5mm}
-% \noindent Relevant Coursework: \\
-% \vspace{1.5em}
-% \begin{tabular}{@{\hspace{1.5em}} p{0.45\linewidth} p{0.45\linewidth}}
-%     \textbullet\ <Course 1> & \textbullet\ <Course 4> \\
-%     \textbullet\ <Course 2> & \textbullet\ <Course 5> \\
-%     \textbullet\ <Course 3> & \textbullet\ <Course 6> \\
-% \end{tabular}
+% --- OPTIONAL_BLOCK_START: Relevant Coursework ---
+%    \item[]
+%    \vspace{4.5mm}
+%    \noindent Relevant Coursework: \\
+%    \vspace{1.5em}
+%    \begin{tabular}{@{\hspace{1.5em}} p{0.45\linewidth} p{0.45\linewidth}}
+%        \textbullet\ <Course 1> & \textbullet\ <Course 4> \\
+%        \textbullet\ <Course 2> & \textbullet\ <Course 5> \\
+%        \textbullet\ <Course 3> & \textbullet\ <Course 6> \\
+%    \end{tabular}
 % --- OPTIONAL_BLOCK_END: Relevant Coursework ---
 
   \resumeSubHeadingListEnd
@@ -175,58 +180,54 @@
 
 \vspace{0.1em}
 \section{Publications \& Presentations}
+% Single-layer itemize (Publications has no \resumeSubheading — items
+% are contributed directly via \item[] sub-headings + \resumeItemWithoutTitle).
 \resumeSubHeadingListStart
-    \resumeItemListStart
 
-        \item[]\textbf{SELECTED PAPERS}
-        \vspace{2pt}
+    \item[]\textbf{SELECTED PAPERS}
+    \vspace{2pt}
 
-        \resumeItemWithoutTitle
-        {<Author list with \textbf{Your Name} bolded>. ``<Paper title>.'' \href{<https://doi-or-arxiv-url>}{\textit{<Venue, vol., year>}} (<year>).}
-        \vspace{2pt}
+    \resumeItemWithoutTitle
+    {<Author list with \textbf{Your Name} bolded>. ``<Paper title>.'' \href{<https://doi-or-arxiv-url>}{\textit{<Venue, vol., year>}} (<year>).}
 
-        % --- Add more selected papers above by copying the
-        %     \resumeItemWithoutTitle{...} line. Delete the entire
-        %     SELECTED PAPERS sub-block (item[] header + items) if you
-        %     have no published / accepted papers yet. ---
+    % --- Add more selected papers above by copying the
+    %     \resumeItemWithoutTitle{...} line. Delete the entire
+    %     SELECTED PAPERS sub-block (item[] header + items) if you
+    %     have no published / accepted papers yet. ---
 
-        \vspace{1em}
+    \vspace{1em}
 
-        \item[] \textbf{WORK IN PROGRESS}
-        \vspace{2pt}
+    \item[] \textbf{WORK IN PROGRESS}
+    \vspace{2pt}
 
-        \resumeItemWithoutTitle
-        {<Author list with \textbf{Your Name}>. ``<Working title>.'' \textit{In Preparation} (<expected year>).}
-        \vspace{2pt}
+    \resumeItemWithoutTitle
+    {<Author list with \textbf{Your Name}>. ``<Working title>.'' \textit{In Preparation} (<expected year>).}
 
-        % --- Add more work-in-progress papers above by copying the line.
-        %     Delete the entire sub-block if you have no in-prep work. ---
+    % --- Add more work-in-progress papers above by copying the line.
+    %     Delete the entire sub-block if you have no in-prep work. ---
 
-        \vspace{1em}
+    \vspace{1em}
 
-        \item[] \textbf{POSTERS \& TALKS}
-        \vspace{2pt}
+    \item[] \textbf{POSTERS \& TALKS}
+    \vspace{2pt}
 
-        \resumeItemWithoutTitle
-        {\textbf{<Your Name>}. ``<Poster / talk title>.'' \textit{<Symposium / conference name>} (<Month Year>).}
-        \vspace{2pt}
+    \resumeItemWithoutTitle
+    {\textbf{<Your Name>}. ``<Poster / talk title>.'' \textit{<Symposium / conference name>} (<Month Year>).}
 
-        % --- Add more posters / talks above by copying the line.
-        %     Delete the entire sub-block if not applicable. ---
+    % --- Add more posters / talks above by copying the line.
+    %     Delete the entire sub-block if not applicable. ---
 
-    \resumeItemListEnd
 \resumeSubHeadingListEnd
 \vspace{-5pt}
 
 \section{Technical Skills}
+% Single-layer itemize: items go directly inside \resumeSubHeadingListStart.
 \resumeSubHeadingListStart
-    \resumeItemListStart
-        \item\small{\textbf{<Skill Category 1, e.g. Programming \& Machine Learning>}: <comma-separated list, e.g. Python, PyTorch, NumPy, SciPy>}
-        \vspace{-2pt}
-        \item\small{\textbf{<Skill Category 2, e.g. Physics Software>}: <comma-separated list, e.g. Geant4, MadGraph5, Pythia8, Delphes>}
-        \vspace{-2pt}
-        \item\small{\textbf{Languages}: <e.g. English (Professional Proficiency), Mandarin (Native)>}
-    \resumeItemListEnd
+    \item\small{\textbf{<Skill Category 1, e.g. Programming \& Machine Learning>}: <comma-separated list, e.g. Python, PyTorch, NumPy, SciPy>}
+    \vspace{-2pt}
+    \item\small{\textbf{<Skill Category 2, e.g. Physics Software>}: <comma-separated list, e.g. Geant4, MadGraph5, Pythia8, Delphes>}
+    \vspace{-2pt}
+    \item\small{\textbf{Languages}: <e.g. English (Professional Proficiency), Mandarin (Native)>}
 \resumeSubHeadingListEnd
 
 \vspace{-5pt}
@@ -261,15 +262,14 @@
 
 \vspace{-5pt}
 \section{Honors and Awards}
+% Single-layer itemize: items go directly inside \resumeSubHeadingListStart.
+% No leading \vspace before the first \item — that triggers a "missing \item" error.
 \resumeSubHeadingListStart
-    \resumeItemListStart
-        \vspace{-2pt}
-        \item\small{<Award Name (Year) — \$amount or selectivity note (e.g. "1 of 12 nationally") if relevant>}
-        \vspace{-2pt}
-        \item\small{<Award Name (Year)>}
-        \vspace{-2pt}
-        \item\small{<Award Name (Year)>}
-    \resumeItemListEnd
+    \item\small{<Award Name (Year) — \$amount or selectivity note (e.g. "1 of 12 nationally") if relevant>}
+    \vspace{-2pt}
+    \item\small{<Award Name (Year)>}
+    \vspace{-2pt}
+    \item\small{<Award Name (Year)>}
 \resumeSubHeadingListEnd
 
 \end{document}
