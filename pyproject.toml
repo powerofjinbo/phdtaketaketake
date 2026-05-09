@@ -57,6 +57,7 @@ phdtaketaketake-discovery-plan   = "phd_matcher.cli.build_discovery_plan:main"
 phdtaketaketake-export-schemas   = "phd_matcher.cli.export_schemas:main"
 # Sprint-7: CV optimization sub-skill.
 phdtaketaketake-cv-template      = "phd_matcher.cv.cli.template:main"
+phdtaketaketake-cv-compile       = "phd_matcher.cv.cli.compile:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["phd_matcher"]

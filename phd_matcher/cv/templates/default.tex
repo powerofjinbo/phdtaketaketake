@@ -32,13 +32,16 @@
 
 \documentclass[a4paper,11pt]{article}
 
-\usepackage{latexsym}
-\usepackage[empty]{fullpage}
-\usepackage{titlesec}
-\usepackage{marvosym}
+% --- Required packages ---
+% Most are in any standard TeX install (BasicTeX, MacTeX, TeX Live,
+% MiKTeX). The two exceptions, marked below, ship with the
+% "texlive-latex-extra" / "texlive-fonts-extra" bundles on Debian-style
+% distros — minimal-TeX users (e.g. TinyTeX) may need to install them
+% explicitly with `tlmgr install titlesec enumitem`.
+\usepackage[a4paper,top=0.5in,bottom=0.5in,left=0.5in,right=0.5in]{geometry}
+\usepackage{titlesec}      % (texlive-latex-extra) — \titleformat for section styling
 \usepackage[usenames,dvipsnames]{color}
-\usepackage{verbatim}
-\usepackage{enumitem}
+\usepackage{enumitem}      % (texlive-latex-extra) — leftmargin / label opts on itemize
 \usepackage[pdftex]{hyperref}
 \usepackage{fancyhdr}
 
@@ -47,13 +50,6 @@
 \fancyfoot{}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
-
-% Adjust margins
-\addtolength{\oddsidemargin}{-0.5in}
-\addtolength{\evensidemargin}{-0.5in}
-\addtolength{\textwidth}{1in}
-\addtolength{\topmargin}{-.5in}
-\addtolength{\textheight}{1.0in}
 
 \urlstyle{rm}
 

@@ -17,9 +17,10 @@ phd_matcher/cv/
   __init__.py                # exports TEMPLATE_PATH
   templates/
     default.tex              # the bundled template
+  compile.py                 # core compile pipeline (compile_cv → CompileResult)
   cli/
     template.py              # phdtaketaketake-cv-template
-    compile.py               # phdtaketaketake-cv-compile (Sprint-7-c2)
+    compile.py               # phdtaketaketake-cv-compile
 ```
 
 The template path is also importable:
@@ -199,24 +200,28 @@ point, not the final answer.**
 
 ## Compile failure recovery
 
-When the LaTeX compile fails (Sprint-7-c2 handles this), the agent
-should **not** try to "fix" the LaTeX by guessing. Instead:
+The compile pipeline (``phd_matcher.cv.compile.compile_cv``) returns a
+structured ``CompileResult`` with one of three statuses:
 
-1. Surface the relevant error lines (`! LaTeX Error:`, `l.<num>`)
-2. Identify the most likely cause (most common: an unescaped special
-   char in user-supplied text — `&`, `%`, `_`, `#`, `$`)
-3. Offer the user two recovery options:
-   - Paste the offending line back, the agent escapes it, and re-run
-   - Hand the user the raw `cv.tex` for [Overleaf](https://www.overleaf.com/) — Overleaf has a more forgiving error UI
+| status | What it means | Agent should |
+|---|---|---|
+| ``ok`` | PDF was produced. | Hand user the ``pdf_path``. |
+| ``failed`` | TeX is installed but the ``.tex`` has an error. ``error_excerpt`` lists the actionable lines (``! LaTeX Error:``, ``l.<num>``, "Undefined control sequence", "Missing X inserted", "Runaway argument", "Emergency stop", missing-file lines). | Surface ``error_excerpt`` verbatim. **Never guess at LaTeX fixes.** Identify the most likely cause (usually an unescaped special char) and ask the user to paste the offending source line back. Offer Overleaf as a fallback for unclear errors. |
+| ``tex_not_installed`` | Neither ``latexmk`` nor ``pdflatex`` was found on ``PATH``. ``install_hint`` is populated. | Surface ``install_hint`` (covers macOS / Debian / Fedora / Windows and the minimal-TeX gotcha — TinyTeX / BasicTeX users may need ``tlmgr install titlesec enumitem``). Always offer Overleaf as the universal fallback. |
 
-If TeX is not installed at all, the compile CLI prints an install
-hint and the agent should suggest:
+The CLI ``phdtaketaketake-cv-compile`` maps these statuses to exit
+codes 0 / 1 / 2; exit code 3 is reserved for input errors (file not
+found etc.) and is raised as ``FileNotFoundError`` by the Python
+function rather than returned in ``CompileResult``.
 
-- macOS: `brew install --cask mactex` (or `mactex-no-gui` for a smaller install)
-- Linux: `sudo apt install texlive-latex-extra` (Debian/Ubuntu)
-- Windows: TeX Live or MiKTeX
+### Most common compile failures (and how to fix them)
 
-…or, fallback path: Overleaf with the raw `.tex`.
+| Symptom in error_excerpt | Likely cause | Agent fix |
+|---|---|---|
+| ``Undefined control sequence`` near user-supplied text | Unescaped LaTeX special char (``&``, ``%``, ``_``, ``#``, ``$``, ``{``, ``}``) | Re-escape per Step CV-3's table; re-run |
+| ``File 'X.sty' not found`` | Minimal TeX install missing a package | Suggest ``tlmgr install <package>`` (macOS/TinyTeX) or ``apt install texlive-latex-extra`` (Debian) |
+| ``Runaway argument`` | Missing closing brace ``}`` somewhere | Read the ``l.<num>`` line; user pasted text with mismatched braces |
+| ``Missing $ inserted`` | Math-mode special char (``^``, ``_``, ``$``) outside math | Wrap in ``\$`` or ``$...$`` as appropriate |
 
 ## Boundaries with advisor matching
 

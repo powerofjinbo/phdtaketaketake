@@ -1131,10 +1131,16 @@ phdtaketaketake-cv-compile cv.tex
 # → cv.pdf in the same directory
 ```
 
-The compile CLI (Sprint-7-c2) retries multi-pass automatically (handles `latexmk` 2-pass for refs / TOC). On persistent failure it surfaces the relevant error lines and offers two fallbacks:
+The compile CLI prefers `latexmk -pdf` (handles cross-reference multi-pass internally); falls back to `pdflatex` running up to 3 passes. Three exit modes:
 
-1. Hand the user the raw `cv.tex` they can paste into [Overleaf](https://www.overleaf.com/) — full template-compatible.
-2. If TeX isn't installed at all, print the install hint (MacTeX `brew install --cask mactex` / TeXLive) and skip compile.
+| Exit code | Status | What to do |
+|---|---|---|
+| 0 | ok | PDF produced. Show the user the path. |
+| 1 | failed (TeX install OK; .tex has an error) | The CLI prints diagnostic lines (`! LaTeX Error:`, `l.<num>`, "Undefined control sequence", etc.) extracted from the `.log`. Most common cause: an unescaped LaTeX special char in user text — re-check the `\&` / `\%` / `\_` / `\#` / `\$` escapes in Step CV-3 and re-run. |
+| 2 | tex_not_installed | The CLI prints install hints for macOS / Debian / Fedora / Windows + a note that minimal TeX installs (BasicTeX, TinyTeX) may need `tlmgr install titlesec enumitem`. Always offer Overleaf as the universal fallback — paste the `.tex`, compile in-browser. |
+| 3 | input error | File not found, etc. Verify the path. |
+
+**On persistent compile failure, do not try to "fix" the LaTeX by guessing.** Surface the diagnostic to the user, ask them to paste the offending source line back so you can escape it correctly, or hand them the raw `cv.tex` + Overleaf link.
 
 ### Step CV-6 — Hand off to the user
 
