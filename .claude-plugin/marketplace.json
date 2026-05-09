@@ -1,0 +1,32 @@
+{
+  "name": "powerofjinbo",
+  "owner": {
+    "name": "Jinbo Z",
+    "url": "https://github.com/powerofjinbo"
+  },
+  "plugins": [
+    {
+      "name": "phdtaketaketake",
+      "source": ".",
+      "description": "Connection-first, evidence-first PhD application triage assistant — advisor matching plus LaTeX CV optimization.",
+      "author": {
+        "name": "Jinbo Z",
+        "url": "https://github.com/powerofjinbo"
+      },
+      "homepage": "https://github.com/powerofjinbo/phdtaketaketake",
+      "license": "MIT",
+      "keywords": [
+        "phd",
+        "graduate-school",
+        "phd-application",
+        "advisor-matching",
+        "academic-network",
+        "connection-graph",
+        "evidence-first",
+        "cv-optimization",
+        "claude-code",
+        "claude-skill"
+      ]
+    }
+  ]
+}
