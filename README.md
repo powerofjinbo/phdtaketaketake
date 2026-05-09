@@ -23,8 +23,9 @@ npx @powerofjinbo/phdtaketaketake install --codex
 # Cursor (project rule)
 npx @powerofjinbo/phdtaketaketake install --cursor --project .
 
-# Or all detected hosts in one shot
-npx @powerofjinbo/phdtaketaketake install --all
+# Or all detected hosts in one shot (run from a project root —
+# Cursor is skipped if you don't pass --project)
+npx @powerofjinbo/phdtaketaketake install --all --project .
 ```
 
 The npx installer is a thin shim: it does NOT modify your shell, does
@@ -228,11 +229,41 @@ Full formulas: [docs/scoring.md](docs/scoring.md) · Pipeline diagram: [docs/sco
 
 ## Use with non-Claude agents
 
-The skill is designed Claude-Code-native but the underlying matcher is plain Python and the workflow instructions in `SKILL.md` are framework-agnostic. To use with another agent:
+The skill is Claude-Code-native by default, but the matcher is plain
+Python and `SKILL.md` is framework-agnostic. The recommended paths
+all flow through the npm installer:
 
-- **Codex CLI / OpenCode**: drop a symlink at the repo root: `ln -s SKILL.md AGENTS.md`. Codex auto-reads `AGENTS.md`.
-- **Cursor**: copy `SKILL.md` content into `.cursorrules` at your project root.
-- **Other**: tell the agent "follow the workflow in `SKILL.md`" — most modern coding agents read it and execute the deep-research + `scripts/match.py` flow correctly.
+- **OpenAI Codex / OpenCode / QClaw / OpenClaw-style AgentSkills hosts** —
+  these expect skills under `.agents/skills/<name>/` (project-local) or
+  `$HOME/.agents/skills/<name>/` (user-level). Run:
+  ```bash
+  npx @powerofjinbo/phdtaketaketake install --codex                  # user-level
+  npx @powerofjinbo/phdtaketaketake install --codex --project .       # project-local
+  ```
+  `AGENTS.md` ships at the package root as a short pointer to
+  `SKILL.md` so hosts that auto-read `AGENTS.md` (Codex, several
+  AgentSkills hosts) pick up the same canonical contract.
+
+- **Cursor** — modern Cursor uses Project Rules at
+  `.cursor/rules/*.mdc`, not the legacy `.cursorrules` file. Run:
+  ```bash
+  npx @powerofjinbo/phdtaketaketake install --cursor --project .
+  ```
+  This writes `.cursor/rules/phdtaketaketake.mdc` (a short pointer to
+  `SKILL.md`, not a copy).
+
+- **`--all` and Cursor** — `npx … install --all` installs Claude +
+  Codex + Cursor when possible. Cursor needs `--project <path>` (its
+  rule is scoped to a project tree); when you run `--all` without
+  `--project`, Cursor is **skipped with a notice** rather than
+  failing the whole command. To get all three in one shot from inside
+  a project root:
+  ```bash
+  npx @powerofjinbo/phdtaketaketake install --all --project .
+  ```
+
+- **Other agents** — point them at the installed `SKILL.md`. Most
+  modern coding agents read it and execute the workflow correctly.
 
 ## Example session
 

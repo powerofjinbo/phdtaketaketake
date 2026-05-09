@@ -499,6 +499,133 @@ test('bin/phdtake.js doctor via subprocess exits 0 or 1', () => {
 
 // --- npm-pack contents (smoke check) -------------------------------------
 
+// --- Pre-pack consistency (post-c7 review) ----------------------------
+
+test('marketplace.json plugin source uses canonical "./" path form', () => {
+  const m = JSON.parse(
+    readFileSync(join(REPO_ROOT, '.claude-plugin', 'marketplace.json'), 'utf8'),
+  );
+  const entry = m.plugins.find((p) => p.name === 'phdtaketaketake');
+  assert.ok(entry, 'phdtaketaketake entry must exist in marketplace.json');
+  // Claude plugin docs canonicalize on the "./..." relative form for
+  // marketplace `source` fields. Plain "." can fail validators / future
+  // CLI versions even though it's filesystem-equivalent.
+  assert.ok(
+    entry.source.startsWith('./'),
+    `marketplace source must start with "./"; got "${entry.source}"`,
+  );
+});
+
+test('install --badflag exits 2 with a friendly error (not a stack trace)', async () => {
+  const cap = captureConsole();
+  const code = await run(['install', '--gemini'], {
+    packageRoot: REPO_ROOT,
+    console: cap.sink,
+  });
+  assert.equal(code, 2, 'unknown flag must exit 2');
+  const text = cap.text();
+  // The friendly message names the flag and lists supported alternatives.
+  assert.ok(text.includes('--gemini'), 'error must name the unknown flag');
+  assert.ok(text.includes('--claude'), 'error must list supported alternatives');
+  // Stack-trace markers MUST NOT appear in the user-facing output.
+  assert.ok(!text.includes('at parseInstallFlags'), 'must not surface a stack trace');
+  assert.ok(!text.includes('at installCmd'), 'must not surface a stack trace');
+});
+
+test('install --all without --project skips Cursor with a notice (does not fail)', async () => {
+  // We exercise the dispatch logic without doing any real install side-
+  // effects. The dispatcher logs "--- Skipping cursor (requires --project) ---"
+  // when --all is requested but no project dir was provided. We verify
+  // that message appears, and that the overall dispatch reaches Claude
+  // and Codex but never enters Cursor.
+  //
+  // We don't actually invoke installClaude / installCodex with real
+  // filesystem effects — we set CLAUDE_HOME / AGENTS_HOME to throwaway
+  // tmp dirs.
+  const claudeHome = makeTmp('all-no-proj-claude');
+  const agentsHome = makeTmp('all-no-proj-agents');
+  const cap = captureConsole();
+  const code = await run(
+    ['install', '--all', '--manual-copy'], // manualCopy → skip claude CLI shell-out
+    {
+      packageRoot: REPO_ROOT,
+      env: { CLAUDE_HOME: claudeHome, AGENTS_HOME: agentsHome },
+      console: cap.sink,
+    },
+  );
+  assert.equal(code, 0, '--all with Cursor skipped should return 0');
+  const text = cap.text();
+  assert.ok(text.includes('Skipping cursor'), 'must log the skip notice');
+  assert.ok(
+    text.includes('--cursor --project'),
+    'must point user at the explicit re-run command',
+  );
+  // Confirm Claude + Codex still ran.
+  assert.ok(
+    existsSync(join(claudeHome, 'plugins', 'local', 'phdtaketaketake', 'SKILL.md')),
+    'Claude install should have run',
+  );
+  assert.ok(
+    existsSync(
+      join(agentsHome, '.agents', 'skills', 'phdtaketaketake', 'SKILL.md'),
+    ),
+    'Codex install should have run',
+  );
+  rmSync(claudeHome, { recursive: true, force: true });
+  rmSync(agentsHome, { recursive: true, force: true });
+});
+
+test('install --all with --project installs all three including Cursor', async () => {
+  const claudeHome = makeTmp('all-proj-claude');
+  const agentsHome = makeTmp('all-proj-agents');
+  const project = makeTmp('all-proj-cursor');
+  const cap = captureConsole();
+  const code = await run(
+    ['install', '--all', '--project', project, '--manual-copy'],
+    {
+      packageRoot: REPO_ROOT,
+      env: { CLAUDE_HOME: claudeHome, AGENTS_HOME: agentsHome },
+      console: cap.sink,
+    },
+  );
+  assert.equal(code, 0);
+  // All three hosts saw an install.
+  assert.ok(existsSync(join(claudeHome, 'plugins', 'local', 'phdtaketaketake', 'SKILL.md')));
+  // Codex with --project goes to <project>/.agents/skills/, NOT $AGENTS_HOME.
+  assert.ok(existsSync(join(project, '.agents', 'skills', 'phdtaketaketake', 'SKILL.md')));
+  assert.ok(existsSync(join(project, '.cursor', 'rules', 'phdtaketaketake.mdc')));
+  rmSync(claudeHome, { recursive: true, force: true });
+  rmSync(agentsHome, { recursive: true, force: true });
+  rmSync(project, { recursive: true, force: true });
+});
+
+test('detectClaudeCli uses `where` on win32 and `which` elsewhere', () => {
+  const calls = [];
+  const fakeRunner = (cmd, _args) => {
+    calls.push(cmd);
+    return { status: 1 }; // pretend not found, we only care about the cmd
+  };
+  detectClaudeCli({ env: {}, runner: fakeRunner, platform: 'win32' });
+  assert.equal(calls[calls.length - 1], 'where', 'Windows should use `where`');
+  detectClaudeCli({ env: {}, runner: fakeRunner, platform: 'darwin' });
+  assert.equal(calls[calls.length - 1], 'which', 'POSIX should use `which`');
+  detectClaudeCli({ env: {}, runner: fakeRunner, platform: 'linux' });
+  assert.equal(calls[calls.length - 1], 'which', 'POSIX should use `which`');
+});
+
+test('detectClaudeCli on Windows takes the first line of `where` output', () => {
+  // `where claude` on Windows can return multiple lines (one per match
+  // on PATH). detectClaudeCli must take the first.
+  const fakeRunner = () => ({
+    status: 0,
+    stdout: Buffer.from('C:\\Users\\u\\bin\\claude.exe\r\nC:\\Other\\claude.exe\r\n'),
+  });
+  const path = detectClaudeCli({ env: {}, runner: fakeRunner, platform: 'win32' });
+  assert.equal(path, 'C:\\Users\\u\\bin\\claude.exe');
+});
+
+// --- Original npm-pack contents test (unchanged below) ------------------
+
 test('npm pack --dry-run includes the bundled .tex template', () => {
   // Verify the wheel-equivalent contents include critical files. This
   // is the npm-side analogue of the Python wheel-packaging check we did

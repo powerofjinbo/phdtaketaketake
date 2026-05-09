@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "phdtaketaketake",
-      "source": ".",
+      "source": "./",
       "description": "Connection-first, evidence-first PhD application triage assistant — advisor matching plus LaTeX CV optimization.",
       "author": {
         "name": "Jinbo Z",

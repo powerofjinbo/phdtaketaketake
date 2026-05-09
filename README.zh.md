@@ -23,8 +23,9 @@ npx @powerofjinbo/phdtaketaketake install --codex
 # Cursor（项目规则）
 npx @powerofjinbo/phdtaketaketake install --cursor --project .
 
-# 一次安装到所有检测到的 host
-npx @powerofjinbo/phdtaketaketake install --all
+# 一次安装到所有检测到的 host（建议从项目根目录跑 ——
+# 不带 --project 时 Cursor 会被跳过）
+npx @powerofjinbo/phdtaketaketake install --all --project .
 ```
 
 npx installer 是非常薄的一层壳：**不**修改你的 shell，**不**注册 postinstall hook，**不**替你跑 `pip`。每个 host 的处理：
@@ -221,8 +222,23 @@ strategy             = bucket(difficulty_adjusted, evidence, …)      # → pri
 
 Skill 是 Claude Code native 设计，但底层 matcher 是纯 Python，SKILL.md 工作流指令也是 framework-agnostic。其他 agent 用法：
 
-- **Codex CLI / OpenCode**：在 repo 根加 symlink `ln -s SKILL.md AGENTS.md`。Codex 自动读 `AGENTS.md`。
-- **Cursor**：把 `SKILL.md` 内容放到 `.cursorrules` 里。
+- **OpenAI Codex / OpenCode / QClaw / OpenClaw-style AgentSkills 平台** —— 这些 host 在 `.agents/skills/<name>/`（项目级）或 `$HOME/.agents/skills/<name>/`（用户级）找 skill。一键装：
+  ```bash
+  npx @powerofjinbo/phdtaketaketake install --codex                  # 用户级
+  npx @powerofjinbo/phdtaketaketake install --codex --project .       # 项目级
+  ```
+  `AGENTS.md` 在包根目录也有一份（**指向 `SKILL.md` 的短指针**），自动读 `AGENTS.md` 的 host 拿到的是同一份契约。
+
+- **Cursor** —— 现代 Cursor 用 `.cursor/rules/*.mdc` Project Rules，不再用旧的 `.cursorrules`。一键装：
+  ```bash
+  npx @powerofjinbo/phdtaketaketake install --cursor --project .
+  ```
+  这会写 `.cursor/rules/phdtaketaketake.mdc`（**指向 `SKILL.md` 的短指针**，不拷贝）。
+
+- **`--all` 和 Cursor** —— `npx … install --all` 会装 Claude + Codex + Cursor。Cursor 需要 `--project <path>`（rule 是项目级）；如果你跑 `--all` 没带 `--project`，**Cursor 会被跳过并给提示**，不会让整个命令失败。想一次装全 3 个,从项目根目录:
+  ```bash
+  npx @powerofjinbo/phdtaketaketake install --all --project .
+  ```
 - **其他**：直接说"follow the workflow in `SKILL.md`"，主流 coding agent 都能读懂并跑完整 deep-research + `scripts/match.py` 流。
 
 ## 示例对话
