@@ -246,20 +246,42 @@ Explicitly out of scope:
 
 ---
 
-## 13. Frozen scope (post-Sprint-6)
+## 13. Frozen scope (post-Sprint-7)
 
-The skill is feature-frozen as of Sprint-6 (QClaw-launch hardening).
-Adding any of the following requires an explicit roadmap revision and
-an honest re-evaluation of whether it would compromise the
-evidence-first contract:
+The skill is feature-frozen as of Sprint-7. Sprint-6 did the
+QClaw-launch hardening for the advisor-matching pipeline; Sprint-7
+added the **CV optimization sub-skill** as a complementary
+"PhD application triage" component. No further feature additions
+after this without explicit roadmap revision.
 
-**Will not add:**
+### In scope (the two parallel workflows)
+
+The skill is a **PhD application triage assistant** with two parallel
+workflows that share install + repo:
+
+1. **Advisor matching** — the original pipeline (`StudentProfile +
+   CandidateAdvisor[] → MatchResult[]` per CAPEG / Opportunity /
+   Difficulty / Research-fit / Strategy contracts). Frozen feature set
+   per the Sprint-6 contract.
+2. **CV optimization** (Sprint-7 addition) — LaTeX template + agent-led
+   editing + multi-pass compile, with optional reordering / pruning for
+   a target PI list. Adds **no** new scoring, **no** content invention,
+   **no** SoP drafting. Lives in `phd_matcher/cv/`; full contract in
+   `references/cv_optimization.md`.
+
+CV optimization is added because it's the natural complement to advisor
+matching in the "application triage" product positioning — once the
+user knows which 5–10 PIs to apply to, optimizing the CV for those
+targets is the obvious next step. It's structurally bounded (template
+fill + reorder + compile, never invention), so it doesn't open new
+classes of fabrication risk.
+
+### Will not add (frozen)
 
 - **Paid / commercial API integrations** — OpenAlex paid tier,
   Crossref Metadata Plus, Semantic Scholar paid, etc. The skill must
   remain runnable at $0 / month for individual users. Free-tier API
-  keys are recommended (and `phdtaketaketake-collect-evidence` should
-  support them when added), but no feature may *require* a paid key.
+  keys are recommended, but no feature may *require* a paid key.
 - **Admission probability output** — the score is a 4.0-scale
   relative-fit index, not P(admit). Surfacing anything that looks like
   a probability (percentages, "75% chance", calibrated odds) is
@@ -271,15 +293,25 @@ evidence-first contract:
   restricted to official JSON APIs (OpenAlex / PubMed / DBLP /
   Semantic Scholar). Web research is the agent's job; web *scraping
   infrastructure* is out of scope.
+- **SoP / personal-statement / cover-letter / recommendation-letter
+  drafting or revision** — explicitly out of scope for the CV
+  sub-skill. CV optimization touches structure and ordering, not
+  prose generation.
 - **Fully-automated application drafting or contact emails** — the
-  skill produces ranked lists, strategy buckets, and outreach angles.
-  It does not generate or send messages on the user's behalf.
+  skill produces ranked lists, strategy buckets, outreach angles, and
+  formatted CVs. It does not generate or send messages on the user's
+  behalf.
+- **CV content invention** — never adds an experience, skill, paper,
+  or award the user didn't supply. Tailoring is reordering and
+  pruning only.
+- **ATS / industry-resume optimization** — the CV template is academic
+  PhD-application style; converting between genres is out of scope.
 - **"Best-guess" defaults when evidence is missing** — the matcher
   widens the band, it does not invent. Any feature that looks like
   "fill in 0.5 when we don't know" violates the evidence-first
   contract and is rejected.
 
-**Preserved invariants** (will not be removed or weakened):
+### Preserved invariants (will not be removed or weakened)
 
 - Connection-first weighting (`w_C > w_A` in every tier)
 - Evidence-first data integrity (Verified / Verified-empty / Missing /
@@ -291,11 +323,12 @@ evidence-first contract:
 - Per-discipline FieldProfile caveats surfaced in every result
 - Manual evidence override path (user pastes lab page text / CV /
   screenshot quote → counts as `source_type="cv"` or `"other"`)
+- **CV sub-skill: template-fill + reorder + compile only. No
+  invention, no content judgement, no SoP / cover letter generation.**
 
 This frozen-scope declaration is the contract under which the skill
-goes onto QClaw and other Anthropic / Tencent skill platforms. Future
-work focuses on calibration against real portfolios, not feature
-expansion.
+goes onto QClaw and other skill platforms. Future work focuses on
+calibration against real portfolios, not feature expansion.
 
 ---
 

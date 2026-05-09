@@ -1037,6 +1037,131 @@ Main risks:
 This is the canonical user-facing language. Use it consistently across
 cards, portfolio rollup, and follow-up questions.
 
+## CV optimization (parallel workflow — Sprint-7)
+
+Beyond advisor matching, the skill ships a **LaTeX CV template + compile pipeline** so the same conversation can produce a polished PhD-application CV. This is a *parallel workflow* to advisor matching — they share the same install but trigger independently.
+
+### When to invoke this workflow
+
+Trigger on any of:
+
+- "帮我做 / 整理 / 优化 / 改进 我的 CV / 简历"
+- *"make / improve / format my CV"*
+- *"tailor my CV for `<target PI>` / `<target program>`"*
+- *"我有一份 match.json,帮我针对前 3 个 PI 做 tailored CV"*
+- The user pastes a CV (LaTeX or otherwise) and asks for review / optimization
+
+**Two trigger paths:**
+
+1. **Generic CV** — user wants a clean PhD-application CV, no specific target. Run the template-fill flow; skip tailoring.
+2. **Tailored CV** — user provides a `match.json` (or asks to tailor against earlier matching output). Fill the template, then reorder + prune for top-bucket candidates.
+
+If the user invokes "make my CV" without naming a target, **ask once**:
+
+> *Do you have target advisors / programs in mind? If you've already run advisor matching, paste the `match.json` and I can tailor the CV for the top candidates. Otherwise I'll produce a general PhD-app version.*
+
+Don't re-ask. If they say no or skip, proceed with generic.
+
+### Step CV-1 — Read the bundled template
+
+```bash
+phdtaketaketake-cv-template --print > cv.tex
+# or, just print the path so you can Read / Edit it directly:
+phdtaketaketake-cv-template
+# /…/phd_matcher/cv/templates/default.tex
+```
+
+Read it carefully before editing. Note the contract:
+
+- **Preamble + custom commands** (`\resumeSubheading`, `\resumeItem`, `\resumeItemWithoutTitle`, `\resumeItemListStart/End`, `\resumeSubHeadingListStart/End`) — never edit. The `% DO NOT EDIT` comment marks the boundary.
+- **All sections present by default**: Education / Research Experience / Publications & Presentations / Technical Skills / Teaching Experience / Leadership Experience / Honors and Awards. Delete any that don't apply (whole `\section{...}` block + its wrapper). **Empty section headers look worse than missing sections.**
+- **`OPTIONAL_BLOCK_START / END` markers** wrap content that's off by default — currently the Relevant Coursework table (under Education) and the multi-affiliation extra-emails block (under Header). Enable by removing the `% ` prefix on each line between the markers.
+- **`<angle-bracket>` placeholders** mark every fill-in slot. The as-shipped file compiles to a "demo CV" with placeholders rendered as text — useful to verify your LaTeX install works before personalizing.
+
+### Step CV-2 — Gather user info
+
+Ask in plain English, **section by section, not all at once**. Don't dump the template into the chat — that overwhelms the user. Probe like a CV consultant:
+
+1. **Header**: full name, primary email, secondary emails (multi-affiliated users only), personal website (optional).
+2. **Education**: institution(s), degree, GPA + scale, location, dates. Ask: *"Do you want a Relevant Coursework table? It helps for physics / theory CS / applied math; less common for experimental bio / chem."*
+3. **Research experience**: per project — title, mentor, institution, dates, 2–4 bullets describing **what you built / proved / measured** + **methods + tools** + **outcome / contribution**. Probe for verbs: avoid "responsible for", prefer "implemented", "demonstrated", "produced", "developed".
+4. **Publications**: split into Selected Papers (published / accepted), Work in Progress (drafted / in prep), Posters & Talks. If a sub-category is empty → delete it (don't leave empty headers).
+5. **Technical skills**: 2–3 named categories (Programming / Field Software / Languages). Comma-separated lists.
+6. **Teaching / Leadership / Honors**: ask if relevant; delete the section entirely if not.
+
+The user may not give everything in one round. That's expected. Fill what you have, leave clearly-marked TODO comments in the `.tex` for empty fields, ask follow-ups for the most important gaps first (Research Experience > Publications > Skills > others).
+
+### Step CV-3 — Fill the template
+
+Use `Edit` / `Write` to produce a populated `cv.tex`. Replace every `<placeholder>`. **LaTeX special-character escaping is required** for user-typed text:
+
+| User text | LaTeX form |
+|---|---|
+| `&` (ampersand, e.g. "R\&D") | `\&` |
+| `%` (percent, e.g. "5\% improvement") | `\%` |
+| `_` (underscore, e.g. file names) | `\_` |
+| `#` (hash, e.g. "channel \#1") | `\#` |
+| `$` (dollar, e.g. "\$8110 award") | `\$` |
+| `{` `}` | `\{` `\}` |
+| `~` | `\textasciitilde{}` |
+| `^` | `\textasciicircum{}` |
+| `\` | `\textbackslash{}` |
+
+URLs inside `\href{}` and `\url{}` already escape correctly — no manual work needed there.
+
+If the user wants the **Relevant Coursework table**: between `OPTIONAL_BLOCK_START: Relevant Coursework` and `OPTIONAL_BLOCK_END: Relevant Coursework`, remove the leading `% ` from every line, then fill the courses. Keep the START / END marker comments themselves so the structure is recoverable.
+
+If a section **doesn't apply** to the user (no Teaching, no Leadership), delete the entire `\section{...}` block including its `\resumeSubHeadingListStart / End` wrapper.
+
+### Step CV-4 — (Optional) Tailor for target PI(s)
+
+Only when the user provided a `match.json` or asked for tailoring against earlier matching output. The full per-section playbook is in [`references/cv_optimization.md`](references/cv_optimization.md) §"Tailoring playbook". Quick summary:
+
+- **Research Experience order** — read top-bucket candidates' `research_areas`. For each user experience, judge overlap. Strong-overlap projects move to the top; weak/none + > 2 years old → consider deleting (ask the user first).
+- **Bullets within an experience** — lead with the bullet whose methods / detector / dataset overlap target PI's recent papers.
+- **Publications** — same. Lead with paper most overlapping target's subject.
+- **Technical skills** — re-order each comma-separated list to put target-lab tools first (e.g. for a Geant4-heavy LDMX-style group, put `Geant4` before `MadGraph5`).
+
+**Tailoring is reordering and pruning, never invention.** Never add an experience, paper, or skill the user didn't actually do.
+
+### Step CV-5 — Compile to PDF
+
+```bash
+phdtaketaketake-cv-compile cv.tex
+# → cv.pdf in the same directory
+```
+
+The compile CLI (Sprint-7-c2) retries multi-pass automatically (handles `latexmk` 2-pass for refs / TOC). On persistent failure it surfaces the relevant error lines and offers two fallbacks:
+
+1. Hand the user the raw `cv.tex` they can paste into [Overleaf](https://www.overleaf.com/) — full template-compatible.
+2. If TeX isn't installed at all, print the install hint (MacTeX `brew install --cask mactex` / TeXLive) and skip compile.
+
+### Step CV-6 — Hand off to the user
+
+Show:
+
+- The `.pdf` path (or, on compile failure, the `.tex` content + Overleaf link)
+- A 2–3 sentence summary of any tailoring decisions you made (the user needs to review and may push back on order / deletions)
+- A short review checklist:
+  - GPA scale matches your records (3.85/4.0 vs 88/100)
+  - Paper venues + author orders are current
+  - Dates consistent (no overlap that doesn't make sense)
+  - Email addresses spelled correctly
+
+Standard product-boundary disclaimer (zh + en, same as advisor matching):
+
+> **This is a CV format + reorder helper, not a content-quality / SoP / recommendation-letter assistant. The substance of your experiences and the strategic narrative of your application are your responsibility.**
+>
+> 这是一个 CV 排版与重排工具,不是内容质量评估、SoP 撰写或推荐信辅助工具。你研究经历的实质内容和申请的战略叙事是你自己负责的部分。
+
+### What the CV sub-skill does NOT do
+
+- ❌ Does not write or revise SoPs / personal statements / cover letters
+- ❌ Does not invent experiences, skills, papers, or awards
+- ❌ Does not contact PIs on the user's behalf
+- ❌ Does not optimize for industry / ATS resumes (the template is academic-PhD-application style)
+- ❌ Does not assess content quality (good experiment vs bad experiment is the user's judgment)
+
 ## Confidence calibration — claim-level evidence coverage
 
 The matcher's `confidence_band` widens as the count of unverified signals
