@@ -1,0 +1,61 @@
+{
+  "name": "@powerofjinbo/phdtaketaketake",
+  "version": "0.1.0",
+  "description": "Connection-first PhD application triage assistant — advisor matching plus LaTeX CV optimization, evidence-first. Thin npm installer for Claude Code, Codex, Cursor, and other agentic coding tools; the matching/scoring core is Python and lives in phd_matcher/.",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://github.com/powerofjinbo/phdtaketaketake",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerofjinbo/phdtaketaketake.git"
+  },
+  "bugs": {
+    "url": "https://github.com/powerofjinbo/phdtaketaketake/issues"
+  },
+  "author": {
+    "name": "Jinbo Z",
+    "url": "https://github.com/powerofjinbo"
+  },
+  "bin": {
+    "phdtake": "bin/phdtake.js"
+  },
+  "files": [
+    ".claude-plugin",
+    "AGENTS.md",
+    "SKILL.md",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "bin",
+    "lib",
+    "data",
+    "docs",
+    "examples",
+    "phd_matcher",
+    "references",
+    "schemas",
+    "scripts",
+    "pyproject.toml"
+  ],
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "phd",
+    "graduate-school",
+    "phd-application",
+    "advisor-matching",
+    "academic-network",
+    "connection-graph",
+    "evidence-first",
+    "cv-optimization",
+    "claude-code",
+    "claude-skill",
+    "codex",
+    "cursor",
+    "agent-skill"
+  ]
+}
