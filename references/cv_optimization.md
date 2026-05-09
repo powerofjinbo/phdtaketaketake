@@ -10,6 +10,51 @@ edit conventions, what to keep vs delete, and the tailoring playbook.
 SKILL.md §"CV optimization (parallel workflow)" is the user-flow
 contract; this file is the per-section detail.
 
+## Source-of-truth invariant (read first)
+
+**Every fact in the rendered `cv.tex` must trace to something the user
+explicitly provided in conversation.** This is the CV sub-skill's
+analogue of the matcher's evidence-first contract.
+
+The agent has two parallel data streams in scope during a CV
+session — one is allowed to enter `cv.tex`, the other is not:
+
+| Data source | Allowed in cv.tex? | Used for what |
+|---|---|---|
+| `StudentProfile` fields the user typed (`current_advisors`, `experiences[].mentor`, paper citations, GPA, etc.) | ✅ yes | every body field of the CV |
+| User-pasted CV text / Overleaf source / ORCID export | ✅ yes (preserve, just reformat) | body fields |
+| User-uploaded PDF / screenshot the user confirmed | ✅ yes (quote with attribution) | body fields |
+| `CandidateAdvisor` records from `match.json` | ❌ no | **ranking / ordering signal only**: drives Step T-2..T-5 reorder decisions |
+| `research_areas` / `c_score` / `research_fit_axes` on a candidate | ❌ no | ranking signal only |
+| Names / institutions returned by `collect_evidence` / web research | ❌ no | candidate enrichment, never CV body |
+| Anything the agent infers from training memory | ❌ no | forbidden everywhere in the skill |
+
+The most common (and most dangerous) violation: an agent tailoring a
+CV for "Prof. Hartman at MIT" accidentally writes Hartman's name or
+institution into the CV body — as a co-author, as a mentor, as a
+target lab, as anything. **Target PIs are who the CV is *sent to*.
+They are not who the CV is *about*.** The CV is about the user, and
+its body content is exactly the union of facts the user has typed in
+this conversation.
+
+Concrete contrast using the worked example below:
+
+- ✅ "Mentor: Prof. Wang, Tsinghua University" — Wang is the user's
+  actual current advisor (came from `StudentProfile.current_advisors`)
+- ✅ "co-authored 4 ATLAS H→cc̄ papers with Prof. Wang in 2022–2024" —
+  user's paper history, with their actual collaborator
+- ❌ "applying to Prof. Hartman's group at MIT" — Hartman is the
+  *target*, not a fact to print on the CV
+- ❌ "research interests align with MIT's ATLAS Higgs / detector ML
+  group" — Hartman's research areas, not the user's
+- ❌ "PRD precision measurement co-authored with Prof. Hartman" —
+  unless the user explicitly said this happened, it didn't
+
+If you find yourself about to put a person / institution / paper /
+skill into `cv.tex` and you can't point at the user message that
+introduced it, **stop and ask the user**. The matching pipeline's
+discoveries are not user input.
+
 ## Module layout
 
 ```
@@ -343,9 +388,16 @@ not the final answer.
 - ❌ GPA, dates, institution names
 - ❌ Any factual content — the user's experiences are exactly as they
   reported them, just in a different order
+- ❌ **Hartman's name, MIT, or "ATLAS Higgs / detector ML" did not
+  appear inside `cv.tex`.** Hartman is who the CV is *sent to*, not
+  what the CV is *about*. The user's mentor on the CV body is still
+  Prof. Wang at Tsinghua, because that's the user's actual advisor.
+  The target PI's identity drove the *ordering* decisions above; it
+  did not become CV content.
 
 This is the entire tailoring contract: **reorder, prune (with user
-consent), surface the lead. Never invent.**
+consent), surface the lead. Never invent. The target PI ranks the
+content; it does not become the content.**
 
 ## What this skill does NOT do
 

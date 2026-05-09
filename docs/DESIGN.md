@@ -303,7 +303,15 @@ classes of fabrication risk.
   behalf.
 - **CV content invention** — never adds an experience, skill, paper,
   or award the user didn't supply. Tailoring is reordering and
-  pruning only.
+  user-approved pruning only.
+- **CV content sourced from the matching pipeline** — target PIs from
+  `match.json` (`CandidateAdvisor` records, their `research_areas`,
+  `c_score`, etc.) drive the CV's *ordering* but never enter the CV's
+  *body*. The mentor / advisor / co-author / institution names inside
+  `cv.tex` come exclusively from `StudentProfile` fields the user
+  typed in conversation, not from agent web research, `collect_evidence`
+  enrichment, or matching output. The target PI is *who the CV is sent
+  to*, not *who it is about*.
 - **ATS / industry-resume optimization** — the CV template is academic
   PhD-application style; converting between genres is out of scope.
 - **"Best-guess" defaults when evidence is missing** — the matcher
@@ -325,6 +333,12 @@ classes of fabrication risk.
   screenshot quote → counts as `source_type="cv"` or `"other"`)
 - **CV sub-skill: template-fill + reorder + compile only. No
   invention, no content judgement, no SoP / cover letter generation.**
+- **CV body content traces to user-provided input only.** Agent-discovered
+  candidate PIs, their institutions, and their research areas live in
+  `match.json` (the matcher's output) and feed CV ordering decisions;
+  they never become text inside `cv.tex`. Mentor / advisor / co-author
+  / institution names on the CV come from `StudentProfile` fields the
+  user explicitly typed.
 
 This frozen-scope declaration is the contract under which the skill
 goes onto QClaw and other skill platforms. Future work focuses on

@@ -1093,7 +1093,27 @@ The user may not give everything in one round. That's expected. Fill what you ha
 
 ### Step CV-3 — Fill the template
 
-Use `Edit` / `Write` to produce a populated `cv.tex`. Replace every `<placeholder>`. **LaTeX special-character escaping is required** for user-typed text:
+#### ⚠️ Source-of-truth invariant — read first
+
+**Every fact in the CV must trace to something the user explicitly provided in this conversation.** This is the CV sub-skill's analogue of the matcher's evidence-first contract.
+
+| Allowed source for CV content | Example |
+|---|---|
+| ✅ User typed it in conversation | "my advisor is Prof. Wang at Tsinghua" → `Mentor: Prof. Wang, Tsinghua University` |
+| ✅ User pasted from their old CV / Overleaf / ORCID | preserve as-is, just reformat |
+| ✅ User uploaded a PDF / screenshot and confirmed contents | quote from the user-supplied file |
+| ❌ A `CandidateAdvisor` from `match.json` | target PIs are **ranking signals**, not CV content |
+| ❌ A `research_areas` field from a candidate record | this is the matcher's view of the target PI, not the user's experience |
+| ❌ Names / institutions surfaced by `collect_evidence` web research | these belong to candidate enrichment, not the CV |
+| ❌ Anything the agent infers from training memory | guessed publications, GPA scales, lab names |
+
+The most subtle violation: a target PI from `match.json` (e.g., Prof. Hartman at MIT) accidentally landing in the CV body as a co-author or mentor. **Target PIs never appear inside `cv.tex`.** They appear in `match.json` (the matcher's output) and they drive ordering decisions (Step CV-4), but their names, institutions, and research areas stay there.
+
+If you find yourself about to write a person, institution, paper, or skill into `cv.tex` and you can't point at the user message that introduced it, **stop and ask the user** instead of writing it.
+
+#### How to actually fill it
+
+Use `Edit` / `Write` to produce a populated `cv.tex`. Replace every `<placeholder>` with content from the user (per the invariant above). **LaTeX special-character escaping is required** for user-typed text:
 
 | User text | LaTeX form |
 |---|---|
@@ -1122,7 +1142,15 @@ Only when the user provided a `match.json` or asked for tailoring against earlie
 - **Publications** — same. Lead with paper most overlapping target's subject.
 - **Technical skills** — re-order each comma-separated list to put target-lab tools first (e.g. for a Geant4-heavy LDMX-style group, put `Geant4` before `MadGraph5`).
 
-**Tailoring is reordering and pruning, never invention.** Never add an experience, paper, or skill the user didn't actually do.
+**Tailoring is reordering and user-approved pruning, never invention.** Never add an experience, paper, or skill the user didn't actually do.
+
+#### ⚠️ Target PIs stay in match.json — they never enter cv.tex
+
+The target PI from `match.json` (e.g. Prof. Hartman at MIT) is **the recipient of the CV, not its content**. Tailoring uses the target's `research_areas` / `c_score` / `research_fit_axes` as **ranking signals** to decide which of *the user's own* experiences and papers to surface — but the target's name, institution, and research areas stay inside `match.json`. They do not appear as text inside `cv.tex`.
+
+The mentor / advisor / co-author / institution names *inside* `cv.tex` come exclusively from the user's own profile (`StudentProfile.current_advisors`, `experiences[].mentor`, paper author lists they typed) — same as in Step CV-3.
+
+If you're tailoring for Hartman and the user's actual current advisor is Wang, the CV says "Mentor: Prof. Wang" (the user's reality); Hartman is *who you're sending it to*, not who you're listing on it.
 
 ### Step CV-5 — Compile to PDF
 

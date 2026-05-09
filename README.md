@@ -34,7 +34,7 @@ phdtaketaketake-cv-template      # print the bundled LaTeX CV template (path or 
 phdtaketaketake-cv-compile       # compile a CV .tex to PDF via latexmk / pdflatex
 ```
 
-You can also invoke them via `python scripts/<name>.py …` from a checkout (without install).
+You can also invoke the **Workflow A** matching CLIs via `python scripts/<name>.py …` from a checkout (no install needed). The **Workflow B** CV tools live in the installed package; from a checkout, invoke them via `python -m phd_matcher.cv.cli.template …` and `python -m phd_matcher.cv.cli.compile …`.
 
 Claude Code auto-discovers the skill on next session. For other agents, see [Use with non-Claude agents](#use-with-non-claude-agents) below.
 
