@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "phdtaketaketake"
 version = "0.1.0"
-description = "Connection-first PhD advisor matcher — find the right advisor by network strength, not h-index."
+description = "Connection-first PhD application triage assistant — advisor matching plus LaTeX CV optimization, evidence-first."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"

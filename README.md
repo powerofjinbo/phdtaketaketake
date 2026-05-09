@@ -19,14 +19,19 @@ cd ~/.claude/skills/phdtaketaketake
 pip install -e .
 ```
 
-After install, five CLIs are on `$PATH`:
+After install, seven CLIs are on `$PATH`:
 
 ```bash
-phdtaketaketake-match            # rank candidates given profile + JSON
-phdtaketaketake-audit            # report evidence repair queue
-phdtaketaketake-collect-evidence # auto-fill evidence from OpenAlex / PubMed / DBLP / Semantic Scholar
+# Workflow A — advisor matching / triage
 phdtaketaketake-discovery-plan   # per-field PI-search recipe
+phdtaketaketake-collect-evidence # auto-fill evidence from OpenAlex / PubMed / DBLP / Semantic Scholar
+phdtaketaketake-audit            # report evidence repair queue
+phdtaketaketake-match            # rank candidates given profile + JSON
 phdtaketaketake-export-schemas   # write Pydantic models out to JSON Schema (Draft 2020-12)
+
+# Workflow B — CV optimization
+phdtaketaketake-cv-template      # print the bundled LaTeX CV template (path or contents)
+phdtaketaketake-cv-compile       # compile a CV .tex to PDF via latexmk / pdflatex
 ```
 
 You can also invoke them via `python scripts/<name>.py …` from a checkout (without install).
@@ -79,7 +84,7 @@ phdtaketaketake-cv-template --print > cv.tex   # bundled LaTeX template
 phdtaketaketake-cv-compile cv.tex              # → cv.pdf via latexmk / pdflatex
 ```
 
-The template ships with all sections present by default (Education, Research Experience, Publications & Presentations, Technical Skills, Teaching, Leadership, Honors); the agent fills it from your conversational input and, given a `match.json`, reorders + prunes for the target. **Tailoring is reordering only — never invention** (no fabricated experiences, papers, or skills). PDF compile requires a TeX install (MacTeX / TeX Live / MiKTeX); minimal installs may need `tlmgr install titlesec enumitem`. Falls back cleanly to "paste into Overleaf" when local TeX is unavailable. Full agent contract in [`SKILL.md`](SKILL.md) §"CV optimization (parallel workflow)" and [`references/cv_optimization.md`](references/cv_optimization.md).
+The template ships with all sections present by default (Education, Research Experience, Publications & Presentations, Technical Skills, Teaching, Leadership, Honors); the agent fills it from your conversational input and, given a `match.json`, reorders the existing content + prunes weakly-relevant entries (with your confirmation before any deletion). **Tailoring is reordering and user-approved pruning — never invention** (no fabricated experiences, papers, or skills). PDF compile requires a TeX install (MacTeX / TeX Live / MiKTeX); minimal installs may need `tlmgr install titlesec enumitem`. Falls back cleanly to "paste into Overleaf" when local TeX is unavailable. Full agent contract in [`SKILL.md`](SKILL.md) §"CV optimization (parallel workflow)" and [`references/cv_optimization.md`](references/cv_optimization.md).
 
 ### Output per candidate
 

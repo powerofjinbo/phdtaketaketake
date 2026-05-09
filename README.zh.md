@@ -1,13 +1,13 @@
 # phdtaketaketake
 
-> **基于真实学术网络证据的 PhD 导师匹配与申请优先级工具。** Connection-first,evidence-first。打包成 **Claude Code skill** —— 也支持 **QClaw**、Codex CLI、Cursor 以及任何能读 SKILL.md 的 LLM agent。
-> 不靠 h-index,靠 connection 找对的导师。
+> **基于真实学术网络证据的 PhD 导师匹配与申请优先级工具。** Connection-first，evidence-first。打包成 **Claude Code skill** —— 也支持 **QClaw**、Codex CLI、Cursor 以及任何能读 SKILL.md 的 LLM agent。
+> 不靠 h-index，靠 connection 找对的导师。
 
 中文 · [English](README.md)
 
-> ⚠️ **产品边界**：这是一个 **4.0 制的相对申请强度指数,不是录取概率**。证据无法验证或来源被拦截时,confidence band 会变宽,**不会被猜测填充**。
+> ⚠️ **产品边界**：这是一个 **4.0 制的相对申请强度指数，不是录取概率**。证据无法验证或来源被拦截时，confidence band 会变宽，**不会被猜测填充**。
 >
-> phdtaketaketake 是**专家设计的启发式决策辅助系统**,**不是**经过实证校准的录取概率预测器。所有阈值(CAPEG 权重、recency 衰减、program difficulty 各 component、strategy bucket 切分等)都是 v1/v2 默认值,需要在真实 portfolio 上慢慢校准。设计边界见 [`docs/DESIGN.md`](docs/DESIGN.md) §11,明确不做的事见 §"Frozen scope"。
+> phdtaketaketake 是**专家设计的启发式决策辅助系统**，**不是**经过实证校准的录取概率预测器。所有阈值（CAPEG 权重、recency 衰减、program difficulty 各 component、strategy bucket 切分等）都是 v1/v2 默认值，需要在真实 portfolio 上慢慢校准。设计边界见 [`docs/DESIGN.md`](docs/DESIGN.md) §11，明确不做的事见 §"Frozen scope"。
 
 ## 安装
 
@@ -17,6 +17,21 @@ git clone https://github.com/powerofjinbo/phdtaketaketake.git \
 
 cd ~/.claude/skills/phdtaketaketake
 pip install -e .
+```
+
+安装完成后，`$PATH` 上有 7 个 CLI：
+
+```bash
+# Workflow A —— 导师匹配 / triage
+phdtaketaketake-discovery-plan     # 按学科生成 PI 搜索 recipe
+phdtaketaketake-collect-evidence   # 从 OpenAlex / PubMed / DBLP / Semantic Scholar 自动补 evidence
+phdtaketaketake-audit              # 输出证据修复队列
+phdtaketaketake-match              # 给定 profile + JSON 排序候选 PI
+phdtaketaketake-export-schemas     # 把 Pydantic 模型导出成 JSON Schema (Draft 2020-12)
+
+# Workflow B —— CV 优化
+phdtaketaketake-cv-template        # 打印内置 LaTeX CV 模板（路径或内容）
+phdtaketaketake-cv-compile         # 用 latexmk / pdflatex 把 CV .tex 编译成 PDF
 ```
 
 下次开 Claude Code session 时自动加载。其他 agent 见下方[与其他 agent 配合](#与其他-agent-配合)。
@@ -67,7 +82,7 @@ phdtaketaketake-cv-template --print > cv.tex   # 内置 LaTeX 模板
 phdtaketaketake-cv-compile cv.tex              # → cv.pdf，latexmk / pdflatex 自动跑
 ```
 
-模板默认包含全部 section（Education / Research Experience / Publications & Presentations / Technical Skills / Teaching / Leadership / Honors）；agent 通过对话填充内容；有 `match.json` 时会按目标 PI 的 research_areas 重新排序、修剪。**Tailoring 只重排不发明** —— 不会编造经历、论文、技能。PDF 编译需要 TeX（MacTeX / TeX Live / MiKTeX）；最小化安装可能需要 `tlmgr install titlesec enumitem`。本地无 TeX 时 fallback 到"粘贴到 Overleaf"。Agent 操作约定见 [`SKILL.md`](SKILL.md) §"CV optimization (parallel workflow)"，per-section 编辑规则见 [`references/cv_optimization.md`](references/cv_optimization.md)。
+模板默认包含全部 section（Education / Research Experience / Publications & Presentations / Technical Skills / Teaching / Leadership / Honors）；agent 通过对话填充内容；有 `match.json` 时会按目标 PI 的 research_areas 重新排序，并可在你确认后删除明显不相关的旧条目。**Tailoring 只做重排和经用户确认的删减，不发明经历、论文或技能。**PDF 编译需要 TeX（MacTeX / TeX Live / MiKTeX）；最小化安装可能需要 `tlmgr install titlesec enumitem`。本地无 TeX 时 fallback 到"粘贴到 Overleaf"。Agent 操作约定见 [`SKILL.md`](SKILL.md) §"CV optimization (parallel workflow)"，per-section 编辑规则见 [`references/cv_optimization.md`](references/cv_optimization.md)。
 
 ### 每个候选的输出
 

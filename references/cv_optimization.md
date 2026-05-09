@@ -65,9 +65,18 @@ phdtaketaketake-cv-template --print > cv.tex
 phdtaketaketake-cv-compile cv.tex
 ```
 
-…produces a valid 1-page PDF with placeholder content, confirming the
-LaTeX install + custom commands + structure all work end-to-end before
-the user spends time personalizing.
+…should produce a valid 1-page PDF with placeholder content,
+confirming the LaTeX install + custom commands + structure all work
+end-to-end before the user spends time personalizing.
+
+**Required TeX surface area.** With a *standard* TeX install (full
+MacTeX, full TeX Live, full MiKTeX, or Debian's `texlive-latex-extra`)
+the template compiles immediately. *Minimal* TeX installs (BasicTeX,
+TinyTeX, or `texlive-latex-base` alone) typically need
+`tlmgr install titlesec enumitem` first — those two are in the
+`texlive-latex-extra` bundle, not the base install. The
+`compile_cv` ``tex_not_installed`` install hint surfaces this
+explicitly so users see the right next step on a fresh box.
 
 ## OPTIONAL_BLOCK convention
 
