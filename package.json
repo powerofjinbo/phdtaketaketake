@@ -38,7 +38,8 @@
     "pyproject.toml"
   ],
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/installer.test.js",
+    "prepack": "node scripts/clean_pycache.mjs"
   },
   "engines": {
     "node": ">=20"

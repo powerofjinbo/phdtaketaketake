@@ -1,0 +1,38 @@
+# Files this package should NEVER ship via npm.
+#
+# When package.json has a `files:` whitelist, npm uses it for file
+# selection but still recurses into whitelisted directories — meaning
+# Python build artifacts inside `phd_matcher/` end up in the published
+# wheel unless we explicitly exclude them here. `.gitignore` alone is
+# not enough because npm prefers `.npmignore` (or, with files:, ignores
+# .gitignore entirely).
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+*.egg-info/
+build/
+dist/
+
+# Node + dev artifacts
+node_modules/
+
+# OS / editor crud
+.DS_Store
+.idea/
+.vscode/
+
+# CV compile sandbox artifacts (LaTeX intermediate files)
+*.aux
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.out
+*.log
