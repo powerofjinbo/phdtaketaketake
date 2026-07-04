@@ -3,12 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import {
-  api,
-  type ApplyBucket,
-  type MatchResult,
-  type RunDetail,
-} from "@/lib/api";
+import type { ApplyBucket, MatchResult } from "@/lib/types";
+import { getRun, onRunsChanged, type StoredRun } from "@/lib/store";
+import { onEngineStatus } from "@/lib/engine";
 import StatusChip, { ACTIVE_STATUSES } from "@/components/StatusChip";
 import DisclaimerFooter from "@/components/DisclaimerFooter";
 
@@ -259,34 +256,27 @@ function ResultCard({ result, rank }: { result: MatchResult; rank: number }) {
 function RunView() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
-  const [run, setRun] = useState<RunDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [run, setRun] = useState<StoredRun | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [engineNote, setEngineNote] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    async function poll() {
-      try {
-        const detail = await api<RunDetail>(`/runs/${id}`);
-        if (cancelled) return;
-        setRun(detail);
-        setError(null);
-        if (ACTIVE_STATUSES.includes(detail.status)) {
-          timer = setTimeout(poll, 3000);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load run");
-      }
-    }
-    poll();
+    const refresh = () => setRun(id ? getRun(id) : null);
+    const t = setTimeout(() => {
+      refresh();
+      setLoaded(true);
+    }, 0);
+    if (!id) return () => clearTimeout(t);
+    const unsubRuns = onRunsChanged(refresh);
+    const unsubEngine = onEngineStatus((note) => setEngineNote(note));
     return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
+      clearTimeout(t);
+      unsubRuns();
+      unsubEngine();
     };
   }, [id]);
+
+  const notFound = loaded && (!id || !run);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
@@ -297,15 +287,18 @@ function RunView() {
         ← Back to dashboard
       </Link>
 
-      {(error || !id) && (
+      {notFound && (
         <p className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {id ? error : "No run id provided."}
+          {!id
+            ? "No run id provided."
+            : "This run was not found in this browser. Runs live in local storage on the device that started them."}{" "}
+          <Link href="/dashboard" className="text-indigo-300 underline">
+            Back to dashboard
+          </Link>
         </p>
       )}
 
-      {id && !run && !error && (
-        <p className="mt-10 text-sm text-zinc-500">Loading run…</p>
-      )}
+      {!loaded && <p className="mt-10 text-sm text-zinc-500">Loading run…</p>}
 
       {run && (
         <>
@@ -320,15 +313,30 @@ function RunView() {
               <p className="text-sm text-zinc-300">
                 {run.progress_note || "Working on your match run…"}
               </p>
+              {engineNote && (
+                <p className="mt-2 text-xs text-violet-300/90">{engineNote}</p>
+              )}
               <p className="mt-2 text-xs text-zinc-500">
-                Updates automatically every few seconds.
+                Runs in this browser — keep the tab open. Updates appear
+                automatically.
               </p>
             </div>
           )}
 
           {run.status === "error" && (
             <p className="mt-8 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {run.error || "This run failed. Please start a new one."}
+              {run.error || "This run failed. Please start a new one."}{" "}
+              <span className="block pt-2 text-red-200/80">
+                Check your key in{" "}
+                <Link href="/settings" className="text-indigo-300 underline">
+                  Settings
+                </Link>{" "}
+                or start a new run from the{" "}
+                <Link href="/dashboard" className="text-indigo-300 underline">
+                  Dashboard
+                </Link>
+                .
+              </span>
             </p>
           )}
 
@@ -345,8 +353,23 @@ function RunView() {
                 </section>
               )}
 
+              {run.field_caveats.length > 0 && (
+                <section className="mt-6 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] px-5 py-4">
+                  <h2 className="mb-1.5 text-sm font-medium text-violet-300">
+                    Field notes
+                  </h2>
+                  <ul className="list-inside list-disc space-y-1 text-sm text-zinc-400">
+                    {run.field_caveats.map((c) => (
+                      <li key={c}>{c}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               <div className="mt-8 space-y-6">
-                {(run.results ?? []).map((r, i) => (
+                {(
+                  (run.results ?? []) as unknown as MatchResult[]
+                ).map((r, i) => (
                   <ResultCard
                     key={`${r.candidate.name}-${r.candidate.institution}`}
                     result={r}

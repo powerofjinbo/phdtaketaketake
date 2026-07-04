@@ -25,7 +25,7 @@ const features = [
   },
   {
     title: "Risk-adjusted rankings",
-    body: "Missing or blocked sources widen the confidence band instead of being guessed. Rankings expose the lower bound, so you can plan for the worst case.",
+    body: "Missing or blocked sources widen the confidence band instead of being guessed. Rankings expose the lower bound, so you can plan for the worst case. The scoring engine itself runs in your browser (Python via Pyodide), so your data never leaves this device.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth={1.6}>
         <path d="M4 19h16M6 16V9M11 16V5M16 16v-6M21 16v-3" strokeLinecap="round" />
@@ -65,15 +65,14 @@ export default function Home() {
             Get your match report
           </Link>
           <Link
-            href="/login"
+            href="/dashboard"
             className="rounded-lg border border-white/15 px-6 py-3 font-medium text-zinc-300 transition-colors hover:border-white/30 hover:text-white"
           >
-            Log in
+            Open dashboard
           </Link>
         </div>
         <p className="animate-fade-up delay-300 mt-4 text-sm text-zinc-500">
-          No signup needed — start as a guest, create an account later to save
-          your data across devices.
+          No signup. No server. Your API key stays in your browser.
         </p>
       </section>
 

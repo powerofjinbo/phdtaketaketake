@@ -3,7 +3,7 @@ name: Deploy frontend to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: [app/frontend/**, .github/workflows/deploy-pages.yml]
+    paths: [app/frontend/**, phd_matcher/**, data/**, .github/workflows/deploy-pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -30,8 +30,6 @@ jobs:
       - run: npm run build
         working-directory: app/frontend
         env:
-          # Set PHDTAKE_API_URL as a repo variable pointing at your hosted backend
-          NEXT_PUBLIC_API_URL: ${{ vars.PHDTAKE_API_URL || 'http://localhost:8000' }}
           # Project pages are served under /<repo-name>
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
       - uses: actions/upload-pages-artifact@v3

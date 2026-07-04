@@ -2,129 +2,84 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, type LlmSettings, type Provider } from "@/lib/api";
+import {
+  PROVIDERS,
+  testKey,
+  type LlmSettings,
+  type Provider,
+} from "@/lib/llm";
+import { loadSettings, saveSettings } from "@/lib/store";
 
 const inputCls =
   "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
 const labelCls = "mb-1.5 block text-sm text-zinc-300";
 
-const PROVIDERS: {
-  value: Provider;
-  label: string;
-  webSearch: boolean;
-  defaultModel: string;
-}[] = [
-  {
-    value: "anthropic",
-    label: "Claude (Anthropic)",
-    webSearch: true,
-    defaultModel: "claude-sonnet-5",
-  },
-  { value: "openai", label: "OpenAI", webSearch: true, defaultModel: "gpt-5" },
-  {
-    value: "deepseek",
-    label: "DeepSeek",
-    webSearch: false,
-    defaultModel: "deepseek-chat",
-  },
-  {
-    value: "glm",
-    label: "GLM (Zhipu 智谱)",
-    webSearch: false,
-    defaultModel: "glm-4.6",
-  },
-  {
-    value: "gemini",
-    label: "Gemini (Google)",
-    webSearch: false,
-    defaultModel: "gemini-2.5-pro",
-  },
-  {
-    value: "minimax",
-    label: "MiniMax",
-    webSearch: false,
-    defaultModel: "MiniMax-M2",
-  },
-  {
-    value: "custom",
-    label: "Custom (OpenAI-compatible)",
-    webSearch: false,
-    defaultModel: "your model id",
-  },
-];
+// Registry order already puts Gemini (free key) right after Claude/OpenAI.
+const PROVIDER_ORDER = Object.keys(PROVIDERS) as Provider[];
 
 const STEPS = [
-  {
-    n: 1,
-    text: "Paste your LLM API key",
-    href: null as string | null,
-    label: "right below",
-  },
+  { n: 1, text: "Paste your LLM API key", href: null as string | null, label: "right below" },
   { n: 2, text: "Fill your profile (or import CV)", href: "/profile", label: "Profile" },
   { n: 3, text: "Run a match", href: "/dashboard", label: "Dashboard" },
 ];
 
 export default function SettingsPage() {
   const [provider, setProvider] = useState<Provider>("anthropic");
+  const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [hasKey, setHasKey] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{
-    kind: "ok" | "err";
-    text: string;
+  const [loaded, setLoaded] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
   } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    api<LlmSettings>("/settings")
-      .then((s) => {
-        if (cancelled) return;
+    const t = setTimeout(() => {
+      const s = loadSettings();
+      if (s) {
         setProvider(s.provider);
+        setApiKey(s.apiKey ?? "");
         setModel(s.model ?? "");
-        setBaseUrl(s.base_url ?? "");
-        setHasKey(s.has_key);
-      })
-      .catch(() => {
-        /* fresh settings */
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+        setBaseUrl(s.baseUrl ?? "");
+      }
+      setLoaded(true);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
-  const meta = PROVIDERS.find((p) => p.value === provider) ?? PROVIDERS[0];
+  const info = PROVIDERS[provider];
 
-  async function save(e: React.FormEvent) {
+  function currentSettings(): LlmSettings {
+    return {
+      provider,
+      apiKey: apiKey.trim(),
+      model: model.trim() || undefined,
+      baseUrl: provider === "custom" ? baseUrl.trim() || undefined : undefined,
+    };
+  }
+
+  function onSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setMessage(null);
+    saveSettings(currentSettings());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  async function onTest() {
+    setTesting(true);
+    setTestResult(null);
     try {
-      const body: Record<string, string> = { provider };
-      if (model.trim()) body.model = model.trim();
-      if (provider === "custom" && baseUrl.trim())
-        body.base_url = baseUrl.trim();
-      if (apiKey.trim()) body.api_key = apiKey.trim();
-      await api("/settings", { method: "PUT", body: JSON.stringify(body) });
-      if (apiKey.trim()) setHasKey(true);
-      setApiKey("");
-      setMessage({ kind: "ok", text: "Settings saved." });
-    } catch (err) {
-      setMessage({
-        kind: "err",
-        text: err instanceof Error ? err.message : "Failed to save settings",
-      });
+      setTestResult(await testKey(currentSettings()));
     } finally {
-      setSaving(false);
+      setTesting(false);
     }
   }
 
-  if (loading) {
+  if (!loaded) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-zinc-500">
         Loading settings…
@@ -168,7 +123,7 @@ export default function SettingsPage() {
       </div>
 
       <form
-        onSubmit={save}
+        onSubmit={onSave}
         className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6"
       >
         <h2 className="text-lg font-semibold text-white">LLM Provider</h2>
@@ -180,27 +135,30 @@ export default function SettingsPage() {
               <select
                 className={inputCls}
                 value={provider}
-                onChange={(e) => setProvider(e.target.value as Provider)}
+                onChange={(e) => {
+                  setProvider(e.target.value as Provider);
+                  setTestResult(null);
+                }}
               >
-                {PROVIDERS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
+                {PROVIDER_ORDER.map((p) => (
+                  <option key={p} value={p}>
+                    {PROVIDERS[p].label}
                   </option>
                 ))}
               </select>
               <span
                 className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs ${
-                  meta.webSearch
+                  info.webSearch
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                     : "border-amber-400/30 bg-amber-500/10 text-amber-300"
                 }`}
               >
-                {meta.webSearch ? "✅ live web search" : "⚠️ no web search"}
+                {info.webSearch ? "✅ live web search" : "⚠️ no web search"}
               </span>
             </div>
           </div>
 
-          {!meta.webSearch && (
+          {!info.webSearch && (
             <div className="rounded-xl border border-amber-400/30 bg-amber-500/[0.08] p-4 text-sm leading-relaxed text-amber-200">
               This provider has no web-search tool. The research agent will
               only suggest candidate names — every ranking will carry maximally
@@ -210,22 +168,33 @@ export default function SettingsPage() {
           )}
 
           <div>
-            <label className={labelCls}>
-              API key
-              {hasKey && (
-                <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
-                  key stored ✓
-                </span>
-              )}
-            </label>
+            <label className={labelCls}>API key</label>
             <input
               type="password"
               className={inputCls}
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={hasKey ? "Leave blank to keep existing key" : "sk-…"}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                setTestResult(null);
+              }}
+              placeholder="sk-…"
               autoComplete="off"
             />
+            <p className="mt-1.5 text-xs text-zinc-500">
+              {info.keyUrl && (
+                <>
+                  <a
+                    href={info.keyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-indigo-400 hover:underline"
+                  >
+                    Get a key →
+                  </a>{" "}
+                </>
+              )}
+              {info.keyNote}
+            </p>
           </div>
 
           <div>
@@ -234,7 +203,11 @@ export default function SettingsPage() {
               className={inputCls}
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              placeholder={`Default: ${meta.defaultModel}`}
+              placeholder={
+                info.defaultModel
+                  ? `Default: ${info.defaultModel}`
+                  : "e.g. llama-3.3-70b"
+              }
             />
           </div>
 
@@ -252,33 +225,76 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div className="rounded-xl border border-indigo-400/30 bg-indigo-500/[0.07] p-4 text-sm leading-relaxed text-zinc-300">
-            Anthropic and OpenAI providers run the research agent with live web
-            search. Other providers have no web-search tool — runs will have
-            much thinner evidence.
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-2.5 font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Save settings
+            </button>
+            <button
+              type="button"
+              onClick={onTest}
+              disabled={testing}
+              className="rounded-lg border border-white/15 px-5 py-2.5 text-sm text-zinc-300 transition-colors hover:border-indigo-400/50 hover:text-white disabled:opacity-50"
+            >
+              {testing ? "Testing…" : "Test key"}
+            </button>
+            {saved && <span className="text-sm text-emerald-400">Saved ✓</span>}
           </div>
 
-          {message && (
+          {testResult && (
             <p
-              className={
-                message.kind === "ok"
-                  ? "text-sm text-emerald-400"
-                  : "rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-              }
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                testResult.ok
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  : "border-red-500/30 bg-red-500/10 text-red-300"
+              }`}
             >
-              {message.text}
+              {testResult.ok ? "✓ " : "✗ "}
+              {testResult.message}
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-2.5 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save settings"}
-          </button>
+          <p className="text-xs leading-relaxed text-zinc-500">
+            Your key is stored only in this browser (localStorage) and sent
+            only to the provider you chose — there is no PhDTake server at all.
+          </p>
         </div>
       </form>
+
+      {/* Subscription explainer */}
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03]">
+        <button
+          type="button"
+          onClick={() => setSubOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-6 py-4 text-left text-sm font-medium text-zinc-200 hover:text-white"
+        >
+          <span>
+            Why can&apos;t I log in with my ChatGPT / Claude subscription?
+          </span>
+          <span
+            className={`text-zinc-500 transition-transform ${subOpen ? "rotate-180" : ""}`}
+          >
+            ▾
+          </span>
+        </button>
+        {subOpen && (
+          <div className="border-t border-white/10 px-6 py-4 text-sm leading-relaxed text-zinc-400">
+            <p>
+              Honest answer: LLM vendors do not let third-party apps use
+              consumer subscriptions — there is no public OAuth for ChatGPT
+              Plus or Claude Pro. API keys are the supported path for apps like
+              this one.
+            </p>
+            <p className="mt-2">
+              If you don&apos;t want to pay for another key: Gemini&apos;s API
+              key is free (Google AI Studio), and DeepSeek / GLM keys are very
+              cheap.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

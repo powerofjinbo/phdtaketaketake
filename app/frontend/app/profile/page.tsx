@@ -2,19 +2,41 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import {
-  api,
-  apiUpload,
-  ApiError,
-  type CvParseResponse,
-  type Advisor,
-  type Experience,
-  type GpaScale,
-  type OutputType,
-  type Paper,
-  type PaperStatus,
-  type StudentProfile,
-} from "@/lib/api";
+import type {
+  Advisor,
+  Experience,
+  GpaScale,
+  OutputType,
+  Paper,
+  PaperStatus,
+  StudentProfile,
+} from "@/lib/types";
+import { loadProfile, loadSettings, saveProfile } from "@/lib/store";
+import { validateProfile } from "@/lib/engine";
+import { completion } from "@/lib/llm";
+import { CV_PARSE_SYSTEM, extractCvProfile } from "@/lib/research";
+
+/** Extract text from the first pages of a PDF, entirely in-browser. */
+async function pdfToText(file: File, maxPages = 10): Promise<string> {
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() })
+    .promise;
+  const pages = Math.min(doc.numPages, maxPages);
+  let text = "";
+  for (let i = 1; i <= pages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    text +=
+      content.items
+        .map((it) => ("str" in it ? (it as { str: string }).str : ""))
+        .join(" ") + "\n";
+  }
+  return text;
+}
 
 const inputCls =
   "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
@@ -77,29 +99,27 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parsing, setParsing] = useState(false);
   const [cvError, setCvError] = useState<{
-    status: number | null;
+    needsSettings: boolean;
     text: string;
   } | null>(null);
   const [cvImported, setCvImported] = useState(false);
   const [cvWarnings, setCvWarnings] = useState<string[]>([]);
 
   useEffect(() => {
-    api<StudentProfile | null>("/profile")
-      .then((p) => {
-        if (p) {
-          setProfile({
-            ...emptyProfile,
-            ...p,
-            current_advisors: p.current_advisors ?? [],
-            papers: p.papers ?? [],
-            experiences: p.experiences ?? [],
-          });
-        }
-      })
-      .catch(() => {
-        /* new profile; 401 handled by api() */
-      })
-      .finally(() => setLoading(false));
+    const t = setTimeout(() => {
+      const p = loadProfile() as Partial<StudentProfile> | null;
+      if (p) {
+        setProfile({
+          ...emptyProfile,
+          ...p,
+          current_advisors: p.current_advisors ?? [],
+          papers: p.papers ?? [],
+          experiences: p.experiences ?? [],
+        });
+      }
+      setLoading(false);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   function set<K extends keyof StudentProfile>(
@@ -121,12 +141,27 @@ export default function ProfilePage() {
     setCvImported(false);
     setCvWarnings([]);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const { profile: parsed, warnings } = await apiUpload<CvParseResponse>(
-        "/profile/parse-cv",
-        formData
+      const settings = loadSettings();
+      if (!settings?.apiKey?.trim()) {
+        setCvError({
+          needsSettings: true,
+          text: "CV parsing uses your own LLM key, and none is configured yet.",
+        });
+        return;
+      }
+      const text = await pdfToText(file);
+      if (!text.trim()) {
+        throw new Error(
+          "Could not extract any text from this PDF (is it a scanned image?). Fill the form manually instead."
+        );
+      }
+      const reply = await completion(
+        settings,
+        CV_PARSE_SYSTEM,
+        "CV text:\n\n" + text.slice(0, 40000)
       );
+      const { profile: parsedRaw, warnings } = extractCvProfile(reply);
+      const parsed = parsedRaw as Partial<StudentProfile>;
       setProfile({
         ...emptyProfile,
         ...parsed,
@@ -140,7 +175,7 @@ export default function ProfilePage() {
       setMessage(null);
     } catch (err) {
       setCvError({
-        status: err instanceof ApiError ? err.status : null,
+        needsSettings: false,
         text: err instanceof Error ? err.message : "Failed to parse CV",
       });
     } finally {
@@ -154,11 +189,16 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage(null);
     try {
-      await api("/profile", {
-        method: "PUT",
-        body: JSON.stringify(profile),
-      });
-      setMessage({ kind: "ok", text: "Profile saved." });
+      const check = await validateProfile(profile);
+      if (!check.ok) {
+        setMessage({
+          kind: "err",
+          text: check.error || "The engine rejected this profile.",
+        });
+        return;
+      }
+      saveProfile(profile as unknown as Record<string, unknown>);
+      setMessage({ kind: "ok", text: "Profile saved (in this browser)." });
     } catch (err) {
       setMessage({
         kind: "err",
@@ -225,18 +265,28 @@ export default function ProfilePage() {
 
         {cvError && (
           <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {cvError.text}
-            {(cvError.status === 400 || cvError.status === 503) && (
+            {cvError.text}{" "}
+            {cvError.needsSettings ? (
               <>
-                {" "}
-                If you have not configured an LLM API key yet, add one in{" "}
+                Add your API key in{" "}
                 <Link
                   href="/settings"
                   className="text-indigo-300 underline hover:text-indigo-200"
                 >
                   Settings
-                </Link>
-                .
+                </Link>{" "}
+                first, then retry.
+              </>
+            ) : (
+              <>
+                You can also check your key in{" "}
+                <Link
+                  href="/settings"
+                  className="text-indigo-300 underline hover:text-indigo-200"
+                >
+                  Settings
+                </Link>{" "}
+                or fill the form manually below.
               </>
             )}
           </p>

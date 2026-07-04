@@ -5,23 +5,30 @@
 
 [中文](README.zh.md) · English
 
-## 🌐 Use the web app — no install, no signup
+## 🌐 Use the web app — no install, no signup, no server
 
 **→ https://powerofjinbo.github.io/phdtaketaketake/ ←**
 
-Open the link, paste your own LLM API key (Claude / OpenAI / DeepSeek / GLM /
-Gemini / MiniMax), fill your profile or import your CV PDF, and run a match.
-No account required — a guest session is created automatically. Your key is
-stored encrypted and used only for your own runs.
+The entire app runs **in your browser**:
 
-> Claude and OpenAI keys run the research agent with **live web search**
-> (evidence-cited rankings). Other providers have no web-search tool, so
-> they return suggestion-only candidates with maximally wide confidence
-> bands — honest, per the cardinal rule below.
+1. Paste your own LLM API key — **Gemini keys are free**
+   ([get one](https://aistudio.google.com/apikey)); Claude, OpenAI,
+   DeepSeek, GLM (智谱), MiniMax, or any OpenAI-compatible endpoint also
+   work. One click tests that your key really works.
+2. Fill your profile, or import your CV (PDF) and review what was parsed.
+3. Run a match — the research agent calls your LLM directly from the page,
+   and the **exact `phd_matcher` scoring engine from this repo runs
+   in-browser** (Python via Pyodide). No PhDTake server exists: your key
+   and data stay in your browser.
 
-The web app lives in [`app/`](app/) (FastAPI backend + Next.js frontend).
-Self-host the backend with one click:
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/powerofjinbo/phdtaketaketake)
+> Claude, OpenAI, and Gemini run the research agent with **live web search**
+> (evidence-cited rankings). DeepSeek / GLM / MiniMax have no web-search
+> tool, so they return suggestion-only candidates with maximally wide
+> confidence bands — honest, per the cardinal rule below.
+
+The web app's source lives in [`app/frontend`](app/frontend). (An optional
+self-hosted API twin lives in [`app/backend`](app/backend) — not required
+for the website.)
 
 > ⚠️ **Product boundary.** This is a **4.0-scale relative application-strength index, not an admission probability**. Missing or blocked sources widen the confidence band instead of being guessed.
 >
