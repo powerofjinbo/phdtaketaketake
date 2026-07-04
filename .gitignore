@@ -48,3 +48,11 @@ data/advisors_cache/
 
 # Notebook checkpoints
 .ipynb_checkpoints/
+
+# app (web product)
+app/backend/.venv/
+app/frontend/node_modules/
+app/frontend/.next/
+app/frontend/out/
+app/backend/*.db
+app/backend/.env

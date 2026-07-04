@@ -1,0 +1,13 @@
+fastapi>=0.111
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+pydantic[email]>=2.7
+bcrypt>=4.1
+PyJWT>=2.8
+anthropic>=0.40
+openai>=1.50
+cryptography>=42.0
+pypdf>=4.0
+python-multipart>=0.0.9
+python-dotenv>=1.0
+PyYAML>=6.0
