@@ -75,7 +75,14 @@ def test_invalid_position_raises():
 # ---- Aggregation ----
 
 def test_aggregate_no_papers_floor():
-    assert aggregate_papers([]) == pytest.approx(3.0)
+    assert aggregate_papers([]) == pytest.approx(2.0)
+
+
+def test_no_paper_floor_below_any_real_paper():
+    # Honesty invariant: reporting a real (even weak) paper must never score
+    # below reporting nothing. tier-5 first-author = 2.3 > NO_PAPER_FLOOR.
+    from phd_matcher.scoring.pub import NO_PAPER_FLOOR, TIER_BASELINE
+    assert NO_PAPER_FLOOR <= min(v for v in TIER_BASELINE.values() if v > 0)
 
 
 def test_aggregate_one_paper():
@@ -102,10 +109,16 @@ def test_aggregate_unsorted_input():
     assert aggregate_papers([2.0, 4.0, 3.0, 3.5]) == pytest.approx(expected)
 
 
+def test_aggregate_is_convex_average_by_design():
+    # Pinned: adding a weaker paper lowers the top-weighted average. This
+    # is intentional (consistency over one spike; anti-CV-padding), not a bug.
+    assert aggregate_papers([4.0, 2.3]) < aggregate_papers([4.0])
+
+
 # ---- pub_score end-to-end ----
 
 def test_pub_score_no_papers_returns_floor():
-    assert pub_score([]) == pytest.approx(3.0)
+    assert pub_score([]) == pytest.approx(2.0)
 
 
 def test_pub_score_full_pipeline():

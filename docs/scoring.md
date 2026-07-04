@@ -46,10 +46,16 @@ big-collab credit without inversion at lower tiers.
 Unknown status raises an error (no silent default to 1.0).
 
 **Multi-paper aggregation** (top-3 weighted):
-- 0 papers → `3.0` (floor)
+- 0 papers → `2.0` (no-paper floor; sits *below* the lowest real-paper
+  baseline of 2.3 so honestly reporting a weak paper never scores below
+  reporting none)
 - 1 paper → that paper's score
 - 2 papers → `0.7 · best + 0.3 · 2nd_best`
 - 3+ papers → `0.5 · best + 0.3 · 2nd + 0.2 · 3rd` (only top-3)
+
+Note: aggregation is a convex *average* of the top papers, bounded by the
+best score — adding a paper weaker than your current best can lower P. This
+is intentional (rewards a consistent body of work, resists CV-padding).
 
 ### 2. GPA Score (G)
 

@@ -41,7 +41,11 @@ POSITION_DECREMENT: dict[int, float] = {
 }
 
 BIG_COLLAB_FLOOR = 3.5
-NO_PAPER_FLOOR = 3.0
+# No-paper prior. MUST sit at/below the lowest real-paper baseline
+# (tier-5 first-author = 2.3) so that honestly reporting a weak paper never
+# scores *below* reporting nothing. A higher floor would reward hiding a real
+# publication — a direct contradiction of the evidence-first design.
+NO_PAPER_FLOOR = 2.0
 
 # v2: Big-collab guardrail (Sprint-2-c2). When total_authors exceeds the
 # field's big_collab_threshold AND no verified contribution_role exists,
@@ -301,7 +305,16 @@ def validate_paper_contributions(papers: list[dict]) -> list[str]:
 
 
 def aggregate_papers(scores: list[float]) -> float:
-    """Top-3 weighted aggregation."""
+    """Top-3 weighted aggregation.
+
+    This is a convex weighted *average* of the top papers, so it is bounded
+    by the best score: adding a paper weaker than your current best can
+    *lower* the aggregate (e.g. [4.0] → 4.0, but [4.0, 2.3] → 3.49). This is
+    intentional — P rewards a consistent body of strong work, not a single
+    spike padded with weak entries, and it composes with the big-collab /
+    consortium anti-inflation floors. The explainer surfaces this so a
+    counter-intuitive P is understood rather than distrusted.
+    """
     if not scores:
         return NO_PAPER_FLOOR
 
