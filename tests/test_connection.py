@@ -78,13 +78,13 @@ def test_collaboration_zero():
 def test_path_strength_strongest_plus_secondary_bonus():
     """v2 aggregation: strongest single edge + 0.10 × second-strongest,
     capped at 1.0, then × recency multiplier. With unknown recency
-    (default 0.75): max(0.8, 0.65) = 0.8; raw = 0.8 + 0.10·0.65 = 0.865;
-    final = 0.865 · 0.75 = 0.64875."""
+    (default 0.60): max(0.8, 0.65) = 0.8; raw = 0.8 + 0.10·0.65 = 0.865;
+    final = 0.865 · 0.60 = 0.519."""
     edges = {
         "small_team_coauthor_5y": 4,        # → 0.8
         "genealogy_relation": "same_advisor",  # → 0.65 (v2 recalibrated)
     }
-    assert path_strength(edges) == pytest.approx(0.64875)
+    assert path_strength(edges) == pytest.approx(0.519)
 
 
 def test_path_strength_rejects_legacy_coauthor_field():
@@ -124,28 +124,28 @@ def test_path_edge_accepts_minimal_valid():
 
 def test_path_strength_big_collab_alone_is_weak():
     """v2: 100 ATLAS papers gives only 0.10 raw (cap), times unknown
-    recency 0.75 → 0.075. Big-collab alphabetical author bulk does NOT
+    recency 0.60 → 0.06. Big-collab alphabetical author bulk does NOT
     create a strong connection — must be rescued by working-group /
     analysis-contact / co-mentored-student / shared-grant evidence."""
     edges = {"big_collab_papers_5y": 100}
-    assert path_strength(edges) == pytest.approx(0.075)
+    assert path_strength(edges) == pytest.approx(0.06)
 
 
 def test_path_strength_working_group_overrides_big_collab():
     """v2: working-group rescue. max=0.75 (WG), second=0.10 (big_collab);
-    raw = 0.75 + 0.10·0.10 = 0.76; × unknown recency 0.75 = 0.57.
+    raw = 0.75 + 0.10·0.10 = 0.76; × unknown recency 0.60 = 0.456.
     The big-collab presence adds a tiny secondary bonus; the headline
     strength is the working-group evidence."""
     edges = {"big_collab_papers_5y": 50, "same_working_group": True}
-    assert path_strength(edges) == pytest.approx(0.57)
+    assert path_strength(edges) == pytest.approx(0.456)
 
 
 def test_path_strength_analysis_contact_v2_recalibrated():
     """v2: analysis_contact_overlap is 0.70 (was 0.95). Recalibrated to
     fit the secondary-bonus + recency aggregation. With unknown recency
-    0.75: 0.70 · 0.75 = 0.525."""
+    0.60: 0.70 · 0.60 = 0.42."""
     edges = {"analysis_contact_overlap": True}
-    assert path_strength(edges) == pytest.approx(0.525)
+    assert path_strength(edges) == pytest.approx(0.42)
 
 
 def test_path_strength_empty():
@@ -194,8 +194,8 @@ def test_connection_score_no_advisor_returns_minimum_bucket():
 def test_connection_score_with_strong_path():
     """v2: small_team_coauthor=5 → raw 1.0 (capped). With explicit recent
     connection year (within 2y), recency=1.0; final raw=1.0 → bucket 4.0.
-    (Without `most_recent_connection_year`, recency falls to 0.75 →
-    raw=0.75 → bucket 3.7 — recency now matters.)"""
+    (Without `most_recent_connection_year`, recency falls to 0.60 →
+    raw=0.60 — recency now matters.)"""
     cand = {
         "normalized_collab_top20pct": 0.5,  # ignored by C (lives in A)
         "paths_to_advisors": {
@@ -330,12 +330,23 @@ def test_recency_decay_reduces_old_connection():
 
 
 def test_unknown_recency_uses_neutral_discount():
-    """v2: `most_recent_connection_year=None` → multiplier 0.75 ('we
-    didn't capture the year'). Distinct from a 0–2y recent connection
-    (1.0) and from an old verified one (≤0.60)."""
-    assert recency_multiplier(None) == 0.75
+    """v2: `most_recent_connection_year=None` → multiplier 0.60 ('we
+    didn't capture the year'; treated as the 6–10y known-gap level so
+    omitting the year never scores above a cited-but-old connection).
+    Distinct from a 0–2y recent connection (1.0) and a 10y+ one (0.35)."""
+    assert recency_multiplier(None) == 0.60
     edges = {"small_team_coauthor_5y": 5}   # no year set
-    assert path_strength(edges, current_year=2026) == pytest.approx(0.75)
+    assert path_strength(edges, current_year=2026) == pytest.approx(0.60)
+
+
+def test_unknown_recency_never_beats_a_cited_old_connection():
+    """Invariant (post-audit): omitting the connection year must NOT
+    point-estimate above a *cited* older connection. Unknown (0.60) sits at
+    the 6–10y level and below any fresher cited gap."""
+    unknown = recency_multiplier(None)
+    assert unknown == recency_multiplier(2018, current_year=2026)   # 8y gap → 0.60
+    assert unknown < recency_multiplier(2022, current_year=2026)    # 4y gap → 0.85
+    assert unknown < recency_multiplier(2025, current_year=2026)    # 1y gap → 1.00
 
 
 def test_secondary_signals_add_small_bonus_but_cap():

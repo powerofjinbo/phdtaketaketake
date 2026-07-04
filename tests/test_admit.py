@@ -4,6 +4,8 @@ import pytest
 
 from phd_matcher.scoring.admit import (
     application_strength,
+    application_strength_from_adj,
+    confidence_band_from_coverage,
     confidence_band_from_unverified,
     match_score,
     strength_label,
@@ -126,6 +128,42 @@ def test_confidence_band_some_unverified():
 def test_confidence_band_mostly_unverified():
     assert confidence_band_from_unverified(5) == 0.8
     assert confidence_band_from_unverified(99) == 0.8
+
+
+# ---- Coverage-fraction band (post-audit): rewards partial sourcing ----
+
+def test_coverage_band_endpoints():
+    assert confidence_band_from_coverage(0, 8) == 0.2   # fully sourced
+    assert confidence_band_from_coverage(8, 8) == 0.8   # fully unsourced
+
+
+def test_coverage_band_no_signals_falls_back_narrow():
+    assert confidence_band_from_coverage(0, 0) == 0.2
+
+
+def test_coverage_band_is_monotone_in_coverage():
+    # The audit's core fix: across a realistic 8-signal candidate, sourcing
+    # each additional signal must NARROW the band (strictly monotone), unlike
+    # the absolute-count band which saturated at 0.8 for any >=5 unverified.
+    # u = unverified count, from 8 (no coverage) down to 0 (full coverage);
+    # the band must strictly narrow as u falls.
+    bands = [confidence_band_from_coverage(u, 8) for u in range(8, -1, -1)]
+    assert bands == sorted(bands, reverse=True)         # strictly decreasing
+    assert len(set(bands)) == len(bands)                # every step distinct
+
+
+def test_coverage_band_beats_saturation_where_absolute_is_flat():
+    # 3-of-8 sourced (5 unverified) must be narrower than 0-of-8 (8 unverified).
+    # Under the old absolute band both were a flat 0.8.
+    assert confidence_band_from_coverage(5, 8) < confidence_band_from_coverage(8, 8)
+
+
+def test_from_adj_total_none_uses_legacy_absolute_band():
+    # Back-compat: omitting total_count reproduces the absolute-count band.
+    _, band = application_strength_from_adj(
+        3.0, 0.0, force_zero=False, unverified_count=5, total_count=None
+    )
+    assert band == 0.8
 
 
 def test_strength_labels():

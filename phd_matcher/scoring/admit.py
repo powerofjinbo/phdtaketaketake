@@ -57,16 +57,51 @@ NOT_RECRUITING_SIGNAL = "not_recruiting"
 # ---- Confidence band based on evidence coverage --------------------------
 
 def confidence_band_from_unverified(unverified_count: int) -> float:
-    """Wider band when more signals lack source citations.
+    """Wider band when more signals lack source citations (ABSOLUTE count).
 
     "Unverified" includes: missing PI signal, advisor-influence signals at
     default values without sources, empty / unsourced paths to advisors.
-    The matcher's caller (ranker) computes the count.
+
+    Legacy/simple form kept for direct callers and the v1
+    `application_strength` path. The ranker now prefers
+    :func:`confidence_band_from_coverage`, which uses the coverage *fraction*
+    so partial sourcing is rewarded even for candidates with many signals.
     """
     if unverified_count <= 0: return 0.2
     if unverified_count <= 2: return 0.4
     if unverified_count <= 4: return 0.6
     return 0.8
+
+
+# Band endpoints on the 4.0 scale. Fully-sourced → NARROW; fully-unsourced →
+# WIDE. The coverage-fraction band interpolates linearly between them so that
+# *every* additional sourced signal narrows the band — unlike the absolute
+# bucket form, which saturates at ≥5 unverified and gives a candidate who
+# sourced 3 of 8 signals the same band as one who sourced 0 of 8.
+BAND_NARROW = 0.2
+BAND_WIDE = 0.8
+
+
+def confidence_band_from_coverage(unverified: int, total: int) -> float:
+    """Band as a linear function of the *unverified fraction* of signals.
+
+    band = BAND_NARROW + (BAND_WIDE − BAND_NARROW) · (unverified / total)
+
+    - fully sourced (unverified=0)        → 0.2
+    - fully unsourced (unverified=total)  → 0.8
+    - partial coverage interpolates, so sourcing one more signal always
+      narrows the band (monotone in coverage). This restores an
+      evidence-first gradient across the realistic 5–15-signal operating
+      range, where the absolute-count band was a flat 0.8.
+
+    `total <= 0` (no signals to verify) falls back to the narrow endpoint —
+    there is nothing outstanding to widen the band. `unverified` is clamped
+    into `[0, total]` defensively.
+    """
+    if total <= 0:
+        return BAND_NARROW
+    frac = min(max(unverified, 0), total) / total
+    return round(BAND_NARROW + (BAND_WIDE - BAND_NARROW) * frac, 2)
 
 
 def application_strength(
@@ -108,6 +143,7 @@ def application_strength_from_adj(
     *,
     force_zero: bool,
     unverified_count: int = 0,
+    total_count: int | None = None,
 ) -> tuple[float, float]:
     """Returns (application_strength on 4.0, confidence_band on 4.0).
 
@@ -116,8 +152,16 @@ def application_strength_from_adj(
     `phd_matcher.scoring.opportunity.compute_opportunity_state`).
     `force_zero=True` means the effective `pi_signal == "not_recruiting"`
     and the strength must be clipped to 0.
+
+    When `total_count` is provided, the band uses the coverage *fraction*
+    (:func:`confidence_band_from_coverage`) so partial sourcing is rewarded.
+    When it is omitted (None), the legacy absolute-count band is used — this
+    preserves exact behavior for any direct caller that doesn't pass a total.
     """
-    band = confidence_band_from_unverified(unverified_count)
+    if total_count is None:
+        band = confidence_band_from_unverified(unverified_count)
+    else:
+        band = confidence_band_from_coverage(unverified_count, total_count)
 
     if force_zero:
         return (0.0, band)

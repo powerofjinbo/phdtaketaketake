@@ -518,7 +518,8 @@ def compute_match(
     # field-by-field merged O score → opportunity_adj.
     o_score, opp_adj, force_zero = opportunity.compute_opportunity_state(candidate)
     strength, band = admit.application_strength_from_adj(
-        m, opp_adj, force_zero=force_zero, unverified_count=cov.unverified,
+        m, opp_adj, force_zero=force_zero,
+        unverified_count=cov.unverified, total_count=cov.total,
     )
     risk_adj = _risk_adjusted(strength, band)
 

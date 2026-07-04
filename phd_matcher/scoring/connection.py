@@ -191,12 +191,13 @@ def recency_multiplier(
     current_year: int | None = None,
 ) -> float:
     """Map the gap between `most_recent_year` and `current_year` to a
-    multiplier. None → 0.75 (the agent didn't capture the year of last
-    contact). Future years (most_recent_year > current_year) clamp to
-    1.00 (treat as recent).
+    multiplier. None → 0.60 (the agent didn't capture the year of last
+    contact; treated as the 6–10y known-gap level so that omitting the year
+    never point-estimates *above* a cited-but-old connection). Future years
+    (most_recent_year > current_year) clamp to 1.00 (treat as recent).
     """
     if most_recent_year is None:
-        return 0.75
+        return 0.60
     if current_year is None:
         current_year = datetime.datetime.now().year
     gap = current_year - most_recent_year
