@@ -5,6 +5,24 @@
 
 [中文](README.zh.md) · English
 
+## 🌐 Use the web app — no install, no signup
+
+**→ https://powerofjinbo.github.io/phdtaketaketake/ ←**
+
+Open the link, paste your own LLM API key (Claude / OpenAI / DeepSeek / GLM /
+Gemini / MiniMax), fill your profile or import your CV PDF, and run a match.
+No account required — a guest session is created automatically. Your key is
+stored encrypted and used only for your own runs.
+
+> Claude and OpenAI keys run the research agent with **live web search**
+> (evidence-cited rankings). Other providers have no web-search tool, so
+> they return suggestion-only candidates with maximally wide confidence
+> bands — honest, per the cardinal rule below.
+
+The web app lives in [`app/`](app/) (FastAPI backend + Next.js frontend).
+Self-host the backend with one click:
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/powerofjinbo/phdtaketaketake)
+
 > ⚠️ **Product boundary.** This is a **4.0-scale relative application-strength index, not an admission probability**. Missing or blocked sources widen the confidence band instead of being guessed.
 >
 > phdtaketaketake is an **expert-designed heuristic decision-support system**, **not** an empirically calibrated admission probability predictor. All thresholds (CAPEG weights, recency multipliers, program-difficulty components, strategy bucket cutoffs, etc.) are v1/v2 defaults — they should be recalibrated against real portfolios over time. See [`docs/DESIGN.md`](docs/DESIGN.md) §11 for the design boundaries and §"Frozen scope" for what this skill explicitly will not do.

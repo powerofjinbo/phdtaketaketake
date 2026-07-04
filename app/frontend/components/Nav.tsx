@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { clearToken, getToken } from "@/lib/api";
+import { clearToken, getToken, isGuest } from "@/lib/api";
 
 function subscribeToAuth(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -14,18 +14,21 @@ function subscribeToAuth(callback: () => void) {
   };
 }
 
+type Session = "none" | "guest" | "account";
+
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const authed = useSyncExternalStore(
+  // "account" = real login; guest tokens are minted silently as needed.
+  const session = useSyncExternalStore<Session>(
     subscribeToAuth,
-    () => !!getToken(),
-    () => false
+    () => (getToken() ? (isGuest() ? "guest" : "account") : "none"),
+    () => "none"
   );
 
   function logout() {
     clearToken();
-    router.push("/login");
+    router.push("/");
   }
 
   const linkCls = (href: string) =>
@@ -45,32 +48,46 @@ export default function Nav() {
           </span>
         </Link>
         <nav className="flex items-center gap-1">
-          {authed ? (
-            <>
-              <Link href="/dashboard" className={linkCls("/dashboard")}>
-                Dashboard
-              </Link>
-              <Link href="/profile" className={linkCls("/profile")}>
-                Profile
-              </Link>
-              <Link href="/settings" className={linkCls("/settings")}>
-                Settings
-              </Link>
-              <button
-                onClick={logout}
-                className="ml-2 rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:border-white/25 hover:text-zinc-100"
-              >
-                Log out
-              </button>
-            </>
+          <Link href="/dashboard" className={linkCls("/dashboard")}>
+            Dashboard
+          </Link>
+          <Link href="/profile" className={linkCls("/profile")}>
+            Profile
+          </Link>
+          <Link href="/settings" className={linkCls("/settings")}>
+            Settings
+          </Link>
+
+          {session === "account" ? (
+            <button
+              onClick={logout}
+              className="ml-2 rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:border-white/25 hover:text-zinc-100"
+            >
+              Log out
+            </button>
           ) : (
             <>
-              <Link href="/login" className={linkCls("/login")}>
+              {session === "guest" && (
+                <span
+                  title="Your data lives in this browser. Create an account to keep it."
+                  className="ml-2 inline-flex cursor-help items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-0.5 text-xs text-amber-300"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Guest session
+                </span>
+              )}
+              <Link
+                href="/login"
+                className="ml-2 text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                title="Save your data across devices"
+              >
                 Log in
               </Link>
+              <span className="text-zinc-700">/</span>
               <Link
                 href="/register"
-                className="ml-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-600 px-3 py-1.5 text-sm font-medium text-white shadow-[0_0_16px_rgba(99,102,241,0.35)] transition-opacity hover:opacity-90"
+                className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                title="Save your data across devices"
               >
                 Sign up
               </Link>

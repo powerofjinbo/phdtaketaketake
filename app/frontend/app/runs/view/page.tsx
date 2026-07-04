@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   api,
-  getToken,
   type ApplyBucket,
   type MatchResult,
   type RunDetail,
@@ -260,15 +259,10 @@ function ResultCard({ result, rank }: { result: MatchResult; rank: number }) {
 function RunView() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
-  const router = useRouter();
   const [run, setRun] = useState<RunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
     if (!id) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -292,7 +286,7 @@ function RunView() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [id, router]);
+  }, [id]);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">

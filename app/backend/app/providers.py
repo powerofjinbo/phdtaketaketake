@@ -12,12 +12,25 @@ from .config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL, RESEARCH_MAX_WEB_SEARCHE
 from .crypto import decrypt
 from .models import UserSettings
 
-DEFAULT_MODELS = {
-    "anthropic": ANTHROPIC_MODEL,
-    "openai": "gpt-5",
-    "custom": "",
+# Provider presets. Everything except "anthropic" speaks the OpenAI wire
+# format; non-OpenAI vendors are reached via their OpenAI-compatible base
+# URLs. Only anthropic/openai expose a server-side web-search tool — the
+# rest run the research agent in honest no-web-search mode.
+PROVIDER_PRESETS: dict[str, dict] = {
+    "anthropic": {"model": ANTHROPIC_MODEL, "base_url": None},
+    "openai": {"model": "gpt-5", "base_url": None},
+    "deepseek": {"model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1"},
+    "glm": {"model": "glm-4.6", "base_url": "https://open.bigmodel.cn/api/paas/v4"},
+    "minimax": {"model": "MiniMax-M2", "base_url": "https://api.minimaxi.com/v1"},
+    "gemini": {
+        "model": "gemini-2.5-pro",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    },
+    "custom": {"model": "", "base_url": None},
 }
-PROVIDERS = tuple(DEFAULT_MODELS)
+PROVIDERS = tuple(PROVIDER_PRESETS)
+DEFAULT_MODELS = {k: v["model"] for k, v in PROVIDER_PRESETS.items()}
+WEB_SEARCH_PROVIDERS = ("anthropic", "openai")
 
 
 @dataclass
@@ -29,7 +42,7 @@ class LLMConfig:
 
     @property
     def has_web_search(self) -> bool:
-        return self.provider in ("anthropic", "openai")
+        return self.provider in WEB_SEARCH_PROVIDERS
 
 
 def resolve_llm_config(settings: UserSettings | None) -> LLMConfig | None:
@@ -38,11 +51,12 @@ def resolve_llm_config(settings: UserSettings | None) -> LLMConfig | None:
         key = decrypt(settings.api_key_encrypted)
         if key:
             provider = settings.provider if settings.provider in PROVIDERS else "anthropic"
+            preset = PROVIDER_PRESETS[provider]
             return LLMConfig(
                 provider=provider,
                 api_key=key,
-                model=settings.model or DEFAULT_MODELS[provider],
-                base_url=settings.base_url,
+                model=settings.model or preset["model"],
+                base_url=settings.base_url or preset["base_url"],
             )
     if ANTHROPIC_API_KEY:
         return LLMConfig(provider="anthropic", api_key=ANTHROPIC_API_KEY, model=ANTHROPIC_MODEL)

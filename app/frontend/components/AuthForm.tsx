@@ -39,8 +39,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
         </h1>
         <p className="mb-6 text-sm text-zinc-400">
           {mode === "login"
-            ? "Log in to view your match runs."
-            : "Sign up to start matching with advisors."}
+            ? "Optional — log in to access data you saved to an account."
+            : "Optional — create an account to save your data across devices. Guest mode works without one."}
         </p>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>

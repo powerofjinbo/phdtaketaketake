@@ -26,6 +26,20 @@ def register(body: Credentials, db: Session = Depends(get_db)):
     return {"access_token": create_token(user.id)}
 
 
+@router.post("/auth/guest")
+def guest(db: Session = Depends(get_db)):
+    """No-signup access: mint an anonymous account. The token in the
+    client's localStorage IS the identity — losing it loses the data,
+    which is the honest trade-off of guest mode."""
+    import secrets
+
+    email = f"guest-{secrets.token_hex(8)}@guest.phdtake"
+    user = User(email=email, password_hash=hash_password(secrets.token_hex(16)))
+    db.add(user)
+    db.commit()
+    return {"access_token": create_token(user.id), "guest": True}
+
+
 @router.post("/auth/login")
 def login(body: Credentials, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email.lower()).first()
@@ -36,4 +50,4 @@ def login(body: Credentials, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def me(user: User = Depends(get_current_user)):
-    return {"email": user.email}
+    return {"email": user.email, "guest": user.email.endswith("@guest.phdtake")}

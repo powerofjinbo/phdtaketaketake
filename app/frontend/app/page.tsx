@@ -59,7 +59,7 @@ export default function Home() {
         </p>
         <div className="animate-fade-up delay-300 mt-10 flex items-center justify-center gap-4">
           <Link
-            href="/register"
+            href="/settings"
             className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-3 font-medium text-white shadow-[0_0_28px_rgba(99,102,241,0.45)] transition-transform hover:scale-[1.03]"
           >
             Get your match report
@@ -71,6 +71,10 @@ export default function Home() {
             Log in
           </Link>
         </div>
+        <p className="animate-fade-up delay-300 mt-4 text-sm text-zinc-500">
+          No signup needed — start as a guest, create an account later to save
+          your data across devices.
+        </p>
       </section>
 
       <section className="relative mx-auto max-w-6xl px-6 pb-28">

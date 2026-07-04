@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, getToken, type RunSummary } from "@/lib/api";
+import { api, type RunSummary } from "@/lib/api";
 import StatusChip, { ACTIVE_STATUSES } from "@/components/StatusChip";
 
 const TIER_PRESETS = [
@@ -40,13 +40,9 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
     const t = setTimeout(fetchRuns, 0);
     return () => clearTimeout(t);
-  }, [fetchRuns, router]);
+  }, [fetchRuns]);
 
   // poll every 3s while any run is active
   useEffect(() => {
@@ -167,9 +163,40 @@ export default function DashboardPage() {
             </label>
 
             {error && (
-              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                {error}
-              </p>
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                <p>{error}</p>
+                <p className="mt-1.5 text-xs text-red-200/80">
+                  {/(profile|cv)/i.test(error) ? (
+                    <>
+                      Complete your{" "}
+                      <Link href="/profile" className="text-indigo-300 underline">
+                        profile
+                      </Link>{" "}
+                      first.
+                    </>
+                  ) : /(key|provider|settings|llm)/i.test(error) ? (
+                    <>
+                      Add an API key in{" "}
+                      <Link href="/settings" className="text-indigo-300 underline">
+                        Settings
+                      </Link>
+                      .
+                    </>
+                  ) : (
+                    <>
+                      Check your{" "}
+                      <Link href="/profile" className="text-indigo-300 underline">
+                        profile
+                      </Link>{" "}
+                      and{" "}
+                      <Link href="/settings" className="text-indigo-300 underline">
+                        settings
+                      </Link>
+                      .
+                    </>
+                  )}
+                </p>
+              </div>
             )}
 
             <button
