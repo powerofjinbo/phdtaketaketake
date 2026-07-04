@@ -1,7 +1,7 @@
 // The in-browser research → score pipeline. Mirrors the phdtaketaketake
 // skill's data-integrity contract: real sources only, missing beats guessed.
 
-import { agentTurn, hasWebSearch, type LlmSettings } from "./llm";
+import { agentTurn, completion, hasWebSearch, type LlmSettings } from "./llm";
 import { rankCandidates, onEngineStatus } from "./engine";
 import {
   newRunId,
@@ -114,46 +114,88 @@ export function startRun(input: StartRunInput): string {
     provider: input.settings.provider,
     status: "researching",
     progress_note: hasWebSearch(input.settings.provider)
-      ? "launching research agent (live web search)"
-      : "launching research agent (no web search on this provider — evidence will be thin)",
+      ? "Starting the research agent…"
+      : "Starting the research agent (this provider has no web search — evidence will be thin)…",
     results: null,
     portfolio_summary: null,
     field_caveats: [],
     error: null,
+    notice: null,
+    activity: [],
   };
   upsertRun(run);
   void pipeline(run, input);
   return id;
 }
 
+const MAX_ACTIVITY = 12;
+
 async function pipeline(run: StoredRun, input: StartRunInput) {
   const update = (patch: Partial<StoredRun>) => {
     Object.assign(run, patch);
     upsertRun(run);
   };
+  // Push a live activity line (deduped against the last one) + set it as the
+  // headline progress note.
+  const pushActivity = (line: string) => {
+    const activity = run.activity || [];
+    if (activity[activity.length - 1] === line) return;
+    const next = [...activity, line].slice(-MAX_ACTIVITY);
+    update({ activity: next, progress_note: line });
+  };
   try {
+    const webSearch = hasWebSearch(input.settings.provider);
     const system =
-      RESEARCH_SYSTEM +
-      (hasWebSearch(input.settings.provider) ? "" : NO_WEB_SEARCH_ADDENDUM);
+      RESEARCH_SYSTEM + (webSearch ? "" : NO_WEB_SEARCH_ADDENDUM);
     const userMsg =
       "Student profile (JSON):\n" +
       JSON.stringify(input.profile, null, 2) +
       `\n\nTarget programs: ${input.target}\n\n` +
       "Research candidate PIs now. Use web search extensively. Then output " +
       "the final candidates JSON array in a single ```json fenced block.";
-    const text = await agentTurn(input.settings, system, userMsg, (note) =>
-      update({ progress_note: note })
+
+    pushActivity(
+      webSearch
+        ? "Finding candidate advisors in your field and searching the web for evidence…"
+        : "Drafting candidate advisors (no web search on this provider)…"
     );
-    const rawCandidates = extractJsonArray(text);
+    const text = await agentTurn(input.settings, system, userMsg, pushActivity);
+
+    // Robust extraction with one repair round: weaker models sometimes wrap
+    // or omit the fenced JSON. If we can't parse it, ask once for JSON only.
+    let rawCandidates: unknown[];
+    try {
+      rawCandidates = extractJsonArray(text);
+    } catch {
+      pushActivity("Tidying up the results into a candidate list…");
+      const repaired = await completion(
+        input.settings,
+        "You reformat text into strict JSON. Output ONLY a JSON array (in a ```json fenced block) of the candidate objects described, with no commentary.",
+        "Extract every candidate object from the following into a JSON array:\n\n" +
+          text.slice(0, 40000)
+      );
+      rawCandidates = extractJsonArray(repaired);
+    }
+
+    if (!rawCandidates.length) {
+      update({
+        status: "error",
+        error:
+          "The research agent didn't return any candidates. This usually means the model couldn't find matching advisors — try a broader target (e.g. top 30 instead of a single school), a clearer research direction in your profile, or a stronger model in Settings.",
+      });
+      return;
+    }
+
     update({
       status: "scoring",
-      progress_note: `${rawCandidates.length} candidates discovered; scoring in-browser`,
+      progress_note: `Scoring ${rawCandidates.length} candidates in your browser…`,
     });
     // First-ever run downloads ~13 MB of Pyodide here — keep the run's
     // heartbeat fresh (and show progress) via the engine's status notes, so
     // the stale-run reaper doesn't mistake a slow download for an orphan.
     const unsubscribe = onEngineStatus((note) => update({ progress_note: note }));
     let out;
+    let notice: string | null = null;
     try {
       out = await rankCandidates(
         input.profile,
@@ -161,6 +203,18 @@ async function pipeline(run: StoredRun, input: StartRunInput) {
         input.topK,
         input.strict
       );
+      // Graceful strict-mode fallback: if strict-evidence mode rejected every
+      // candidate (common with models that don't attach full citations),
+      // don't dead-end — re-score without the strict gate and flag it. The
+      // engine already widens confidence bands for unsourced signals, which
+      // is the honest way to show low-evidence rankings.
+      if (out.error && input.strict) {
+        out = await rankCandidates(input.profile, rawCandidates, input.topK, false);
+        if (!out.error) {
+          notice =
+            "Strict-evidence mode found no candidates with complete citations, so these are exploratory rankings with wide confidence bands — treat them as a first pass, not decision-grade. Re-run with a web-search model (Claude, OpenAI, or Gemini) for cited evidence.";
+        }
+      }
     } finally {
       unsubscribe();
     }
@@ -169,10 +223,9 @@ async function pipeline(run: StoredRun, input: StartRunInput) {
         status: "error",
         error:
           out.error +
-          (out.strict_errors?.length
-            ? ` — strict rejections: ${out.strict_errors.join("; ")}`
-            : "") +
-          (out.dropped?.length ? ` — schema drops: ${out.dropped.join("; ")}` : ""),
+          (out.dropped?.length
+            ? ` (${out.dropped.length} candidate(s) had malformed data.)`
+            : ""),
       });
       return;
     }
@@ -181,7 +234,8 @@ async function pipeline(run: StoredRun, input: StartRunInput) {
       results: out.results || [],
       portfolio_summary: out.portfolio_summary || null,
       field_caveats: out.field_caveats || [],
-      progress_note: `done — ${out.results?.length ?? 0} ranked candidates`,
+      notice,
+      progress_note: `Done — ${out.results?.length ?? 0} ranked candidates.`,
     });
   } catch (e) {
     let msg = e instanceof Error ? e.message : String(e);

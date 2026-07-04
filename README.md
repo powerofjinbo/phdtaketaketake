@@ -1,38 +1,61 @@
-# phdtaketaketake
+<h1 align="center">phdtaketaketake</h1>
 
-> **PhD advisor matching and application triage assistant.** Connection-first, evidence-first. Packaged as a **Claude Code skill** — also works on **QClaw**, Codex CLI, Cursor, and any LLM agent that can read SKILL.md.
-> Find the right advisor by network strength, not h-index.
+<p align="center">
+  <b>Find the right PhD advisor by network strength and cited evidence — not h-index.</b><br>
+  A connection-first, evidence-first advisor matcher and application-triage assistant.
+</p>
 
-[中文](README.zh.md) · English
+<p align="center">
+  <a href="https://powerofjinbo.github.io/phdtaketaketake/"><b>🌐 Open the web app</b></a>
+  &nbsp;·&nbsp; <a href="#2-as-an-agent-skill">Use as an agent skill</a>
+  &nbsp;·&nbsp; <a href="README.zh.md">中文</a>
+</p>
 
-## 🌐 Use the web app — no install, no signup, no server
+---
 
-**→ https://powerofjinbo.github.io/phdtaketaketake/ ←**
+## Two ways to use it
 
-The entire app runs **in your browser**:
+### 1. The web app — no install, no signup, no server
 
-1. Paste your own LLM API key — **Gemini keys are free**
-   ([get one](https://aistudio.google.com/apikey)); Claude, OpenAI,
-   DeepSeek, GLM (智谱), MiniMax, or any OpenAI-compatible endpoint also
-   work. One click tests that your key really works.
-2. Fill your profile, or import your CV (PDF) and review what was parsed.
-3. Run a match — the research agent calls your LLM directly from the page,
-   and the **exact `phd_matcher` scoring engine from this repo runs
-   in-browser** (Python via Pyodide). No PhDTake server exists: your key
-   and data stay in your browser.
+**→ https://powerofjinbo.github.io/phdtaketaketake/**
 
-> Claude, OpenAI, and Gemini run the research agent with **live web search**
-> (evidence-cited rankings). DeepSeek / GLM / MiniMax have no web-search
-> tool, so they return suggestion-only candidates with maximally wide
-> confidence bands — honest, per the cardinal rule below.
+Everything runs **in your browser**. Your API key and data never leave your device.
 
-The web app's source lives in [`app/frontend`](app/frontend). (An optional
-self-hosted API twin lives in [`app/backend`](app/backend) — not required
-for the website.)
+1. **Add a key** in Settings (one click tests it) — **[Gemini is free](https://aistudio.google.com/apikey)**.
+2. **Add your profile**, or import your CV (PDF) and review the parse.
+3. **Run a match** — an AI agent researches candidate advisors and the exact
+   `phd_matcher` engine from this repo scores them, all client-side (Python
+   via Pyodide).
 
-> ⚠️ **Product boundary.** This is a **4.0-scale relative application-strength index, not an admission probability**. Missing or blocked sources widen the confidence band instead of being guessed.
->
-> phdtaketaketake is an **expert-designed heuristic decision-support system**, **not** an empirically calibrated admission probability predictor. All thresholds (CAPEG weights, recency multipliers, program-difficulty components, strategy bucket cutoffs, etc.) are v1/v2 defaults — they should be recalibrated against real portfolios over time. See [`docs/DESIGN.md`](docs/DESIGN.md) §11 for the design boundaries and §"Frozen scope" for what this skill explicitly will not do.
+**Which model?**
+
+| Provider | Cost | Web search | Notes |
+|---|---|---|---|
+| **Gemini** (`gemini-2.5-pro`) | **Free** | ✅ | **Recommended free choice.** Switch to `gemini-2.5-flash` if you hit rate limits. |
+| Claude / OpenAI | Paid API | ✅ | Strongest evidence-cited results. |
+| DeepSeek / GLM / MiniMax / custom | Cheap / varies | ❌ | No web search → suggestion-only candidates with wide confidence bands. |
+
+> Web search is what lets the agent *cite* evidence. Without it, rankings are
+> honest guesses with maximally wide confidence bands rather than fabricated
+> facts. Free models without web search (Groq, OpenRouter, etc.) work but
+> produce thin evidence — for cited results use Gemini (free), Claude, or OpenAI.
+
+The web app lives in [`app/frontend`](app/frontend); a self-hosted FastAPI
+twin is in [`app/backend`](app/backend) (optional, not needed for the site).
+
+### 2. As an agent skill
+
+Packaged as a **Claude Code skill** — also works on QClaw, Codex CLI, Cursor,
+and any agent that reads `SKILL.md`. See [Install](#install) below.
+
+---
+
+> ⚠️ **Product boundary.** This is a **4.0-scale relative application-strength
+> index, not an admission probability**. Missing or blocked sources widen the
+> confidence band instead of being guessed. It is an **expert-designed
+> heuristic decision-support system**, not an empirically calibrated predictor —
+> all thresholds are defaults meant to be recalibrated against real portfolios.
+> See [`docs/DESIGN.md`](docs/DESIGN.md) §11.
 
 ## Install
 

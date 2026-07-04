@@ -38,13 +38,13 @@ export const PROVIDERS: Record<Provider, ProviderInfo> = {
     keyNote: "Paid API key. Live web search — evidence-cited rankings.",
   },
   gemini: {
-    label: "Gemini (Google) — free tier",
-    defaultModel: "gemini-2.5-flash",
+    label: "Gemini (Google) — free",
+    defaultModel: "gemini-2.5-pro",
     baseUrl: null,
     webSearch: true, // native google_search grounding
     keyUrl: "https://aistudio.google.com/apikey",
     keyNote:
-      "FREE API key from Google AI Studio (generous free tier). Web search via Google grounding.",
+      "FREE API key from Google AI Studio, with live web search. Defaults to gemini-2.5-pro (strongest free option). If you hit rate limits, set the model to gemini-2.5-flash for higher throughput. This is the recommended free choice.",
   },
   deepseek: {
     label: "DeepSeek",
@@ -125,9 +125,61 @@ export async function agentTurn(
 ): Promise<string> {
   if (s.provider === "anthropic")
     return anthropicTurn(s, system, userMsg, onProgress);
-  if (s.provider === "openai") return openaiResponsesTurn(s, system, userMsg);
-  if (s.provider === "gemini") return geminiTurn(s, system, userMsg, true);
+  if (s.provider === "openai")
+    return openaiResponsesTurn(s, system, userMsg, onProgress);
+  if (s.provider === "gemini") return geminiTurn(s, system, userMsg, true, onProgress);
   return openaiChatTurn(s, system, userMsg);
+}
+
+// ---------------------------------------------------------------------------
+// Streaming plumbing — lets the UI show live research stages. Every streaming
+// path falls back to its proven blocking implementation on any non-HTTP error
+// (parse issue, unsupported stream, rare Anthropic pause_turn), so a streaming
+// bug can never break a real run.
+// ---------------------------------------------------------------------------
+
+class StreamHttpError extends Error {} // a real API/auth error — never fall back
+
+async function readSSE(
+  resp: Response,
+  onEvent: (payload: string) => void
+): Promise<void> {
+  const reader = resp.body?.getReader();
+  if (!reader) throw new Error("no stream body");
+  const decoder = new TextDecoder();
+  let buf = "";
+  const emit = (chunk: string) => {
+    for (const line of chunk.split("\n")) {
+      const t = line.trim();
+      if (t.startsWith("data:")) {
+        const payload = t.slice(5).trim();
+        if (payload && payload !== "[DONE]") onEvent(payload);
+      }
+    }
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) !== -1) {
+      emit(buf.slice(0, idx));
+      buf = buf.slice(idx + 2);
+    }
+  }
+  if (buf.trim()) emit(buf); // flush a final event with no trailing blank line
+}
+
+// Throttle noisy "analyzing…" ticks so we don't hammer localStorage.
+function throttled(fn: (s: string) => void, ms: number): (s: string) => void {
+  let last = 0;
+  return (s: string) => {
+    const now = Date.now();
+    if (now - last >= ms) {
+      last = now;
+      fn(s);
+    }
+  };
 }
 
 // Short one-shot completion (CV parsing) — no web search needed.
@@ -186,7 +238,87 @@ function anthropicHeaders(s: LlmSettings): Record<string, string> {
   };
 }
 
-async function anthropicTurn(
+function anthropicBody(s: LlmSettings, system: string, messages: unknown[], stream: boolean) {
+  return JSON.stringify({
+    model: resolvedModel(s),
+    max_tokens: 16000,
+    system,
+    messages,
+    stream,
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 40 }],
+  });
+}
+
+async function anthropicStream(
+  s: LlmSettings,
+  system: string,
+  userMsg: string,
+  onProgress?: (note: string) => void
+): Promise<string> {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: anthropicHeaders(s),
+    body: anthropicBody(s, system, [{ role: "user", content: userMsg }], true),
+  });
+  if (!resp.ok) throw new StreamHttpError(await readError(resp));
+
+  let text = "";
+  let searches = 0;
+  let curSearchInput = "";
+  let inSearch = false;
+  let stopReason: string | null = null;
+  const tick = throttled(
+    (n: string) => onProgress?.(n),
+    900
+  );
+
+  await readSSE(resp, (payload) => {
+    let ev: Record<string, unknown>;
+    try {
+      ev = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    const type = ev.type as string;
+    if (type === "content_block_start") {
+      const cb = (ev.content_block ?? {}) as Record<string, unknown>;
+      if (cb.type === "server_tool_use" && cb.name === "web_search") {
+        inSearch = true;
+        curSearchInput = "";
+        searches++;
+      }
+    } else if (type === "content_block_delta") {
+      const d = (ev.delta ?? {}) as Record<string, unknown>;
+      if (d.type === "text_delta") {
+        text += (d.text as string) || "";
+        tick(`Analyzing sources and drafting candidates… (${searches} web search${searches === 1 ? "" : "es"} so far)`);
+      } else if (d.type === "input_json_delta") {
+        curSearchInput += (d.partial_json as string) || "";
+      }
+    } else if (type === "content_block_stop") {
+      if (inSearch) {
+        inSearch = false;
+        try {
+          const q = JSON.parse(curSearchInput).query;
+          if (q) onProgress?.(`Searching the web: “${q}”`);
+        } catch {
+          onProgress?.(`Searching the web… (${searches})`);
+        }
+      }
+    } else if (type === "message_delta") {
+      const delta = (ev.delta ?? {}) as Record<string, unknown>;
+      if (delta.stop_reason) stopReason = delta.stop_reason as string;
+    }
+  });
+
+  // Rare long turns pause for continuation — the blocking loop handles that
+  // cleanly, so fall back rather than reconstruct tool state from the stream.
+  if (stopReason === "pause_turn") throw new Error("pause_turn");
+  if (!text.trim()) throw new Error("empty stream");
+  return text;
+}
+
+async function anthropicBlocking(
   s: LlmSettings,
   system: string,
   userMsg: string,
@@ -199,15 +331,7 @@ async function anthropicTurn(
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: anthropicHeaders(s),
-      body: JSON.stringify({
-        model: resolvedModel(s),
-        max_tokens: 16000,
-        system,
-        messages,
-        tools: [
-          { type: "web_search_20250305", name: "web_search", max_uses: 40 },
-        ],
-      }),
+      body: anthropicBody(s, system, messages, false),
     });
     if (!resp.ok) throw new Error(await readError(resp));
     const data = await resp.json();
@@ -215,7 +339,7 @@ async function anthropicTurn(
       if (block.type === "server_tool_use") searches++;
       else if (block.type === "text") text += block.text;
     }
-    onProgress?.(`research agent: ${searches} web searches so far`);
+    onProgress?.(`Analyzing sources… (${searches} web searches)`);
     if (data.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: data.content });
       continue;
@@ -225,23 +349,76 @@ async function anthropicTurn(
   return text;
 }
 
-async function openaiResponsesTurn(
+async function anthropicTurn(
+  s: LlmSettings,
+  system: string,
+  userMsg: string,
+  onProgress?: (note: string) => void
+): Promise<string> {
+  try {
+    return await anthropicStream(s, system, userMsg, onProgress);
+  } catch (e) {
+    if (e instanceof StreamHttpError) throw e; // real API/auth error
+    return await anthropicBlocking(s, system, userMsg, onProgress);
+  }
+}
+
+function openaiResponsesBody(s: LlmSettings, system: string, userMsg: string, stream: boolean) {
+  return JSON.stringify({
+    model: resolvedModel(s),
+    instructions: system,
+    input: userMsg,
+    stream,
+    tools: [{ type: "web_search" }],
+  });
+}
+
+async function openaiResponsesStream(
+  s: LlmSettings,
+  system: string,
+  userMsg: string,
+  onProgress?: (note: string) => void
+): Promise<string> {
+  const resp = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.apiKey}` },
+    body: openaiResponsesBody(s, system, userMsg, true),
+  });
+  if (!resp.ok) throw new StreamHttpError(await readError(resp));
+  let text = "";
+  let searches = 0;
+  const tick = throttled((n: string) => onProgress?.(n), 900);
+  await readSSE(resp, (payload) => {
+    let ev: Record<string, unknown>;
+    try {
+      ev = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    const type = ev.type as string;
+    if (type === "response.output_text.delta") {
+      text += (ev.delta as string) || "";
+      tick(`Analyzing sources and drafting candidates… (${searches} web search${searches === 1 ? "" : "es"} so far)`);
+    } else if (type && type.startsWith("response.web_search_call")) {
+      if (type.endsWith(".in_progress") || type.endsWith(".searching")) {
+        searches++;
+        onProgress?.(`Searching the web… (${searches})`);
+      }
+    }
+  });
+  if (!text.trim()) throw new Error("empty stream");
+  return text;
+}
+
+async function openaiResponsesBlocking(
   s: LlmSettings,
   system: string,
   userMsg: string
 ): Promise<string> {
   const resp = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${s.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: resolvedModel(s),
-      instructions: system,
-      input: userMsg,
-      tools: [{ type: "web_search" }],
-    }),
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.apiKey}` },
+    body: openaiResponsesBody(s, system, userMsg, false),
   });
   if (!resp.ok) throw new Error(await readError(resp));
   const data = await resp.json();
@@ -256,35 +433,104 @@ async function openaiResponsesTurn(
   return text || data.output_text || "";
 }
 
-async function geminiTurn(
+async function openaiResponsesTurn(
+  s: LlmSettings,
+  system: string,
+  userMsg: string,
+  onProgress?: (note: string) => void
+): Promise<string> {
+  try {
+    return await openaiResponsesStream(s, system, userMsg, onProgress);
+  } catch (e) {
+    if (e instanceof StreamHttpError) throw e;
+    return await openaiResponsesBlocking(s, system, userMsg);
+  }
+}
+
+function geminiUrl(model: string, method: string): string {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:${method}`;
+}
+
+function geminiBody(system: string, userMsg: string, withSearch: boolean) {
+  return JSON.stringify({
+    system_instruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: userMsg }] }],
+    ...(withSearch ? { tools: [{ google_search: {} }] } : {}),
+    generationConfig: { maxOutputTokens: 16000 },
+  });
+}
+
+async function geminiStream(
+  s: LlmSettings,
+  system: string,
+  userMsg: string,
+  withSearch: boolean,
+  onProgress?: (note: string) => void
+): Promise<string> {
+  const resp = await fetch(geminiUrl(resolvedModel(s), "streamGenerateContent") + "?alt=sse", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": s.apiKey },
+    body: geminiBody(system, userMsg, withSearch),
+  });
+  if (!resp.ok) throw new StreamHttpError(await readError(resp));
+  let text = "";
+  const seenQueries = new Set<string>();
+  const tick = throttled((n: string) => onProgress?.(n), 900);
+  await readSSE(resp, (payload) => {
+    let ev: Record<string, unknown>;
+    try {
+      ev = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    const cand = (ev.candidates as Record<string, unknown>[] | undefined)?.[0];
+    if (!cand) return;
+    const parts = ((cand.content as Record<string, unknown>)?.parts as { text?: string }[]) || [];
+    for (const p of parts) if (p.text) text += p.text;
+    const gm = cand.groundingMetadata as Record<string, unknown> | undefined;
+    const queries = (gm?.webSearchQueries as string[]) || [];
+    for (const q of queries) {
+      if (!seenQueries.has(q)) {
+        seenQueries.add(q);
+        onProgress?.(`Searching the web: “${q}”`);
+      }
+    }
+    if (text) tick("Analyzing sources and drafting candidates…");
+  });
+  if (!text.trim()) throw new Error("empty stream");
+  return text;
+}
+
+async function geminiBlocking(
   s: LlmSettings,
   system: string,
   userMsg: string,
   withSearch: boolean
 ): Promise<string> {
-  const model = resolvedModel(s);
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": s.apiKey,
-      },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: userMsg }] }],
-        ...(withSearch ? { tools: [{ google_search: {} }] } : {}),
-        generationConfig: { maxOutputTokens: 16000 },
-      }),
-    }
-  );
+  const resp = await fetch(geminiUrl(resolvedModel(s), "generateContent"), {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": s.apiKey },
+    body: geminiBody(system, userMsg, withSearch),
+  });
   if (!resp.ok) throw new Error(await readError(resp));
   const data = await resp.json();
   const parts = data.candidates?.[0]?.content?.parts || [];
-  return parts
-    .map((p: { text?: string }) => p.text || "")
-    .join("");
+  return parts.map((p: { text?: string }) => p.text || "").join("");
+}
+
+async function geminiTurn(
+  s: LlmSettings,
+  system: string,
+  userMsg: string,
+  withSearch: boolean,
+  onProgress?: (note: string) => void
+): Promise<string> {
+  try {
+    return await geminiStream(s, system, userMsg, withSearch, onProgress);
+  } catch (e) {
+    if (e instanceof StreamHttpError) throw e;
+    return await geminiBlocking(s, system, userMsg, withSearch);
+  }
 }
 
 async function openaiChatTurn(

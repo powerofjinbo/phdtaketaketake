@@ -58,6 +58,12 @@ export interface StoredRun {
   portfolio_summary: string | null;
   field_caveats: string[];
   error: string | null;
+  // Non-fatal banner shown on a completed run (e.g. strict-evidence mode
+  // found no fully-cited candidates, so we fell back to wide-band scoring).
+  notice: string | null;
+  // Live activity feed during research — the most recent stage lines, newest
+  // last. Lets the user watch what the agent is doing instead of a blank spin.
+  activity: string[];
   // Heartbeat: bumped on every pipeline update. A run left "researching"/
   // "scoring" whose heartbeat has gone stale was orphaned by a reload/tab
   // close (the pipeline only lives in the tab that started it) — the reaper

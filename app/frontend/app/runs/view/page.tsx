@@ -308,15 +308,38 @@ function RunView() {
           </div>
 
           {ACTIVE_STATUSES.includes(run.status) && (
-            <div className="mt-8 rounded-2xl border border-indigo-400/20 bg-indigo-500/[0.06] p-8 text-center">
-              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-indigo-400/30 border-t-indigo-400" />
-              <p className="text-sm text-zinc-300">
-                {run.progress_note || "Working on your match run…"}
-              </p>
+            <div className="mt-8 rounded-2xl border border-indigo-400/20 bg-indigo-500/[0.06] p-8">
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-400/30 border-t-indigo-400" />
+                <p className="text-sm font-medium text-zinc-200">
+                  {run.progress_note || "Working on your match run…"}
+                </p>
+              </div>
               {engineNote && (
-                <p className="mt-2 text-xs text-violet-300/90">{engineNote}</p>
+                <p className="mt-3 text-center text-xs text-violet-300/90">
+                  {engineNote}
+                </p>
               )}
-              <p className="mt-2 text-xs text-zinc-500">
+              {(run.activity?.length ?? 0) > 0 && (
+                <ul className="mx-auto mt-5 max-w-lg space-y-1.5">
+                  {run.activity!.slice(-6).map((line, i, arr) => (
+                    <li
+                      key={`${i}-${line}`}
+                      className={`flex items-start gap-2 text-xs ${
+                        i === arr.length - 1
+                          ? "text-zinc-300"
+                          : "text-zinc-500"
+                      }`}
+                    >
+                      <span className="mt-0.5 text-indigo-400/70">
+                        {i === arr.length - 1 ? "▸" : "·"}
+                      </span>
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-5 text-center text-xs text-zinc-500">
                 Runs in this browser — keep the tab open. Updates appear
                 automatically.
               </p>
@@ -342,6 +365,12 @@ function RunView() {
 
           {run.status === "done" && (
             <>
+              {run.notice && (
+                <p className="mt-8 rounded-xl border border-amber-400/30 bg-amber-500/[0.08] px-5 py-4 text-sm text-amber-100/90">
+                  <span className="font-medium text-amber-300">Heads up: </span>
+                  {run.notice}
+                </p>
+              )}
               {run.portfolio_summary && (
                 <section className="glass mt-8 rounded-2xl p-6">
                   <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-indigo-300">
