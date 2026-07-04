@@ -195,24 +195,42 @@ async function pipeline(run: StoredRun, input: StartRunInput) {
 
 export const CV_PARSE_SYSTEM = `You parse a PhD applicant's CV text into a strict JSON profile. Extract ONLY
 facts explicitly present in the CV — never infer or embellish. Output a
-single \`\`\`json fenced block:
+single \`\`\`json fenced block. The schema is STRICT — use the exact enum
+values below (wrong values are rejected):
 
 {
   "name": str or omit,
   "field": str (e.g. "physics", "biology", "cs") — infer only from explicit CV content,
   "undergrad_institution": str,
-  "gpa_raw": number, "gpa_scale": "4.0"|"4.3"|"4.5"|"100"|"uk_honours",
+  "gpa_raw": number, "gpa_scale": one of "4.0" | "4.3" | "4.5" | "100" | "uk",
   "research_direction": 1-2 sentence summary built strictly from the CV's stated research topics,
   "current_advisors": [{"id": "adv_001", "name": str, "institution": str}],
-  "papers": [{"title": str, "journal": str, "journal_tier": 1-5 (4 if unsure),
-              "author_position": int, "status": "published"|"accepted"|"submitted"|"preprint"|"in_prep",
-              "year": int}],
-  "experiences": [{"lab_pi_name": str, "lab_tier": 1-4 (3 if unsure),
-                   "duration_months": int, "output_type": "paper"|"poster"|"thesis"|"none"}]
+  "papers": [{
+     "title": str, "journal": str,
+     "journal_tier": integer 1-5 (1 = top venue, 5 = weakest; REQUIRED — if you
+        include a paper you MUST give a tier; use 4 when unsure. For an arXiv/
+        preprint with no formal journal, set journal to "" and journal_tier 4),
+     "author_position": integer >= 1 (REQUIRED; use 1 if the CV shows the
+        applicant as first/only author, otherwise their byline position),
+     "status": one of "published" | "accepted" | "in_press" | "submitted" | "preprint" | "in_prep",
+     "year": int
+  }],
+  "experiences": [{
+     "lab_pi_name": str,
+     "lab_tier": one of "world_class" | "top_us" | "strong_us_or_top_cn" |
+        "good_us_or_985" | "211_or_overseas" | "other" (use "other" when unsure — NEVER a number),
+     "duration_months": integer >= 0 (for "Present", count months up to today),
+     "output_type": one of "paper" | "conference_oral" | "conference_poster" |
+        "honors_thesis" | "participation_only" (use "participation_only" when unsure)
+  }]
 }
 
-Omit any field the CV does not state. After the JSON block, list one warning
-line per field you omitted or were unsure about, prefixed "WARN: ".`;
+CRITICAL: every paper you include MUST have both journal_tier (1-5) and
+author_position (>=1). If you cannot tell, use journal_tier 4 and
+author_position 1 and add a WARN line — do NOT omit these two fields. Omit an
+OPTIONAL field the CV doesn't state (name, a whole paper, etc.). After the
+JSON block, list one warning line per field you inferred or were unsure about,
+prefixed "WARN: ".`;
 
 export function extractCvProfile(text: string): {
   profile: StudentProfileJson;
@@ -220,10 +238,88 @@ export function extractCvProfile(text: string): {
 } {
   const m = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (!m) throw new Error("The CV parser returned no JSON — try again.");
-  const profile = JSON.parse(m[1]) as StudentProfileJson;
+  const profile = normalizeProfile(JSON.parse(m[1]));
   const warnings = text
     .split("\n")
     .filter((l) => l.trim().startsWith("WARN:"))
     .map((l) => l.trim().slice(5).trim());
   return { profile, warnings };
+}
+
+// Defensive coercion: the engine schema is strict, so map any legacy/loose
+// values the LLM might still emit onto valid enums, and backfill the two
+// REQUIRED paper fields. Keeps a slightly-off LLM response from producing an
+// unsavable profile.
+const LAB_TIER_VALUES = [
+  "world_class",
+  "top_us",
+  "strong_us_or_top_cn",
+  "good_us_or_985",
+  "211_or_overseas",
+  "other",
+];
+const OUTPUT_TYPE_MAP: Record<string, string> = {
+  poster: "conference_poster",
+  conference_poster: "conference_poster",
+  talk: "conference_oral",
+  oral: "conference_oral",
+  conference_oral: "conference_oral",
+  thesis: "honors_thesis",
+  honors_thesis: "honors_thesis",
+  paper: "paper",
+  none: "participation_only",
+  participation_only: "participation_only",
+};
+const PAPER_STATUS_VALUES = [
+  "published",
+  "accepted",
+  "in_press",
+  "submitted",
+  "preprint",
+  "in_prep",
+];
+
+export function normalizeProfile(raw: unknown): StudentProfileJson {
+  const p = (raw && typeof raw === "object" ? { ...raw } : {}) as Record<
+    string,
+    unknown
+  >;
+  if (p.gpa_scale === "uk_honours") p.gpa_scale = "uk";
+
+  if (Array.isArray(p.papers)) {
+    p.papers = p.papers.map((raw_paper) => {
+      const pp = { ...(raw_paper as Record<string, unknown>) };
+      // journal_tier: required int 1-5
+      const t = Number(pp.journal_tier);
+      pp.journal_tier = Number.isFinite(t) && t >= 1 && t <= 5 ? Math.round(t) : 4;
+      // author_position: required int >= 1
+      const a = Number(pp.author_position);
+      pp.author_position = Number.isFinite(a) && a >= 1 ? Math.round(a) : 1;
+      if (typeof pp.journal !== "string") pp.journal = "";
+      if (typeof pp.title !== "string") pp.title = "";
+      if (!PAPER_STATUS_VALUES.includes(pp.status as string))
+        pp.status = "published";
+      return pp;
+    });
+  }
+
+  if (Array.isArray(p.experiences)) {
+    p.experiences = p.experiences.map((raw_exp) => {
+      const ex = { ...(raw_exp as Record<string, unknown>) };
+      // lab_tier: map any int 1-6 onto the ordered enum; validate strings
+      if (typeof ex.lab_tier === "number") {
+        const idx = Math.min(Math.max(Math.round(ex.lab_tier) - 1, 0), 5);
+        ex.lab_tier = LAB_TIER_VALUES[idx];
+      } else if (!LAB_TIER_VALUES.includes(ex.lab_tier as string)) {
+        ex.lab_tier = "other";
+      }
+      // output_type: map legacy words onto the enum
+      const key = String(ex.output_type ?? "").toLowerCase();
+      ex.output_type = OUTPUT_TYPE_MAP[key] ?? "participation_only";
+      const d = Number(ex.duration_months);
+      ex.duration_months = Number.isFinite(d) && d >= 0 ? Math.round(d) : 0;
+      return ex;
+    });
+  }
+  return p as StudentProfileJson;
 }

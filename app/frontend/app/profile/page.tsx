@@ -6,6 +6,7 @@ import type {
   Advisor,
   Experience,
   GpaScale,
+  LabTier,
   OutputType,
   Paper,
   PaperStatus,
@@ -14,7 +15,7 @@ import type {
 import { loadProfile, loadSettings, saveProfile } from "@/lib/store";
 import { validateProfile } from "@/lib/engine";
 import { completion } from "@/lib/llm";
-import { CV_PARSE_SYSTEM, extractCvProfile } from "@/lib/research";
+import { CV_PARSE_SYSTEM, extractCvProfile, normalizeProfile } from "@/lib/research";
 
 /** Extract text from the first pages of a PDF, entirely in-browser. */
 async function pdfToText(file: File, maxPages = 10): Promise<string> {
@@ -46,15 +47,36 @@ const removeBtnCls =
 const addBtnCls =
   "rounded-lg border border-dashed border-indigo-400/40 px-4 py-2 text-sm text-indigo-300 transition-colors hover:bg-indigo-500/10";
 
-const GPA_SCALES: GpaScale[] = ["4.0", "4.3", "4.5", "100", "uk_honours"];
+const GPA_SCALES: { value: GpaScale; label: string }[] = [
+  { value: "4.0", label: "4.0 scale" },
+  { value: "4.3", label: "4.3 scale" },
+  { value: "4.5", label: "4.5 scale" },
+  { value: "100", label: "100-point scale" },
+  { value: "uk", label: "UK honours" },
+];
 const PAPER_STATUSES: PaperStatus[] = [
   "published",
   "accepted",
+  "in_press",
   "submitted",
   "preprint",
   "in_prep",
 ];
-const OUTPUT_TYPES: OutputType[] = ["paper", "poster", "thesis", "none"];
+const LAB_TIERS: { value: LabTier; label: string }[] = [
+  { value: "world_class", label: "World-class" },
+  { value: "top_us", label: "Top US" },
+  { value: "strong_us_or_top_cn", label: "Strong US / Top China" },
+  { value: "good_us_or_985", label: "Good US / 985" },
+  { value: "211_or_overseas", label: "211 / Overseas" },
+  { value: "other", label: "Other" },
+];
+const OUTPUT_TYPES: { value: OutputType; label: string }[] = [
+  { value: "paper", label: "Paper" },
+  { value: "conference_oral", label: "Conference talk" },
+  { value: "conference_poster", label: "Conference poster" },
+  { value: "honors_thesis", label: "Honors thesis" },
+  { value: "participation_only", label: "Participation only" },
+];
 
 const emptyProfile: StudentProfile = {
   name: "",
@@ -107,8 +129,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      const p = loadProfile() as Partial<StudentProfile> | null;
-      if (p) {
+      const stored = loadProfile();
+      if (stored) {
+        // Coerce any legacy/invalid values saved by an earlier version so a
+        // previously-broken profile loads cleanly and can be re-saved.
+        const p = normalizeProfile(stored) as Partial<StudentProfile>;
         setProfile({
           ...emptyProfile,
           ...p,
@@ -321,17 +346,31 @@ export default function ProfilePage() {
         )}
 
         {cvImported && (
-          <div className="mt-4 rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-            <p>
-              Parsed from your CV — review every field before saving; nothing
-              is saved until you click Save.
+          <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/[0.07] px-4 py-3.5 text-sm text-emerald-100">
+            <p className="flex items-center gap-2 font-medium text-emerald-300">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-xs">
+                ✓
+              </span>
+              CV imported — the form below is filled in for you
+            </p>
+            <p className="mt-1.5 text-emerald-100/70">
+              Nothing is saved yet. Review each field and click{" "}
+              <span className="font-medium text-emerald-200">Save profile</span>{" "}
+              when it looks right.
             </p>
             {cvWarnings.length > 0 && (
-              <ul className="mt-2 list-inside list-disc space-y-1 text-amber-300/90">
-                {cvWarnings.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
+              <details className="mt-3 text-emerald-100/70">
+                <summary className="cursor-pointer text-xs font-medium text-emerald-300/90 hover:text-emerald-200">
+                  {cvWarnings.length} field
+                  {cvWarnings.length > 1 ? "s" : ""} we couldn&apos;t read
+                  directly — worth a look
+                </summary>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+                  {cvWarnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         )}
@@ -390,8 +429,8 @@ export default function ProfilePage() {
                 onChange={(e) => set("gpa_scale", e.target.value as GpaScale)}
               >
                 {GPA_SCALES.map((s) => (
-                  <option key={s} value={s}>
-                    {s === "uk_honours" ? "UK honours" : s}
+                  <option key={s.value} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>
@@ -515,7 +554,6 @@ export default function ProfilePage() {
                     <label className={labelCls}>Journal / venue</label>
                     <input
                       className={inputCls}
-                      required
                       value={p.journal}
                       onChange={(e) =>
                         set(
@@ -591,13 +629,12 @@ export default function ProfilePage() {
                     </select>
                   </div>
                   <div>
-                    <label className={labelCls}>Year</label>
+                    <label className={labelCls}>Year (optional)</label>
                     <input
                       className={inputCls}
                       type="number"
                       min="1990"
                       max="2100"
-                      required
                       value={p.year || ""}
                       onChange={(e) =>
                         set(
@@ -684,15 +721,14 @@ export default function ProfilePage() {
                         set(
                           "experiences",
                           updateAt(profile.experiences, i, {
-                            lab_tier: Number(e.target.value),
+                            lab_tier: e.target.value as LabTier,
                           })
                         )
                       }
                     >
-                      {[1, 2, 3, 4].map((t) => (
-                        <option key={t} value={t}>
-                          Tier {t}
-                          {t === 1 ? " (world-leading)" : t === 4 ? " (other)" : ""}
+                      {LAB_TIERS.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
                         </option>
                       ))}
                     </select>
@@ -730,8 +766,8 @@ export default function ProfilePage() {
                       }
                     >
                       {OUTPUT_TYPES.map((o) => (
-                        <option key={o} value={o}>
-                          {o}
+                        <option key={o.value} value={o.value}>
+                          {o.label}
                         </option>
                       ))}
                     </select>
@@ -761,9 +797,9 @@ export default function ProfilePage() {
                   ...profile.experiences,
                   {
                     lab_pi_name: "",
-                    lab_tier: 2,
+                    lab_tier: "good_us_or_985",
                     duration_months: 6,
-                    output_type: "none",
+                    output_type: "participation_only",
                   } satisfies Experience,
                 ])
               }

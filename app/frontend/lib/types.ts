@@ -1,14 +1,28 @@
 // Domain types shared by the profile form and results rendering.
 // These mirror the phd_matcher engine's Pydantic models.
 
-export type GpaScale = "4.0" | "4.3" | "4.5" | "100" | "uk_honours";
+export type GpaScale = "4.0" | "4.3" | "4.5" | "100" | "uk";
 export type PaperStatus =
   | "published"
   | "accepted"
+  | "in_press"
   | "submitted"
   | "preprint"
   | "in_prep";
-export type OutputType = "paper" | "poster" | "thesis" | "none";
+// Matches phd_matcher LabTier / OutputType Literals exactly.
+export type LabTier =
+  | "world_class"
+  | "top_us"
+  | "strong_us_or_top_cn"
+  | "good_us_or_985"
+  | "211_or_overseas"
+  | "other";
+export type OutputType =
+  | "paper"
+  | "conference_oral"
+  | "conference_poster"
+  | "honors_thesis"
+  | "participation_only";
 
 export interface Advisor {
   id: string;
@@ -27,7 +41,7 @@ export interface Paper {
 
 export interface Experience {
   lab_pi_name: string;
-  lab_tier: number;
+  lab_tier: LabTier;
   duration_months: number;
   output_type: OutputType;
 }
