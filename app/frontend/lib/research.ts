@@ -2,7 +2,7 @@
 // skill's data-integrity contract: real sources only, missing beats guessed.
 
 import { agentTurn, hasWebSearch, type LlmSettings } from "./llm";
-import { rankCandidates } from "./engine";
+import { rankCandidates, onEngineStatus } from "./engine";
 import {
   newRunId,
   upsertRun,
@@ -149,12 +149,21 @@ async function pipeline(run: StoredRun, input: StartRunInput) {
       status: "scoring",
       progress_note: `${rawCandidates.length} candidates discovered; scoring in-browser`,
     });
-    const out = await rankCandidates(
-      input.profile,
-      rawCandidates,
-      input.topK,
-      input.strict
-    );
+    // First-ever run downloads ~13 MB of Pyodide here — keep the run's
+    // heartbeat fresh (and show progress) via the engine's status notes, so
+    // the stale-run reaper doesn't mistake a slow download for an orphan.
+    const unsubscribe = onEngineStatus((note) => update({ progress_note: note }));
+    let out;
+    try {
+      out = await rankCandidates(
+        input.profile,
+        rawCandidates,
+        input.topK,
+        input.strict
+      );
+    } finally {
+      unsubscribe();
+    }
     if (out.error) {
       update({
         status: "error",

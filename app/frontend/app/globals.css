@@ -1,8 +1,38 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   PhDTake design system — "intelligent fluid dynamics"
+   A calm, high-end glass UI that floats above the Three.js fluid background.
+   The fluid does the drama; the UI stays legible and quiet.
+   ========================================================================== */
+
 :root {
-  --background: #09090f;
-  --foreground: #e7e7ee;
+  /* Base field — deep near-black with a faint cool cast. */
+  --background: #07070c;
+  --foreground: #e9e9f2;
+
+  /* Energy accents (indigo · violet · cyan). */
+  --accent-indigo: #6366f1;
+  --accent-violet: #8b5cf6;
+  --accent-cyan: #22d3ee;
+  --accent-fuchsia: #c084fc;
+
+  /* Liquid-metal chrome gradient (logo, primary buttons). */
+  --metal-1: #818cf8;
+  --metal-2: #a78bfa;
+  --metal-3: #22d3ee;
+
+  /* Glass tokens — panels that sit over the moving fluid. */
+  --glass-bg: rgba(18, 18, 30, 0.55);
+  --glass-bg-strong: rgba(14, 14, 24, 0.72);
+  --glass-bg-hover: rgba(99, 102, 241, 0.09);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(129, 140, 248, 0.42);
+  --glass-blur: 16px;
+  --glass-shadow: 0 8px 40px rgba(4, 4, 12, 0.45);
+
+  /* Text-scrim: a subtle darkening behind text-heavy panels for WCAG contrast. */
+  --scrim: rgba(7, 7, 14, 0.55);
 }
 
 @theme inline {
@@ -12,24 +42,205 @@
   --font-mono: var(--font-geist-mono);
 }
 
-body {
+html {
+  /* The fluid canvas is fixed behind the body; keep the base dark so any gap
+     (or the reduced-motion static frame) still reads as the same field. */
   background: var(--background);
+}
+
+body {
+  /* IMPORTANT: transparent so the fixed WebGL fluid canvas shows through. */
+  background: transparent;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.006em;
 }
+
+/* The fluid canvas itself (styled inline too; this is a safety net). */
+.fluid-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Fixed readability scrim between the fluid and the page content. Darkens the
+   top band (under the nav + headings) and the very bottom the most, keeping the
+   mid-field readable while text over open fluid stays high-contrast. */
+.page-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(5, 5, 11, 0.72) 0%,
+      rgba(5, 5, 11, 0.34) 22%,
+      rgba(5, 5, 11, 0.28) 60%,
+      rgba(5, 5, 11, 0.5) 100%
+    );
+}
+
+/* ---- Reusable glass + accent utilities ---------------------------------- */
+
+/* Glass panel — the default surface for cards, forms, sections. */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: var(--glass-shadow);
+}
+
+/* A denser glass for text-heavy panels — adds the readability scrim. */
+.glass-strong {
+  background:
+    linear-gradient(var(--scrim), var(--scrim)), var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(140%);
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(140%);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Interactive glass card — smooth hover micro-interaction. */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: var(--glass-shadow);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.35s ease;
+}
+.glass-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--glass-border-hover);
+  background:
+    linear-gradient(var(--glass-bg-hover), var(--glass-bg-hover)),
+    var(--glass-bg);
+  box-shadow: 0 16px 50px rgba(79, 70, 229, 0.22);
+}
+
+/* Liquid-metal gradient fills for the logo, headings, and primary buttons. */
+.metal-text {
+  background: linear-gradient(
+    100deg,
+    var(--metal-1) 0%,
+    var(--metal-2) 45%,
+    var(--metal-3) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.metal-fill {
+  background: linear-gradient(
+    100deg,
+    var(--metal-1) 0%,
+    var(--metal-2) 55%,
+    var(--metal-3) 120%
+  );
+}
+
+/* Primary action button — liquid-metal fill with a soft energy glow + sheen. */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    100deg,
+    var(--accent-indigo) 0%,
+    var(--accent-violet) 55%,
+    #6d5cf5 100%
+  );
+  color: #fff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 8px 30px rgba(99, 102, 241, 0.4);
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease,
+    filter 0.3s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-1px) scale(1.015);
+  filter: brightness(1.06);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+    0 10px 40px rgba(99, 102, 241, 0.55);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.995);
+}
+/* Moving sheen — a thin liquid-metal highlight sweeping across the button. */
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-primary:hover::after {
+  transform: translateX(120%);
+}
+
+/* Secondary / ghost button on glass. */
+.btn-ghost {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition:
+    border-color 0.25s ease,
+    color 0.25s ease,
+    background 0.25s ease,
+    transform 0.25s ease;
+}
+.btn-ghost:hover {
+  border-color: var(--glass-border-hover);
+  background: rgba(129, 140, 248, 0.08);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* Consistent, always-visible focus ring for keyboard users (a11y). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+label:focus-within {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ---- Animations --------------------------------------------------------- */
 
 @keyframes float-slow {
   0%,
   100% {
     transform: translateY(0) scale(1);
-    opacity: 0.55;
+    opacity: 0.5;
   }
   50% {
     transform: translateY(-24px) scale(1.06);
-    opacity: 0.8;
+    opacity: 0.75;
   }
 }
-
 .animate-float-slow {
   animation: float-slow 9s ease-in-out infinite;
 }
@@ -44,7 +255,6 @@ body {
     transform: translateY(0);
   }
 }
-
 .animate-fade-up {
   animation: fade-up 0.7s ease-out both;
 }
@@ -57,4 +267,21 @@ body {
 }
 .delay-300 {
   animation-delay: 0.3s;
+}
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+/* Respect reduced-motion for all decorative CSS motion too. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-fade-up {
+    animation: none !important;
+  }
+  .btn-primary::after {
+    display: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

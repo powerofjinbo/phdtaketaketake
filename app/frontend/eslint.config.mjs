@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated vendor bundles (Pyodide runtime + bundled engine) — third-party
+    // / emscripten output, not source we author or lint.
+    "public/pyodide/**",
+    "public/engine/**",
   ]),
 ]);
 

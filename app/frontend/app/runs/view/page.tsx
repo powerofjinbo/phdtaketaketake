@@ -140,7 +140,7 @@ function RisksSection({ result }: { result: MatchResult }) {
 
 function ResultCard({ result, rank }: { result: MatchResult; rank: number }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+    <article className="glass rounded-2xl p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/25 to-violet-600/25 font-mono text-sm font-semibold text-indigo-300">
@@ -343,7 +343,7 @@ function RunView() {
           {run.status === "done" && (
             <>
               {run.portfolio_summary && (
-                <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+                <section className="glass mt-8 rounded-2xl p-6">
                   <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-indigo-300">
                     Portfolio summary
                   </h2>

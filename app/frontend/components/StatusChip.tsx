@@ -20,7 +20,7 @@ export default function StatusChip({ status }: { status: RunStatus }) {
   const active = ACTIVE_STATUSES.includes(status);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium backdrop-blur ${styles[status]}`}
     >
       {active && (
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />

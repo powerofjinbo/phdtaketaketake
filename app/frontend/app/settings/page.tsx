@@ -11,7 +11,7 @@ import {
 import { loadSettings, saveSettings } from "@/lib/store";
 
 const inputCls =
-  "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
+  "w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none backdrop-blur transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
 const labelCls = "mb-1.5 block text-sm text-zinc-300";
 
 // Registry order already puts Gemini (free key) right after Claude/OpenAI.
@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [loaded, setLoaded] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     ok: boolean;
@@ -64,7 +65,17 @@ export default function SettingsPage() {
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
-    saveSettings(currentSettings());
+    const s = currentSettings();
+    // Custom endpoints have no default model — without one, every later call
+    // would send model:"" and fail at run time. Require it, like base_url.
+    if (s.provider === "custom" && !s.model) {
+      setSaveError(
+        "Custom providers need a model name (there is no default) — enter one above."
+      );
+      return;
+    }
+    setSaveError(null);
+    saveSettings(s);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -90,7 +101,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12">
       <h1 className="text-3xl font-semibold text-white">Settings</h1>
-      <p className="mt-2 text-sm text-zinc-400">
+      <p className="mt-2 text-sm text-zinc-300/90">
         Bring your own LLM API key. It powers the research agent behind your
         match runs.
       </p>
@@ -98,10 +109,7 @@ export default function SettingsPage() {
       {/* How it works */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {STEPS.map((s) => (
-          <div
-            key={s.n}
-            className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-          >
+          <div key={s.n} className="glass-card rounded-xl p-4">
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-600/30 font-mono text-xs text-indigo-300">
               {s.n}
             </span>
@@ -122,10 +130,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      <form
-        onSubmit={onSave}
-        className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-      >
+      <form onSubmit={onSave} className="glass mt-6 rounded-2xl p-6">
         <h2 className="text-lg font-semibold text-white">LLM Provider</h2>
 
         <div className="mt-5 space-y-5">
@@ -228,7 +233,7 @@ export default function SettingsPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-2.5 font-medium text-white transition-opacity hover:opacity-90"
+              className="btn-primary rounded-lg px-6 py-2.5 font-medium"
             >
               Save settings
             </button>
@@ -236,12 +241,18 @@ export default function SettingsPage() {
               type="button"
               onClick={onTest}
               disabled={testing}
-              className="rounded-lg border border-white/15 px-5 py-2.5 text-sm text-zinc-300 transition-colors hover:border-indigo-400/50 hover:text-white disabled:opacity-50"
+              className="btn-ghost rounded-lg px-5 py-2.5 text-sm disabled:opacity-50"
             >
               {testing ? "Testing…" : "Test key"}
             </button>
             {saved && <span className="text-sm text-emerald-400">Saved ✓</span>}
           </div>
+
+          {saveError && (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {saveError}
+            </p>
+          )}
 
           {testResult && (
             <p
@@ -264,7 +275,7 @@ export default function SettingsPage() {
       </form>
 
       {/* Subscription explainer */}
-      <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03]">
+      <div className="glass mt-6 rounded-2xl">
         <button
           type="button"
           onClick={() => setSubOpen((o) => !o)}

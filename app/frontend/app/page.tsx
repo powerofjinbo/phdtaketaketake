@@ -3,7 +3,7 @@ import Link from "next/link";
 const features = [
   {
     title: "Connection-first CAPEG scoring",
-    body: "Your advisor's network, lab pedigree, and letters are scored ahead of raw metrics — because that is how committees actually read applications.",
+    body: "Your advisor's network, lab pedigree, and letters are scored ahead of raw metrics — because that is how committees actually read applications. Signal flows to where it matters, not where it is easiest to count.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth={1.6}>
         <circle cx="6" cy="6" r="2.5" />
@@ -15,7 +15,7 @@ const features = [
   },
   {
     title: "Evidence-cited research agent",
-    body: "A research agent reads primary sources for every candidate advisor. Every signal it uses is cited; anything it cannot verify is flagged, never invented.",
+    body: "A research agent reads primary sources for every candidate advisor. Every signal it uses is cited; anything it cannot verify is flagged, never invented — intelligence, not guesswork.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth={1.6}>
         <path d="M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
@@ -24,8 +24,8 @@ const features = [
     ),
   },
   {
-    title: "Risk-adjusted rankings",
-    body: "Missing or blocked sources widen the confidence band instead of being guessed. Rankings expose the lower bound, so you can plan for the worst case. The scoring engine itself runs in your browser (Python via Pyodide), so your data never leaves this device.",
+    title: "In-browser scoring engine",
+    body: "Missing or blocked sources widen the confidence band instead of being guessed, so rankings expose the lower bound. The engine itself runs in your browser (Python via Pyodide) — your data never leaves this device.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth={1.6}>
         <path d="M4 19h16M6 16V9M11 16V5M16 16v-6M21 16v-3" strokeLinecap="round" />
@@ -34,44 +34,57 @@ const features = [
   },
 ];
 
+const flowPoints = [
+  { k: "Flow", v: "not friction" },
+  { k: "Intelligence", v: "not complexity" },
+  { k: "Movement", v: "not stagnation" },
+  { k: "Scale", v: "not effort" },
+];
+
 export default function Home() {
   return (
     <div className="relative overflow-hidden">
-      {/* gradient orbs */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[720px] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-3xl animate-float-slow" />
-      <div className="pointer-events-none absolute top-40 -left-40 h-96 w-96 rounded-full bg-violet-600/15 blur-3xl animate-float-slow" />
-      <div className="pointer-events-none absolute top-96 -right-40 h-96 w-96 rounded-full bg-fuchsia-600/10 blur-3xl animate-float-slow" />
-
-      <section className="relative mx-auto max-w-4xl px-6 pt-28 pb-20 text-center">
-        <p className="animate-fade-up mb-6 inline-block rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-1 text-xs font-medium tracking-wide text-indigo-300">
+      <section className="relative mx-auto max-w-4xl px-6 pt-28 pb-16 text-center">
+        <p className="animate-fade-up mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-1 text-xs font-medium tracking-wide text-indigo-200 backdrop-blur">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
           Built for physics, materials, and beyond
         </p>
         <h1 className="animate-fade-up delay-100 text-4xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
           Truth-based PhD advisor matching —{" "}
-          <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-            every claim cited, nothing guessed
-          </span>
+          <span className="metal-text">every claim cited, nothing guessed</span>
         </h1>
-        <p className="animate-fade-up delay-200 mx-auto mt-6 max-w-2xl text-lg text-zinc-400">
-          PhDTake scores your application against real advisors at real programs
-          on a transparent 4.0 scale — grounded in verifiable evidence, with
-          uncertainty shown, not hidden.
+        <p className="animate-fade-up delay-200 mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-zinc-300/90">
+          PhDTake turns your application into a current of verified signal that
+          flows through a connected intelligence network — scored against real
+          advisors at real programs on a transparent 4.0 scale, with uncertainty
+          shown, not hidden.
         </p>
-        <div className="animate-fade-up delay-300 mt-10 flex items-center justify-center gap-4">
+
+        {/* Flow / intelligence / movement / scale */}
+        <div className="animate-fade-up delay-300 mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-2.5">
+          {flowPoints.map((p) => (
+            <span
+              key={p.k}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs text-zinc-300 backdrop-blur"
+            >
+              <span className="font-medium text-white">{p.k}</span>{" "}
+              <span className="text-zinc-500">{p.v}</span>
+            </span>
+          ))}
+        </div>
+
+        <div className="animate-fade-up delay-300 mt-10 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/settings"
-            className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-3 font-medium text-white shadow-[0_0_28px_rgba(99,102,241,0.45)] transition-transform hover:scale-[1.03]"
+            className="btn-primary rounded-xl px-6 py-3 font-medium"
           >
             Get your match report
           </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-white/15 px-6 py-3 font-medium text-zinc-300 transition-colors hover:border-white/30 hover:text-white"
-          >
+          <Link href="/dashboard" className="btn-ghost rounded-xl px-6 py-3 font-medium">
             Open dashboard
           </Link>
         </div>
-        <p className="animate-fade-up delay-300 mt-4 text-sm text-zinc-500">
+        <p className="animate-fade-up delay-400 mt-4 text-sm text-zinc-400">
           No signup. No server. Your API key stays in your browser.
         </p>
       </section>
@@ -81,9 +94,9 @@ export default function Home() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:-translate-y-1 hover:border-indigo-400/40 hover:bg-indigo-500/[0.06] hover:shadow-[0_8px_40px_rgba(99,102,241,0.15)]"
+              className="glass-card animate-fade-up delay-200 group rounded-2xl p-6"
             >
-              <div className="mb-4 inline-flex rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-600/20 p-3 text-indigo-300">
+              <div className="metal-fill mb-4 inline-flex rounded-xl p-3 text-white/90 shadow-[0_0_20px_rgba(99,102,241,0.35)]">
                 {f.icon}
               </div>
               <h3 className="mb-2 text-lg font-semibold text-white">

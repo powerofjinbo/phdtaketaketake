@@ -39,7 +39,7 @@ async function pdfToText(file: File, maxPages = 10): Promise<string> {
 }
 
 const inputCls =
-  "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
+  "w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none backdrop-blur transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
 const labelCls = "mb-1.5 block text-sm text-zinc-300";
 const removeBtnCls =
   "rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-red-400/40 hover:text-red-300";
@@ -78,7 +78,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+    <section className="glass rounded-2xl p-6">
       <h2 className="text-lg font-semibold text-white">{title}</h2>
       {subtitle && <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>}
       <div className="mt-5">{children}</div>
@@ -189,13 +189,41 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage(null);
     try {
-      const check = await validateProfile(profile);
-      if (!check.ok) {
+      // Lightweight, instant required-field check — no engine needed.
+      const missing: string[] = [];
+      const p = profile as unknown as Record<string, unknown>;
+      if (!p.field) missing.push("field");
+      if (!p.undergrad_institution) missing.push("undergrad institution");
+      if (p.gpa_raw === "" || p.gpa_raw === undefined || p.gpa_raw === null)
+        missing.push("GPA");
+      if (!p.research_direction) missing.push("research direction");
+      if (missing.length) {
         setMessage({
           kind: "err",
-          text: check.error || "The engine rejected this profile.",
+          text: `Please fill in: ${missing.join(", ")}.`,
         });
         return;
+      }
+      // Strict engine validation is a best-effort bonus: the first run loads
+      // ~13 MB of Pyodide, which can be slow or blocked. Never let that gate
+      // saving — race it against a short timeout and save regardless (the
+      // engine re-validates at run time anyway).
+      try {
+        const check = await Promise.race([
+          validateProfile(profile),
+          new Promise<{ ok: boolean; error?: string }>((res) =>
+            setTimeout(() => res({ ok: true }), 4000)
+          ),
+        ]);
+        if (!check.ok) {
+          setMessage({
+            kind: "err",
+            text: check.error || "The engine rejected this profile.",
+          });
+          return;
+        }
+      } catch {
+        /* engine unavailable — required-field check already passed; save on */
       }
       saveProfile(profile as unknown as Record<string, unknown>);
       setMessage({ kind: "ok", text: "Profile saved (in this browser)." });
@@ -220,12 +248,12 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-semibold text-white">Your profile</h1>
-      <p className="mt-2 text-sm text-zinc-400">
+      <p className="mt-2 text-sm text-zinc-300/90">
         Everything here feeds the scoring engine. The more precise, the tighter
         your confidence bands.
       </p>
 
-      <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+      <section className="glass mt-8 rounded-2xl p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-white">
@@ -749,7 +777,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-2.5 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="btn-primary rounded-lg px-6 py-2.5 font-medium disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save profile"}
           </button>

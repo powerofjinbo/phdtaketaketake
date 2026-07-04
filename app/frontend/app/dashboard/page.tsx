@@ -79,17 +79,14 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
       <h1 className="text-3xl font-semibold text-white">Dashboard</h1>
-      <p className="mt-2 text-sm text-zinc-400">
+      <p className="mt-2 text-sm text-zinc-300/90">
         Start a new match run or revisit past results. Everything runs and
         stays in this browser.
       </p>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,380px)_1fr]">
         {/* New run form */}
-        <form
-          onSubmit={onStartRun}
-          className="h-fit rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-        >
+        <form onSubmit={onStartRun} className="glass h-fit rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-white">New match run</h2>
 
           <div className="mt-5 space-y-5">
@@ -119,7 +116,7 @@ export default function DashboardPage() {
               <select
                 value={preset}
                 onChange={(e) => setPreset(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400/60"
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none backdrop-blur focus:border-indigo-400/60"
               >
                 {TIER_PRESETS.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -138,7 +135,7 @@ export default function DashboardPage() {
                   value={schools}
                   onChange={(e) => setSchools(e.target.value)}
                   required
-                  className="min-h-20 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-indigo-400/60"
+                  className="min-h-20 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none backdrop-blur placeholder:text-zinc-600 focus:border-indigo-400/60"
                   placeholder="MIT, Stanford, Berkeley…"
                 />
               </div>
@@ -185,7 +182,7 @@ export default function DashboardPage() {
             <button
               type="submit"
               disabled={!ready}
-              className="w-full rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 py-2.5 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="btn-primary w-full rounded-lg py-2.5 font-medium disabled:opacity-50"
             >
               Start match run
             </button>
@@ -211,7 +208,7 @@ export default function DashboardPage() {
               {runs.map((r) => (
                 <li
                   key={r.id}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] transition-colors hover:border-indigo-400/40 hover:bg-indigo-500/[0.05]"
+                  className="glass-card rounded-xl"
                 >
                   <div className="flex items-center gap-3 p-4">
                     <Link

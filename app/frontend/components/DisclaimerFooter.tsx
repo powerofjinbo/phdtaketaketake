@@ -1,6 +1,6 @@
 export default function DisclaimerFooter() {
   return (
-    <div className="mt-10 rounded-xl border border-indigo-400/30 bg-indigo-500/[0.07] p-5 text-sm leading-relaxed text-zinc-300">
+    <div className="glass-strong mt-10 rounded-xl border-indigo-400/25 p-5 text-sm leading-relaxed text-zinc-200">
       This is a 4.0-scale relative application-strength index, not an admission
       probability. Missing or blocked sources widen the confidence band instead
       of being guessed.
