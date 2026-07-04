@@ -56,6 +56,9 @@ def _rank(profile_json, candidates_json, top_k, strict):
         student.field = field_profile.id
     candidates, dropped = [], []
     for raw in raw_candidates:
+        if not isinstance(raw, dict):
+            dropped.append(f"{raw!r}: not a JSON object")
+            continue
         try:
             cand = CandidateAdvisor(**raw)
             if field_profile and cand.field != field_profile.id:
@@ -64,17 +67,31 @@ def _rank(profile_json, candidates_json, top_k, strict):
                     cand.field = field_profile.id
             candidates.append(cand)
         except Exception as e:
-            dropped.append(f"{raw.get('name', raw.get('id', '?'))}: {e}")
+            name = raw.get("name") or raw.get("id") or "?"
+            dropped.append(f"{name}: {e}")
     strict_errors = []
     if strict:
         for cand in candidates:
             strict_errors += strict_validate(student, cand)
-        bad = {e.split("candidate=")[1].split(" ")[0] for e in strict_errors}
+        # Match errors to known ids by prefix (ids may contain spaces, so
+        # splitting on whitespace is wrong — iterate the real ids instead).
+        bad = {c.id for c in candidates
+               if any(err.startswith(f"candidate={c.id} ") for err in strict_errors)}
         candidates = [c for c in candidates if c.id not in bad]
+    # rank_advisors defaults to field_filter=True and silently drops any
+    # candidate whose field != student.field — surface that as a diagnostic
+    # so a 0-result run explains itself instead of looking empty-for-no-reason.
+    field_mismatched = [c.name for c in candidates if c.field != student.field]
     if not candidates:
         return json.dumps({"error": "no valid candidates survived validation",
                            "dropped": dropped[:8], "strict_errors": strict_errors[:8]})
     results = rank_advisors(student, candidates, top_k=top_k, field_profile=field_profile)
+    if not results and field_mismatched:
+        return json.dumps({
+            "error": (f"all {len(field_mismatched)} candidates were filtered out for a "
+                      f"field mismatch (expected '{student.field}'). Mismatched: "
+                      + ", ".join(field_mismatched[:8])),
+            "dropped": dropped[:8], "strict_errors": strict_errors[:8]})
     for r in results:
         if r.strategy is None:
             r.strategy = recommend_strategy(r)
