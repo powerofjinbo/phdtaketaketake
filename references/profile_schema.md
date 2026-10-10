@@ -102,6 +102,25 @@ The matcher takes the **strongest single experience** (no stacking).
 
 ---
 
+### Applicant model v2 fields (all optional, user-provided only)
+
+See [`applicant_model.md`](applicant_model.md) for how each one is scored.
+
+| Field | Type | Example |
+|---|---|---|
+| `undergrad_tier` / `master_tier` | `elite` / `very_strong` / `strong` / `good` / `other` | `"very_strong"` |
+| `class_rank` | `{rank, cohort_size}` | `{"rank": 3, "cohort_size": 120}` |
+| `major_gpa_raw` | number, same scale as `gpa_scale` | `3.85` |
+| `gpa_trend` | `rising` / `flat` / `falling` | `"rising"` |
+| `graduate_course_count` | int | `4` |
+| `degree_level` | `bachelor` / `master` | `"master"` |
+| `master_gpa_raw`, `master_gpa_scale` | as `gpa_raw` / `gpa_scale` | `3.9`, `"4.0"` |
+| `recommenders[]` | `{name, standing (lab tier), relationship, months_known, expected_strength, is_current_advisor}` | `{"name": "Prof. Wang", "standing": "strong_us_or_top_cn", "relationship": "research_supervisor", "months_known": 18, "expected_strength": "strong"}` |
+| `honors[]` | `{name, level, year}` with level `international` / `national` / `regional` / `university` / `other` | `{"name": "CPhO gold", "level": "national"}` |
+| `test_scores` | `{gre_quant_percentile, gre_verbal_percentile, subject_gre_percentile, english_test, english_score}` | `{"english_test": "toefl", "english_score": 108}` |
+| `experiences[].role` | `lead` / `core` / `assistant` | `"lead"` |
+| `experiences[].field_relevance` | `same_subfield` / `adjacent` / `different` | `"same_subfield"` |
+
 ## CandidateAdvisor (always agent-generated via web research)
 
 ```jsonc

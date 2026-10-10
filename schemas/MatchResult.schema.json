@@ -28,6 +28,11 @@
           "default": null,
           "title": "Letters Score"
         },
+        "letters_coverage": {
+          "default": 0.0,
+          "title": "Letters Coverage",
+          "type": "number"
+        },
         "honors_bonus": {
           "default": 0.0,
           "title": "Honors Bonus",

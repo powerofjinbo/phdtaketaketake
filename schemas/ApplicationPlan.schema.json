@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "ApplicationPick": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "institution": {
+          "title": "Institution",
+          "type": "string"
+        },
+        "band": {
+          "enum": [
+            "reach",
+            "target",
+            "safer"
+          ],
+          "title": "Band",
+          "type": "string"
+        },
+        "difficulty_adjusted_strength": {
+          "title": "Difficulty Adjusted Strength",
+          "type": "number"
+        },
+        "why": {
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "institution",
+        "band",
+        "difficulty_adjusted_strength",
+        "why"
+      ],
+      "title": "ApplicationPick",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A balanced shortlist built from ranked results.",
+  "properties": {
+    "picks": {
+      "items": {
+        "$ref": "#/$defs/ApplicationPick"
+      },
+      "title": "Picks",
+      "type": "array"
+    },
+    "reach_count": {
+      "default": 0,
+      "title": "Reach Count",
+      "type": "integer"
+    },
+    "target_count": {
+      "default": 0,
+      "title": "Target Count",
+      "type": "integer"
+    },
+    "safer_count": {
+      "default": 0,
+      "title": "Safer Count",
+      "type": "integer"
+    },
+    "excluded": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Excluded",
+      "type": "array"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "title": "ApplicationPlan",
+  "type": "object"
+}

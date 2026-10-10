@@ -167,10 +167,17 @@ def test_supervisor_letter_beats_course_letter():
     assert score_letter(_rec(months_known=30)) > score_letter(_rec(months_known=2))
 
 
-def test_fewer_than_three_letters_fill_weak_slots():
-    one = letters_score([_rec()])
-    three = letters_score([_rec(), _rec(), _rec()])
-    assert three > one
+def test_describing_a_strong_letter_never_hurts():
+    """Honesty invariant: describing one real strong letter must not score
+    below describing none (the old empty-slot fill did exactly that)."""
+    base = _student(papers=[Paper(journal_tier=3, author_position=1)])
+    one = base.model_copy(update={"recommenders": [_rec(standing="world_class",
+                                                        expected_strength="exceptional",
+                                                        months_known=24)]})
+    assert assess_applicant(one).applicant_strength >= assess_applicant(base).applicant_strength
+    assert letters_score([_rec()]) == pytest.approx(score_letter(_rec()))
+    # More letters → more weight on the letters pillar, never a guessed filler.
+    assert assess_applicant(one).letters_coverage == pytest.approx(1 / 3, abs=1e-3)
 
 
 def test_letters_enter_match_and_strong_letters_help():

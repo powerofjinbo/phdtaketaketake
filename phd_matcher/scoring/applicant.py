@@ -218,10 +218,7 @@ W_FAMILIARITY = 0.15
 W_LETTER_STRENGTH = 0.20
 
 LETTER_SLOT_WEIGHTS: tuple[float, ...] = (0.45, 0.35, 0.20)
-# An undescribed letter slot (fewer than three recommenders listed) is
-# filled with this value: most programs require three letters, and an
-# unknown third letter is usually a weak one.
-EMPTY_LETTER_SLOT = 2.6
+LETTER_SLOTS = len(LETTER_SLOT_WEIGHTS)
 
 
 def score_letter(rec: Recommender) -> float:
@@ -235,14 +232,24 @@ def score_letter(rec: Recommender) -> float:
 
 
 def letters_score(recommenders: list[Recommender]) -> float | None:
-    """Top-3 letters, weighted 0.45 / 0.35 / 0.20. None when no recommenders
-    were described (unknown, not zero)."""
+    """Top-3 described letters, slot weights 0.45 / 0.35 / 0.20
+    renormalised over the letters actually described. None when no
+    recommenders were described (unknown, not zero).
+
+    Undescribed slots are not filled with a guessed value: that made
+    describing one real, strong letter score *below* describing none.
+    Instead the letters pillar's weight scales with `letters_coverage`.
+    """
     if not recommenders:
         return None
-    ranked = sorted((score_letter(r) for r in recommenders), reverse=True)[:3]
-    while len(ranked) < len(LETTER_SLOT_WEIGHTS):
-        ranked.append(EMPTY_LETTER_SLOT)
-    return sum(w * s for w, s in zip(LETTER_SLOT_WEIGHTS, ranked, strict=True))
+    ranked = sorted((score_letter(r) for r in recommenders), reverse=True)[:LETTER_SLOTS]
+    weights = LETTER_SLOT_WEIGHTS[:len(ranked)]
+    return sum(w * s for w, s in zip(weights, ranked, strict=True)) / sum(weights)
+
+
+def letters_coverage(recommenders: list[Recommender]) -> float:
+    """Fraction of the usual three letters that were described (0-1)."""
+    return min(len(recommenders), LETTER_SLOTS) / LETTER_SLOTS
 
 
 # ===========================================================================
@@ -325,14 +332,20 @@ LETTERS_SHARE = 0.25
 def composite(
     pillars: dict[str, float | None],
     weights: dict[str, float],
+    *,
+    l_coverage: float = 1.0,
 ) -> float:
-    """Weighted mean over the pillars that are known. A missing letters
-    pillar is renormalised away (unknown ≠ weak); confidence reports it."""
-    known = {k: v for k, v in pillars.items() if v is not None and weights.get(k)}
-    total_w = sum(weights[k] for k in known)
+    """Weighted mean over the pillars that are known. The letters weight is
+    scaled by `l_coverage`, so an undescribed letter is unknown (its weight
+    goes to the other pillars), not weak; confidence reports the gap."""
+    w = dict(weights)
+    if "L" in w:
+        w["L"] *= l_coverage
+    known = {k: v for k, v in pillars.items() if v is not None and w.get(k)}
+    total_w = sum(w[k] for k in known)
     if total_w <= 0:
         return 0.0
-    return sum(weights[k] * v for k, v in known.items()) / total_w  # type: ignore[operator]
+    return sum(w[k] * v for k, v in known.items()) / total_w  # type: ignore[operator]
 
 
 def tier_label(strength: float) -> ApplicantTier:
@@ -390,7 +403,10 @@ def assess_applicant(
     h = honors_bonus(student)
     t_adj, flags = standardized_tests_adjustment(student)
     spike = spike_bonus(pillars)
-    strength = _clip(composite(pillars, NEUTRAL_WEIGHTS) + h + t_adj + spike)
+    l_cov = letters_coverage(student.recommenders)
+    strength = _clip(
+        composite(pillars, NEUTRAL_WEIGHTS, l_coverage=l_cov) + h + t_adj + spike
+    )
 
     checklist = _inputs_checklist(student)
     provided = sum(1 for ok, _ in checklist if ok)
@@ -435,6 +451,7 @@ def assess_applicant(
         research_output_score=round(p, 4),
         research_experience_score=round(e, 4),
         letters_score=(round(l_score, 4) if l_score is not None else None),
+        letters_coverage=round(l_cov, 4),
         honors_bonus=round(h, 4),
         tests_adj=round(t_adj, 4),
         spike_bonus=round(spike, 2),
@@ -463,7 +480,7 @@ def tier_applicant_score(
     4.0 scale (multiply by w_P + w_E + w_G to get its match contribution).
 
     P / E / G keep the tier's relative emphasis; letters, when described,
-    take `LETTERS_SHARE` of the block. Bonuses are added on top. With no v2
+    take `LETTERS_SHARE × letters_coverage` of the block. Bonuses are added on top. With no v2
     inputs this equals ``(w_P·P + w_E·E + w_G·G) / (w_P + w_E + w_G)`` —
     exactly the v1 contribution — plus any spike bonus.
     """
@@ -474,7 +491,8 @@ def tier_applicant_score(
         + tier_weights["G"] * assessment.academic_score
     ) / w_peg
     if assessment.letters_score is not None:
-        core = (1 - LETTERS_SHARE) * core + LETTERS_SHARE * assessment.letters_score
+        share = LETTERS_SHARE * assessment.letters_coverage
+        core = (1 - share) * core + share * assessment.letters_score
     bonuses = assessment.honors_bonus + assessment.tests_adj + assessment.spike_bonus
     return _clip(core + bonuses)
 

@@ -827,6 +827,7 @@ class ApplicantAssessment(BaseModel):
     research_output_score: float       # P
     research_experience_score: float   # E v2
     letters_score: float | None = None # L (None = no recommenders described)
+    letters_coverage: float = 0.0      # described letters / 3, capped at 1
 
     honors_bonus: float = 0.0
     tests_adj: float = 0.0
@@ -843,6 +844,59 @@ class ApplicantAssessment(BaseModel):
     risk_flags: list[str] = Field(default_factory=list)
     missing_inputs: list[str] = Field(default_factory=list)
     components: dict[str, float] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TierReadiness(BaseModel):
+    """How the applicant's profile compares with the typical admit at one
+    school tier, before any PI-specific signal (connection, opportunity)."""
+
+    school_tier: SchoolTier
+    applicant_score: float      # tier-weighted applicant composite
+    screen_penalty: float
+    typical_admit_bar: float
+    margin: float               # applicant_score − screen_penalty − bar
+    verdict: Literal["above_bar", "at_bar", "below_bar"]
+    note: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ImprovementAction(BaseModel):
+    """A what-if: one realistic change to the profile and how much it would
+    move the applicant composite. Hypothetical — never written back into
+    the profile and only meaningful if the student can actually do it."""
+
+    action: str
+    pillar: Literal["G", "P", "E", "L", "tests"]
+    effort: Literal["low", "medium", "high"]
+    delta_strength: float
+    new_strength: float
+    assumption: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ApplicationPick(BaseModel):
+    candidate_id: str
+    institution: str
+    band: Literal["reach", "target", "safer"]
+    difficulty_adjusted_strength: float
+    why: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ApplicationPlan(BaseModel):
+    """A balanced shortlist built from ranked results."""
+
+    picks: list[ApplicationPick] = Field(default_factory=list)
+    reach_count: int = 0
+    target_count: int = 0
+    safer_count: int = 0
+    excluded: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
 
