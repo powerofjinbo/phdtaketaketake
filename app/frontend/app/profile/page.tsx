@@ -16,6 +16,17 @@ import { loadProfile, loadSettings, saveProfile } from "@/lib/store";
 import { validateProfile } from "@/lib/engine";
 import { completion } from "@/lib/llm";
 import { CV_PARSE_SYSTEM, extractCvProfile, normalizeProfile } from "@/lib/research";
+import PageHeader from "@/components/PageHeader";
+import {
+  IconBook,
+  IconCheck,
+  IconFlask,
+  IconNetwork,
+  IconPlus,
+  IconTrash,
+  IconUpload,
+  IconUser,
+} from "@/components/Icons";
 
 /** Extract text from the first pages of a PDF, entirely in-browser. */
 async function pdfToText(file: File, maxPages = 10): Promise<string> {
@@ -39,13 +50,14 @@ async function pdfToText(file: File, maxPages = 10): Promise<string> {
   return text;
 }
 
-const inputCls =
-  "w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none backdrop-blur transition-colors placeholder:text-zinc-600 focus:border-indigo-400/60";
-const labelCls = "mb-1.5 block text-sm text-zinc-300";
+const inputCls = "field";
+const labelCls = "field-label";
 const removeBtnCls =
-  "rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-red-400/40 hover:text-red-300";
+  "inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200";
 const addBtnCls =
-  "rounded-lg border border-dashed border-indigo-400/40 px-4 py-2 text-sm text-indigo-300 transition-colors hover:bg-indigo-500/10";
+  "group flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-300/30 px-4 py-3 text-sm text-indigo-200 transition-all hover:border-indigo-300/60 hover:bg-indigo-500/[0.08]";
+const itemCls =
+  "animate-fade-up rounded-xl border border-white/[0.08] bg-black/20 p-4 transition-colors hover:border-white/[0.14]";
 
 const GPA_SCALES: { value: GpaScale; label: string }[] = [
   { value: "4.0", label: "4.0 scale" },
@@ -93,18 +105,83 @@ const emptyProfile: StudentProfile = {
 function Section({
   title,
   subtitle,
+  icon,
+  count,
   children,
 }: {
   title: string;
   subtitle?: string;
+  icon: React.ReactNode;
+  count?: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="glass rounded-2xl p-6">
-      <h2 className="text-lg font-semibold text-white">{title}</h2>
-      {subtitle && <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>}
-      <div className="mt-5">{children}</div>
+    <section className="glass spotlight rounded-2xl p-6 sm:p-7">
+      <div className="flex items-start gap-3.5">
+        <span className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-indigo-200">
+          {icon}
+        </span>
+        <div className="flex-1">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+            {title}
+            {count !== undefined && count > 0 && (
+              <span className="rounded-full bg-white/[0.07] px-2 py-0.5 font-mono text-xs font-normal text-zinc-400">
+                {count}
+              </span>
+            )}
+          </h2>
+          {subtitle && <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>}
+        </div>
+      </div>
+      <div className="mt-6">{children}</div>
     </section>
+  );
+}
+
+/** How filled-in the profile is — tighter inputs mean tighter bands. */
+function completeness(p: StudentProfile): number {
+  const checks = [
+    !!p.field,
+    !!p.undergrad_institution,
+    !!p.gpa_raw,
+    !!p.research_direction && p.research_direction.length > 12,
+    p.current_advisors.length > 0,
+    p.papers.length > 0,
+    p.experiences.length > 0,
+  ];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
+function CompletionRing({ value }: { value: number }) {
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="glass flex items-center gap-3 rounded-2xl py-2.5 pl-2.5 pr-4">
+      <div className="relative h-14 w-14">
+        <svg viewBox="0 0 56 56" className="h-full w-full -rotate-90">
+          <circle cx="28" cy="28" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+          <circle
+            cx="28"
+            cy="28"
+            r={r}
+            fill="none"
+            stroke={value === 100 ? "#6ee7b7" : "#a5b4fc"}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - value / 100)}
+            style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.22,1,0.36,1), stroke 0.4s" }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center font-mono text-xs text-white">
+          {value}%
+        </span>
+      </div>
+      <div className="text-xs leading-relaxed">
+        <p className="font-medium text-zinc-200">{value === 100 ? "Looking complete" : "Profile strength"}</p>
+        <p className="text-zinc-500">{value === 100 ? "Tightest bands possible" : "More detail, tighter bands"}</p>
+      </div>
+    </div>
   );
 }
 
@@ -126,6 +203,7 @@ export default function ProfilePage() {
   } | null>(null);
   const [cvImported, setCvImported] = useState(false);
   const [cvWarnings, setCvWarnings] = useState<string[]>([]);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -161,6 +239,10 @@ export default function ProfilePage() {
   async function importCv(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    await importCvFile(file);
+  }
+
+  async function importCvFile(file: File) {
     setParsing(true);
     setCvError(null);
     setCvImported(false);
@@ -272,52 +354,81 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-3xl font-semibold text-white">Your profile</h1>
-      <p className="mt-2 text-sm text-zinc-300/90">
-        Everything here feeds the scoring engine. The more precise, the tighter
-        your confidence bands.
-      </p>
+      <PageHeader
+        eyebrow="Step 2 · Profile"
+        title={
+          <>
+            Tell us your{" "}
+            <span className="font-display italic font-normal text-[1.1em] ember-text">story</span>
+          </>
+        }
+        aside={<CompletionRing value={completeness(profile)} />}
+      >
+        Everything here feeds the scoring engine. The more precise you are, the
+        tighter your confidence bands.
+      </PageHeader>
 
-      <section className="glass mt-8 rounded-2xl p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white">
-              Import from CV (PDF)
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              We parse your CV with your configured LLM and prefill the form
-              below. Takes about 30 seconds.
-            </p>
-          </div>
-          <label
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-400/40 px-4 py-2 text-sm text-indigo-300 transition-colors hover:bg-indigo-500/10 ${
-              parsing ? "pointer-events-none opacity-60" : ""
+      <section className="animate-fade-up delay-100 mt-8">
+        <label
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!parsing) setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            const f = e.dataTransfer.files?.[0];
+            if (f && !parsing) void importCvFile(f);
+          }}
+          className={`glass group relative flex cursor-pointer flex-col items-center overflow-hidden rounded-2xl border-dashed px-6 py-9 text-center transition-all duration-300 sm:flex-row sm:gap-6 sm:text-left ${
+            dragging
+              ? "border-indigo-300/70 bg-indigo-500/10 shadow-[0_0_0_4px_rgba(99,102,241,0.15)]"
+              : "hover:border-indigo-300/40"
+          } ${parsing ? "pointer-events-none" : ""}`}
+        >
+          {parsing && (
+            <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-white/5">
+              <div className="animate-scan absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-300 to-transparent" />
+            </div>
+          )}
+          <span
+            className={`metal-fill flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_0_30px_rgba(99,102,241,0.45)] transition-transform duration-500 ${
+              dragging ? "scale-110 -rotate-6" : "group-hover:-translate-y-1"
             }`}
           >
-            {parsing && (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400/30 border-t-indigo-400" />
+            {parsing ? (
+              <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            ) : (
+              <IconUpload />
             )}
-            {parsing ? "Parsing CV…" : "Upload PDF"}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              className="hidden"
-              disabled={parsing}
-              onChange={importCv}
-            />
-          </label>
-        </div>
+          </span>
+          <span className="mt-4 flex-1 sm:mt-0">
+            <span className="block text-base font-semibold text-white">
+              {parsing ? "Reading your CV…" : dragging ? "Drop it here" : "Import from your CV"}
+            </span>
+            <span className="mt-1 block text-sm text-zinc-400">
+              {parsing
+                ? "Usually about 30 seconds. Keep this page open."
+                : "Drop a PDF or click to browse. Your configured LLM prefills the form; you review before saving."}
+            </span>
+          </span>
+          <span className="btn-ghost mt-5 shrink-0 rounded-xl px-4 py-2 text-sm sm:mt-0">
+            {parsing ? "Parsing…" : "Choose PDF"}
+          </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="sr-only"
+            disabled={parsing}
+            onChange={importCv}
+          />
+        </label>
 
-        {parsing && (
-          <p className="mt-4 text-sm text-zinc-400">
-            Reading your CV with the research model — this usually takes around
-            30 seconds. Keep this page open.
-          </p>
-        )}
 
         {cvError && (
-          <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <p className="mt-4 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
             {cvError.text}{" "}
             {cvError.needsSettings ? (
               <>
@@ -376,8 +487,8 @@ export default function ProfilePage() {
         )}
       </section>
 
-      <form onSubmit={save} className="mt-6 space-y-6">
-        <Section title="Basics">
+      <form onSubmit={save} className="animate-fade-up delay-200 mt-6 space-y-6">
+        <Section title="Basics" icon={<IconUser />}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelCls}>Name (optional)</label>
@@ -450,13 +561,15 @@ export default function ProfilePage() {
 
         <Section
           title="Current advisors"
-          subtitle="PIs you currently work with — the core of connection-first scoring."
+          subtitle="PIs you currently work with. Their network is the heart of connection-first scoring."
+          icon={<IconNetwork />}
+          count={profile.current_advisors.length}
         >
           <div className="space-y-3">
             {profile.current_advisors.map((a, i) => (
               <div
                 key={i}
-                className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-end"
+                className={`${itemCls} flex flex-col gap-3 sm:flex-row sm:items-end`}
               >
                 <div className="flex-1">
                   <label className={labelCls}>Name</label>
@@ -501,8 +614,10 @@ export default function ProfilePage() {
                       profile.current_advisors.filter((_, idx) => idx !== i)
                     )
                   }
+                  aria-label="Remove advisor"
                 >
-                  Remove
+                  <IconTrash className="h-3.5 w-3.5" />
+                  <span className="sm:hidden">Remove</span>
                 </button>
               </div>
             ))}
@@ -520,7 +635,8 @@ export default function ProfilePage() {
                 ])
               }
             >
-              + Add advisor
+              <IconPlus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+              Add advisor
             </button>
           </div>
         </Section>
@@ -528,12 +644,14 @@ export default function ProfilePage() {
         <Section
           title="Papers"
           subtitle="Publications, preprints, and manuscripts in preparation."
+          icon={<IconBook />}
+          count={profile.papers.length}
         >
           <div className="space-y-3">
             {profile.papers.map((p, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-white/10 bg-black/20 p-4"
+                className={itemCls}
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
@@ -658,6 +776,7 @@ export default function ProfilePage() {
                       )
                     }
                   >
+                    <IconTrash className="h-3.5 w-3.5" />
                     Remove paper
                   </button>
                 </div>
@@ -680,20 +799,23 @@ export default function ProfilePage() {
                 ])
               }
             >
-              + Add paper
+              <IconPlus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+              Add paper
             </button>
           </div>
         </Section>
 
         <Section
           title="Research experiences"
-          subtitle="Lab stints, REUs, internships — with what they produced."
+          subtitle="Lab stints, REUs, internships, and what each produced."
+          icon={<IconFlask />}
+          count={profile.experiences.length}
         >
           <div className="space-y-3">
             {profile.experiences.map((x, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-white/10 bg-black/20 p-4"
+                className={itemCls}
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -784,6 +906,7 @@ export default function ProfilePage() {
                       )
                     }
                   >
+                    <IconTrash className="h-3.5 w-3.5" />
                     Remove experience
                   </button>
                 </div>
@@ -804,27 +927,36 @@ export default function ProfilePage() {
                 ])
               }
             >
-              + Add experience
+              <IconPlus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+              Add experience
             </button>
           </div>
         </Section>
 
-        <div className="flex items-center gap-4">
+        <div className="glass sticky bottom-4 z-20 flex flex-wrap items-center gap-4 rounded-2xl px-4 py-3">
           <button
             type="submit"
             disabled={saving}
-            className="btn-primary rounded-lg px-6 py-2.5 font-medium disabled:opacity-50"
+            className="btn-primary rounded-xl px-6 py-2.5 font-medium disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save profile"}
           </button>
-          {message && (
+          {message ? (
             <span
-              className={
-                message.kind === "ok" ? "text-sm text-emerald-400" : "text-sm text-red-400"
-              }
+              className={`animate-fade-up flex items-center gap-1.5 text-sm ${
+                message.kind === "ok" ? "text-emerald-300" : "text-rose-300"
+              }`}
             >
+              {message.kind === "ok" && <IconCheck />}
               {message.text}
             </span>
+          ) : (
+            <span className="text-xs text-zinc-500">Saved only in this browser.</span>
+          )}
+          {message?.kind === "ok" && (
+            <Link href="/dashboard" className="animate-fade-up ml-auto text-sm text-indigo-300 hover:text-white">
+              Next: run a match →
+            </Link>
           )}
         </div>
       </form>

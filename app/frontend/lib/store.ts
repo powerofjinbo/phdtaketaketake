@@ -27,6 +27,7 @@ export function loadSettings(): LlmSettings | null {
 
 export function saveSettings(s: LlmSettings) {
   write("settings", s);
+  notifySetup();
 }
 
 // ---- Student profile -------------------------------------------------------
@@ -39,6 +40,30 @@ export function loadProfile(): StudentProfileJson | null {
 
 export function saveProfile(p: StudentProfileJson) {
   write("profile", p);
+  notifySetup();
+}
+
+// ---- Setup progress (key + profile) ---------------------------------------
+// The nav's onboarding dots and the dashboard checklist listen for this so
+// they light up the moment a step is completed, without a reload.
+
+const SETUP_EVENT = "phdtake:setup";
+
+function notifySetup() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SETUP_EVENT));
+}
+
+export function onSetupChanged(fn: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === NS + "settings" || e.key === NS + "profile") fn();
+  };
+  window.addEventListener(SETUP_EVENT, fn);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(SETUP_EVENT, fn);
+    window.removeEventListener("storage", onStorage);
+  };
 }
 
 // ---- Runs ------------------------------------------------------------------
