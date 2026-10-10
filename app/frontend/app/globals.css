@@ -605,3 +605,75 @@ label:focus-within {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---- Home page: kinetic type, marquee, gradient beams ------------------- */
+
+@keyframes letter-rise {
+  from { opacity: 0; transform: translateY(0.6em) rotate(4deg); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+.letter-rise {
+  display: inline-block;
+  animation: letter-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-dur, 40s) linear infinite;
+}
+.marquee-reverse {
+  animation-direction: reverse;
+}
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+/* Giant outlined display text. */
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(196, 181, 253, 0.35);
+}
+
+/* Animated gradient beam used as a section divider. */
+@keyframes beam {
+  0% { background-position: -40% 0; }
+  100% { background-position: 140% 0; }
+}
+.beam {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.9), rgba(196, 181, 253, 0.9), transparent) no-repeat;
+  background-size: 30% 100%;
+  animation: beam 4s linear infinite;
+}
+
+/* Conic glow that slowly rotates behind hero content. */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.spin-slow {
+  animation: spin-slow 30s linear infinite;
+}
+
+@keyframes scroll-drop {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(200%); }
+}
+.scroll-drop {
+  animation: scroll-drop 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-drop,
+  .letter-rise,
+  .marquee,
+  .beam,
+  .spin-slow {
+    animation: none !important;
+  }
+}
