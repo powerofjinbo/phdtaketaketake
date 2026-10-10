@@ -40,28 +40,42 @@ P(offer | waitlist).
 
 ### 2. Place the applicant in the pool
 
-Nine factors become z-scores against the *typical applicant to that tier*
+Seven factors become z-scores against the *typical applicant to that tier*
 (pools self-select, so the same file is further above the pool at a
-top-60 program than at a top-10 one):
+top-60 program than at a top-10 one). The four applicant factors are the
+matcher's applicant model v2 sub-scores (`scoring.applicant.assess_applicant`,
+see `references/applicant_model.md`), so the matcher and the estimator
+describe you the same way:
 
 | Factor | Source | Notes |
 |---|---|---|
-| research | `pub.pub_score` | publications are a required answer |
-| experience | `experience.experience_score` | strongest single experience |
-| gpa | `gpa.gpa_score` | threshold-shaped: positive z counts half |
-| coursework | transcript | core-course GPA, graduate courses at B+ or above, grade trend, class rank |
-| pedigree | `undergrad_tier` | relative to the tier's pool |
-| letters | letter writers | best writer's prominence × supervisor role |
+| research | v2 `research_output_score` | publications are a required answer |
+| experience | v2 `research_experience_score` | best experience plus depth, role and field relevance |
+| academic | v2 `academic_score` | GPA in context: core-course GPA from the transcript, class rank, trend, graduate courses and the undergraduate institution offset; threshold-shaped (positive z counts half) |
+| letters | v2 `letters_score` | writer standing × relationship; fewer than three letters widen the factor instead of lowering it |
 | sop | uploaded SOP | LLM reading → always *uncertain* |
 | connection | `connection.path_strength` | to *this* PI, via your advisors |
 | fit | `research_fit` | keyword overlap fallback is *uncertain* |
 
+How the estimator's inputs map onto the v2 profile: the transcript's core
+courses become `major_gpa_raw` (on the applicant's own GPA scale; a
+percentage on the 100 scale), graduate courses at B+ or above become
+`graduate_course_count`, and a late-minus-early grade difference beyond
+±0.15 becomes a rising / falling `gpa_trend`. `class_rank_percentile`
+becomes a `ClassRank`. `undergrad_tier` maps elite → elite, strong →
+strong, regular → good, unknown → not set. Letter writers become
+recommenders: field_leader → world_class, established → top_us,
+junior_or_unknown → good_us_or_985; a research supervisor is
+`research_supervisor`, anyone else `course_instructor`. The undergraduate
+institution is no longer a separate factor, since the academic score
+already includes it.
+
 The applicant index is `S = Σ a_k z_k`. Weights depend on who decides:
 
-| | connection | fit | research | letters | experience | coursework | gpa | pedigree | sop |
-|---|---|---|---|---|---|---|---|---|---|
-| PI decides (direct admit) | **0.21** | 0.16 | 0.16 | 0.12 | 0.10 | 0.08 | 0.07 | 0.05 | 0.05 |
-| Committee (rotation / centralized) | 0.14 | 0.06 | **0.19** | 0.16 | 0.12 | 0.11 | 0.10 | 0.07 | 0.05 |
+| | connection | fit | research | academic | letters | experience | sop |
+|---|---|---|---|---|---|---|---|
+| PI decides (direct admit) | **0.22** | 0.17 | 0.17 | 0.16 | 0.13 | 0.10 | 0.05 |
+| Committee (rotation / centralized) | 0.15 | 0.07 | 0.20 | **0.23** | 0.17 | 0.13 | 0.05 |
 
 When the program's admission model is unknown the estimator mixes the two
 with a field prior (CS mostly direct admit, biology / math mostly

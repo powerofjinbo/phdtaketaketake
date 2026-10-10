@@ -13,10 +13,11 @@ Algorithm (see docs/admission_probability.md for the full derivation)
    by known cohort-size / funding facts). Interview and waitlist stages
    swap in post-interview / waitlist rates.
 
-2. **Place the applicant in the pool.** Nine factors become z-scores
+2. **Place the applicant in the pool.** Seven factors become z-scores
    against the typical applicant to that tier (features.py): research
-   output, research experience, GPA, core coursework, undergraduate
-   institution, letters, SOP, network connection to the PI, research fit.
+   output, research experience, academic record and letters (the
+   matcher's applicant model v2 sub-scores), SOP, network connection to
+   the PI, research fit.
    Their weighted sum is the applicant index S. Weights depend on who
    decides: a direct-admit PI weighs connection and fit most; a committee
    weighs research output and letters most. When the admission model is
@@ -90,14 +91,18 @@ _N = NormalDist()
 # Committee: a faculty committee reads the file — research output and
 # letters lead; connection to one PI still matters (it shapes the letters
 # the committee trusts) but less.
+# The academic record is applicant model v2's academic score, which already
+# folds in the transcript, class rank and the undergraduate institution, so
+# it carries the old GPA + coursework weight; the old pedigree weight is
+# spread over the other factors instead of counting the institution twice.
 WEIGHTS: dict[str, dict[str, float]] = {
     "direct": {
-        "connection": 0.21, "fit": 0.16, "research": 0.16, "letters": 0.12,
-        "experience": 0.10, "coursework": 0.08, "gpa": 0.07, "pedigree": 0.05, "sop": 0.05,
+        "connection": 0.22, "fit": 0.17, "research": 0.17, "academic": 0.16,
+        "letters": 0.13, "experience": 0.10, "sop": 0.05,
     },
     "committee": {
-        "research": 0.19, "letters": 0.16, "connection": 0.14, "experience": 0.12,
-        "coursework": 0.11, "gpa": 0.10, "pedigree": 0.07, "fit": 0.06, "sop": 0.05,
+        "academic": 0.23, "research": 0.20, "letters": 0.17, "connection": 0.15,
+        "experience": 0.13, "fit": 0.07, "sop": 0.05,
     },
 }
 

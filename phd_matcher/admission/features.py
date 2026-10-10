@@ -13,9 +13,14 @@ a top-60 program than at a top-10 one). Each observation carries a state:
              known (one-factor model), so the uncertainty shows up as a
              wider interval instead of a guess
 
-Sub-scores come from the matcher's own scoring functions (pub, gpa,
-experience, connection, research fit), so the two features stay
-consistent with each other.
+Applicant sub-scores come from the matcher's applicant model v2
+(`scoring.applicant.assess_applicant`: academic record, research output,
+research experience, letters), so the matcher and the estimator describe
+the applicant the same way. The transcript, class rank and undergraduate
+tier feed the academic score rather than standing as separate factors,
+because v2 already folds them in (institution offset, rank blend, major
+GPA, trend, graduate courses). Connection and research fit reuse the
+matcher's per-PI scoring.
 """
 
 from __future__ import annotations
@@ -31,8 +36,16 @@ from phd_matcher.admission.transcript import coursework_signals
 from phd_matcher.data.loaders import load_field_profile
 from phd_matcher.matching.direction import direction_relevance
 from phd_matcher.matching.ranker import evidence_coverage
-from phd_matcher.models import StudentProfile
-from phd_matcher.scoring import connection, experience, gpa, pub
+from phd_matcher.models import (
+    ClassRank,
+    InstitutionTier,
+    LabTier,
+    Recommender,
+    StandardizedTests,
+    StudentProfile,
+)
+from phd_matcher.scoring import applicant as applicant_model
+from phd_matcher.scoring import connection, gpa
 from phd_matcher.scoring import research_fit as research_fit_module
 
 _N = NormalDist()
@@ -54,27 +67,39 @@ POOL: dict[str, dict[str, tuple[float, float]]] = {
         "top_10": (3.25, 0.40), "top_11_30": (3.10, 0.40),
         "top_31_60": (2.95, 0.42), "top_60_plus": (2.80, 0.45),
     },
-    "gpa": {
+    # v2 academic score: GPA in context (institution offset, class rank,
+    # major GPA, trend, graduate courses). A typical pool applicant from a
+    # "strong" school has offset 0, so the old GPA pool still applies.
+    "academic": {
         "top_10": (3.75, 0.20), "top_11_30": (3.65, 0.25),
         "top_31_60": (3.50, 0.30), "top_60_plus": (3.35, 0.35),
     },
+    # v2 letters score. With only prominence and role known (no months /
+    # expected strength), a field leader who supervised your research
+    # scores 3.60 and a junior course instructor 2.95; at a top-31-60
+    # program those land at about +1.7 and -0.6 sd, as before v2.
+    "letters": {
+        "top_10": (3.22, 0.28), "top_11_30": (3.17, 0.28),
+        "top_31_60": (3.12, 0.28), "top_60_plus": (3.07, 0.28),
+    },
 }
-
-# Typical class-rank z of the pool (≈ top 10% / 16% / 24% / 34%).
-POOL_RANK_Z = {"top_10": 1.3, "top_11_30": 1.0, "top_31_60": 0.7, "top_60_plus": 0.4}
 
 # Typical Subject-GRE percentile of the pool.
 POOL_SUBJECT_GRE_PCT = {"top_10": 0.80, "top_11_30": 0.70, "top_31_60": 0.60, "top_60_plus": 0.50}
 
-PEDIGREE_Z = {"elite": 0.8, "strong": 0.2, "regular": -0.6}
-PEDIGREE_TIER_OFFSET = {"top_10": 0.3, "top_11_30": 0.15, "top_31_60": 0.0, "top_60_plus": -0.15}
-
-# Best single letter: (prominence, is_research_supervisor) → z
-LETTER_Z = {
-    ("field_leader", True): 1.6, ("field_leader", False): 0.8,
-    ("established", True): 0.6, ("established", False): 0.1,
-    ("junior_or_unknown", True): -0.1, ("junior_or_unknown", False): -0.6,
+# Estimator inputs → applicant model v2 inputs.
+UNDERGRAD_TIER_V2: dict[str, InstitutionTier | None] = {
+    "elite": "elite", "strong": "strong", "regular": "good", "unknown": None,
 }
+LETTER_STANDING_V2: dict[str, LabTier] = {
+    "field_leader": "world_class",
+    "established": "top_us",
+    "junior_or_unknown": "good_us_or_985",
+}
+# Late-minus-early grade points beyond which the trend counts as rising/falling.
+TREND_THRESHOLD = 0.15
+# Synthetic cohort used to express a top-X% class rank as rank / cohort.
+RANK_COHORT = 1000
 
 GRE_QUANT_WEIGHT = 0.02
 
@@ -110,13 +135,38 @@ def _clip(x: float, lo: float, hi: float) -> float:
 
 def _pool(feature: str, tier: str, fp: FieldPriors) -> tuple[float, float]:
     override = fp.pool_overrides.get(feature, {}).get(tier)
+    if override is None and feature == "academic":  # older priors call it "gpa"
+        override = fp.pool_overrides.get("gpa", {}).get(tier)
     return override if override is not None else POOL[feature][tier]
 
 
-def to_student_profile(applicant: AdmissionApplicant) -> StudentProfile:
+def _from_4_0(value: float, scale: str) -> float | None:
+    """Inverse of `gpa.gpa_score`: a 4.0-scale value on the profile's own
+    GPA scale (on the 100 scale that is a percentage). None for "uk"."""
+    if scale in ("4.0", "4.3"):
+        return value
+    if scale == "4.5":
+        return value * 4.5 / 4.0
+    if scale == "100":
+        anchors = gpa.PERCENT_ANCHORS
+        if value >= anchors[-1][1]:
+            return anchors[-1][0]
+        if value <= anchors[0][1]:
+            return anchors[0][0]
+        for (x0, y0), (x1, y1) in zip(anchors, anchors[1:], strict=False):
+            if value <= y1:
+                return x0 + (x1 - x0) * (value - y0) / (y1 - y0)
+    return None
+
+
+def to_student_profile(
+    applicant: AdmissionApplicant, core_keywords: list[str] | None = None,
+) -> StudentProfile:
     """Project the applicant onto the matcher's StudentProfile so the
-    matcher's scoring and evidence-coverage functions can be reused."""
-    return StudentProfile(
+    matcher's applicant model v2, scoring and evidence-coverage functions
+    can be reused. Only facts the applicant gave are mapped; anything the
+    estimator does not ask for stays unset (unknown, not low)."""
+    profile = StudentProfile(
         name=applicant.name,
         field=applicant.field,
         undergrad_institution=applicant.undergrad_institution,
@@ -127,7 +177,38 @@ def to_student_profile(applicant: AdmissionApplicant) -> StudentProfile:
         current_advisors=applicant.current_advisors,
         papers=applicant.publications,
         experiences=applicant.experiences,
+        undergrad_tier=UNDERGRAD_TIER_V2[applicant.undergrad_tier],
+        recommenders=[
+            Recommender(
+                name=w.name,
+                standing=LETTER_STANDING_V2[w.prominence],
+                relationship=("research_supervisor" if w.is_research_supervisor
+                              else "course_instructor"),
+            )
+            for w in applicant.letters
+        ],
+        test_scores=(StandardizedTests(subject_gre_percentile=applicant.gre_subject.percentile)
+                     if applicant.gre_subject is not None else None),
     )
+    if core_keywords is None:
+        return profile
+
+    cw = coursework_signals(applicant.transcript, core_keywords, applicant.gpa_scale)
+    update: dict = {}
+    if cw.core_gpa is not None and not cw.used_all_courses_as_core:
+        major = _from_4_0(cw.core_gpa, applicant.gpa_scale)
+        if major is not None:
+            update["major_gpa_raw"] = round(major, 3)
+    if cw.n_graduate_good:
+        update["graduate_course_count"] = cw.n_graduate_good
+    if cw.trend is not None:
+        update["gpa_trend"] = ("rising" if cw.trend > TREND_THRESHOLD
+                               else "falling" if cw.trend < -TREND_THRESHOLD else "flat")
+    rank = applicant.transcript.class_rank_percentile
+    if rank is not None:
+        update["class_rank"] = ClassRank(
+            rank=max(1, round(rank / 100.0 * RANK_COHORT)), cohort_size=RANK_COHORT)
+    return profile.model_copy(update=update)
 
 
 def _uncertain(key: str, label: str, label_zh: str, claimed_z: float, note: str,
@@ -136,10 +217,10 @@ def _uncertain(key: str, label: str, label_zh: str, claimed_z: float, note: str,
                    UNCERTAIN_SD, loading, note)
 
 
-def gpa_z(g: float, tier: str, fp: FieldPriors) -> float:
-    """GPA works like a threshold: falling below the pool hurts a lot,
-    rising above it helps only half as much."""
-    mu, sd = _pool("gpa", tier, fp)
+def academic_z(g: float, tier: str, fp: FieldPriors) -> float:
+    """The academic record works like a threshold: falling below the pool
+    hurts a lot, rising above it helps only half as much."""
+    mu, sd = _pool("academic", tier, fp)
     z = (g - mu) / sd
     if z > 0:
         z *= 0.5
@@ -154,81 +235,62 @@ def build_features(
 ) -> tuple[list[Feature], list[BonusFeature]]:
     tier = target.tier
     field_profile = load_field_profile(data_dir, applicant.field)
-    student = to_student_profile(applicant)
+    student = to_student_profile(applicant, fp.core_course_keywords)
+    assessment = applicant_model.assess_applicant(student, field_profile)
+    comp = assessment.components
     feats: list[Feature] = []
 
     # ---- Research output (publications are a required answer) ----------
-    p = pub.pub_score([pp.model_dump() for pp in applicant.publications],
-                      field_profile=field_profile)
+    p = assessment.research_output_score
     mu, sd = _pool("research", tier, fp)
     note = (f"{len(applicant.publications)} publication(s), score {p:.2f}/4"
             if applicant.publications else "no publications (explicit)")
     feats.append(Feature("research", "Research output", "科研产出（论文）", "known",
                          _clip((p - mu) / sd, -2.5, 3.0), 0.15, note=note))
 
-    # ---- Research experience -------------------------------------------
+    # ---- Research experience (v2: role, field relevance, depth) ---------
     if applicant.experiences:
-        e = experience.experience_score([x.model_dump() for x in applicant.experiences])
+        e = assessment.research_experience_score
         mu, sd = _pool("experience", tier, fp)
         feats.append(Feature("experience", "Research experience", "科研经历", "known",
                              _clip((e - mu) / sd, -2.5, 2.5), 0.15,
-                             note=f"strongest experience {e:.2f}/4"))
+                             note=f"{len(applicant.experiences)} experience(s), "
+                                  f"score {e:.2f}/4"))
     else:
         feats.append(Feature("experience", "Research experience", "科研经历", "missing",
                              note="no research experience listed"))
 
-    # ---- GPA ------------------------------------------------------------
-    g = gpa.gpa_score(applicant.gpa_raw, applicant.gpa_scale)
-    feats.append(Feature("gpa", "GPA", "GPA", "known", gpa_z(g, tier, fp), 0.10,
-                         note=f"{g:.2f}/4.0 normalized"))
-
-    # ---- Transcript (required) -----------------------------------------
+    # ---- Academic record (v2: GPA + transcript + rank + institution) ----
+    a = assessment.academic_score
+    parts = [f"GPA {comp['gpa_4_0']:.2f}/4.0"]
+    if "major_gpa_4_0" in comp:
+        parts.append(f"core-course GPA {comp['major_gpa_4_0']:.2f}")
+    if student.class_rank is not None:
+        parts.append(f"rank top {applicant.transcript.class_rank_percentile:g}%")
+    if student.graduate_course_count:
+        parts.append(f"{student.graduate_course_count} graduate course(s) at B+ or above")
+    if student.gpa_trend is not None:
+        parts.append(f"{student.gpa_trend} trend")
+    if student.undergrad_tier is not None:
+        parts.append(f"{applicant.undergrad_tier} institution "
+                     f"({comp['institution_offset']:+.2f})")
     cw = coursework_signals(applicant.transcript, fp.core_course_keywords, applicant.gpa_scale)
-    if cw.core_gpa is None:
-        feats.append(Feature("coursework", "Core coursework", "核心课程（成绩单）", "missing",
-                             note="no graded courses on the transcript"))
-    else:
-        mu, sd = _pool("gpa", tier, fp)
-        z_core = (cw.core_gpa - mu) / sd
-        if z_core > 0:
-            z_core *= 0.6
-        z = z_core
-        rank = applicant.transcript.class_rank_percentile
-        if rank is not None:
-            rank_z = _N.inv_cdf(_clip(1.0 - rank / 100.0, 0.001, 0.999))
-            z = 0.6 * z_core + 0.4 * _clip((rank_z - POOL_RANK_Z[tier]) / 0.6, -3.0, 2.0)
-        z += 0.25 * (min(cw.n_graduate_good, 4) - 1)
-        if cw.trend is not None:
-            z += 0.3 * _clip(cw.trend / 0.3, -1.0, 1.0)
-        parts = [f"core-course GPA {cw.core_gpa:.2f}"]
-        if cw.n_graduate_good:
-            parts.append(f"{cw.n_graduate_good} graduate course(s) at B+ or above")
-        if cw.trend is not None:
-            parts.append(f"trend {cw.trend:+.2f}")
-        if rank is not None:
-            parts.append(f"rank top {rank:g}%")
-        parts.extend(cw.notes)
-        feats.append(Feature("coursework", "Core coursework", "核心课程（成绩单）", "known",
-                             _clip(z, -3.0, 2.5), 0.4 if cw.used_all_courses_as_core else 0.25,
-                             note="; ".join(parts)))
+    parts.extend(cw.notes)
+    feats.append(Feature("academic", "Academic record", "学业成绩（GPA / 成绩单）", "known",
+                         academic_z(a, tier, fp), 0.15,
+                         note=f"score {a:.2f}/4: " + "; ".join(parts)))
 
-    # ---- Undergraduate institution -------------------------------------
-    if applicant.undergrad_tier == "unknown":
-        feats.append(Feature("pedigree", "Undergraduate institution", "本科院校", "missing",
-                             note="undergrad_tier not given"))
-    else:
-        z = PEDIGREE_Z[applicant.undergrad_tier] - PEDIGREE_TIER_OFFSET[tier]
-        feats.append(Feature("pedigree", "Undergraduate institution", "本科院校", "known", z, 0.3,
-                             note=applicant.undergrad_tier))
-
-    # ---- Letters --------------------------------------------------------
-    if applicant.letters:
-        best = max(LETTER_Z[(w.prominence, w.is_research_supervisor)] for w in applicant.letters)
+    # ---- Letters (v2 letters score; fewer letters → wider) --------------
+    if assessment.letters_score is not None:
+        mu, sd = _pool("letters", tier, fp)
         n_sup = sum(1 for w in applicant.letters if w.is_research_supervisor)
-        z = best + (0.2 if n_sup >= 2 else 0.0)
-        feats.append(Feature("letters", "Recommendation letters", "推荐信", "known", z, 0.4,
+        cov = max(assessment.letters_coverage, 1e-6)
+        feats.append(Feature("letters", "Recommendation letters", "推荐信", "known",
+                             _clip((assessment.letters_score - mu) / sd, -2.5, 2.5),
+                             0.4 / math.sqrt(cov),
                              note=f"{len(applicant.letters)} writer(s), "
-                                  f"{n_sup} research supervisor(s)"))
+                                  f"{n_sup} research supervisor(s), "
+                                  f"score {assessment.letters_score:.2f}/4"))
     else:
         feats.append(Feature("letters", "Recommendation letters", "推荐信", "missing",
                              note="letter writers not listed"))

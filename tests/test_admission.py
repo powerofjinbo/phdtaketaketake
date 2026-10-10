@@ -296,6 +296,67 @@ def test_coursework_signals_core_and_trend():
 
 
 # ---------------------------------------------------------------------------
+# Applicant model v2 integration
+# ---------------------------------------------------------------------------
+
+def test_estimator_uses_applicant_model_v2_factors():
+    keys = {f.key for f in prepare(_applicant(), _program_target()).features}
+    assert {"research", "experience", "academic", "letters"} <= keys
+    assert not keys & {"gpa", "coursework", "pedigree"}
+    for w in WEIGHTS.values():
+        assert set(w) == keys
+
+
+def test_profile_mapping_follows_v2_contract():
+    from phd_matcher.admission.features import to_student_profile
+
+    app = _applicant(undergrad_tier="regular", letters=[
+        {"name": "A", "prominence": "field_leader", "is_research_supervisor": True},
+        {"name": "B", "prominence": "junior_or_unknown", "is_research_supervisor": False},
+    ])
+    prof = to_student_profile(app, ["quantum", "electrodynamics", "mechanics"])
+    assert prof.undergrad_tier == "good"
+    assert [r.standing for r in prof.recommenders] == ["world_class", "good_us_or_985"]
+    assert [r.relationship for r in prof.recommenders] == [
+        "research_supervisor", "course_instructor"]
+    assert prof.class_rank is not None
+    assert prof.class_rank.percentile_from_top == pytest.approx(0.08)
+    assert prof.gpa_trend == "rising"
+    assert prof.graduate_course_count == 2
+    assert prof.major_gpa_raw is not None
+    assert to_student_profile(_applicant(undergrad_tier="unknown")).undergrad_tier is None
+
+
+def test_major_gpa_is_passed_on_the_profiles_own_scale():
+    from phd_matcher.admission.features import to_student_profile
+
+    app = _applicant(gpa_raw=88, gpa_scale="100")
+    prof = to_student_profile(app, ["quantum", "electrodynamics"])
+    # Quantum Mechanics A + Electrodynamics A + QFT I A- on the 100 scale
+    # is a percentage, not 4.0 points.
+    assert prof.major_gpa_raw is not None and prof.major_gpa_raw > 80
+
+
+def test_fewer_letters_are_less_certain_not_weaker():
+    one = [{"name": "A", "prominence": "field_leader", "is_research_supervisor": True}]
+    three = one * 3
+    f1 = next(f for f in prepare(_applicant(letters=one), _program_target()).features
+              if f.key == "letters")
+    f3 = next(f for f in prepare(_applicant(letters=three), _program_target()).features
+              if f.key == "letters")
+    assert f1.mean == pytest.approx(f3.mean)
+    assert f1.sd > f3.sd
+
+
+def test_better_class_rank_raises_probability():
+    tgt = _program_target()
+    t = json.loads((DEMO / "applicant.json").read_text())["transcript"]
+    probs = [_p(_applicant(transcript={**t, "class_rank_percentile": r}), tgt).probability
+             for r in (60, 30, 8)]
+    assert probs == sorted(probs)
+
+
+# ---------------------------------------------------------------------------
 # Calibration fit + CLI
 # ---------------------------------------------------------------------------
 
