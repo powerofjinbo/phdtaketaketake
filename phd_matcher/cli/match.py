@@ -42,6 +42,11 @@ import sys
 from pathlib import Path
 
 from phd_matcher.data.loaders import load_field_profile
+from phd_matcher.matching.advice import (
+    build_application_list,
+    improvement_plan,
+    tier_readiness,
+)
 from phd_matcher.matching.ranker import (
     rank_advisors,
     strict_validate,
@@ -49,6 +54,7 @@ from phd_matcher.matching.ranker import (
 )
 from phd_matcher.matching.strategy import summarize_portfolio
 from phd_matcher.models import CandidateAdvisor, StudentProfile
+from phd_matcher.scoring.applicant import assess_applicant
 from phd_matcher.scoring.pub import validate_paper_roles
 
 # Sprint-3-c5: when installed as a package, data/ ships at repo root
@@ -97,6 +103,10 @@ def main() -> int:
         help="Target STEM field (any string, e.g. physics, chemistry, biology, cs)",
     )
     ap.add_argument("--top-k", type=int, default=10)
+    ap.add_argument(
+        "--list-size", type=int, default=12,
+        help="Target size of the balanced application list (application_plan)",
+    )
     ap.add_argument(
         "--candidates-file",
         type=Path,
@@ -229,12 +239,26 @@ def main() -> int:
     # Sprint-2-c5: portfolio-level strategy summary. Per-candidate
     # `strategy` field is already attached by `compute_match`.
     strategy_summary = summarize_portfolio(results)
+    # Applicant model v2: candidate-independent assessment plus advice.
+    assessment = (
+        results[0].applicant if results and results[0].applicant is not None
+        else assess_applicant(student, field_profile)
+    )
     output: dict = {
         "input_field": input_field,
         "field_profile_id": field_profile.id if field_profile else None,
         "field_caveats": field_profile.caveats if field_profile else [],
         "input_warnings": input_warnings,
         "strategy_summary": strategy_summary.model_dump(mode="json"),
+        "applicant": assessment.model_dump(mode="json"),
+        "tier_readiness": [t.model_dump(mode="json") for t in tier_readiness(assessment)],
+        "improvement_plan": [
+            a.model_dump(mode="json")
+            for a in improvement_plan(student, field_profile)
+        ],
+        "application_plan": build_application_list(
+            results, size=args.list_size,
+        ).model_dump(mode="json"),
         "results": [r.model_dump(mode="json") for r in results],
     }
     json.dump(output, sys.stdout, indent=2, ensure_ascii=False)

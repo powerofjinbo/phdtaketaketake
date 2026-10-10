@@ -100,6 +100,126 @@
       "3 candidates: 0 priority · 1 target · 1 reach · 1 only_if_space · 0 drop"
     ]
   },
+  "applicant": {
+    "academic_score": 3.85,
+    "research_output_score": 3.5,
+    "research_experience_score": 3.25,
+    "letters_score": null,
+    "letters_coverage": 0.0,
+    "honors_bonus": 0.0,
+    "tests_adj": 0.0,
+    "spike_bonus": 0.0,
+    "applicant_strength": 3.51,
+    "tier": "strong",
+    "confidence": "low",
+    "inputs_provided": 0,
+    "inputs_total": 6,
+    "strengths": [
+      "academic record (3.85)"
+    ],
+    "weaknesses": [],
+    "risk_flags": [],
+    "missing_inputs": [
+      "undergraduate institution tier (puts the GPA in context)",
+      "class rank or major-course GPA",
+      "who will write your recommendation letters and how well they know you",
+      "your role in each research project and how close it is to the target field",
+      "GPA trend or number of graduate-level courses taken",
+      "test scores (Subject GRE / English test), if you have them"
+    ],
+    "components": {
+      "gpa_4_0": 3.85,
+      "institution_offset": 0.0,
+      "trend_adj": 0.0,
+      "grad_course_bonus": 0.0,
+      "undergrad_academic": 3.85,
+      "academic": 3.85,
+      "P": 3.5,
+      "E": 3.25,
+      "G": 3.85
+    }
+  },
+  "tier_readiness": [
+    {
+      "school_tier": "top_10",
+      "applicant_score": 3.51,
+      "screen_penalty": 0.0,
+      "typical_admit_bar": 3.55,
+      "margin": -0.04,
+      "verdict": "at_bar",
+      "note": "on the bubble; a verified connection or strong research fit decides it"
+    },
+    {
+      "school_tier": "top_11_30",
+      "applicant_score": 3.53,
+      "screen_penalty": 0.0,
+      "typical_admit_bar": 3.3,
+      "margin": 0.23,
+      "verdict": "above_bar",
+      "note": "profile alone is competitive here"
+    },
+    {
+      "school_tier": "top_31_60",
+      "applicant_score": 3.55,
+      "screen_penalty": 0.0,
+      "typical_admit_bar": 3.05,
+      "margin": 0.5,
+      "verdict": "above_bar",
+      "note": "profile alone is competitive here"
+    },
+    {
+      "school_tier": "top_60_plus",
+      "applicant_score": 3.58,
+      "screen_penalty": 0.0,
+      "typical_admit_bar": 2.75,
+      "margin": 0.83,
+      "verdict": "above_bar",
+      "note": "profile alone is competitive here"
+    }
+  ],
+  "improvement_plan": [
+    {
+      "action": "Take two more graduate-level courses",
+      "pillar": "G",
+      "effort": "medium",
+      "delta_strength": 0.02,
+      "new_strength": 3.53,
+      "assumption": "two additional graduate courses completed before applying"
+    }
+  ],
+  "application_plan": {
+    "picks": [
+      {
+        "candidate_id": "cand_hartman_mit",
+        "institution": "MIT",
+        "band": "reach",
+        "difficulty_adjusted_strength": 2.42,
+        "why": "Reach (difficulty-adjusted 2.42); strategy: target, contact_first"
+      },
+      {
+        "candidate_id": "cand_chen_berkeley",
+        "institution": "UC Berkeley",
+        "band": "reach",
+        "difficulty_adjusted_strength": 1.87,
+        "why": "Far Reach (difficulty-adjusted 1.87); strategy: reach, investigate_evidence"
+      },
+      {
+        "candidate_id": "cand_lin_stanford",
+        "institution": "Stanford",
+        "band": "reach",
+        "difficulty_adjusted_strength": 1.83,
+        "why": "Far Reach (difficulty-adjusted 1.83); strategy: only_if_space, investigate_evidence"
+      }
+    ],
+    "reach_count": 3,
+    "target_count": 0,
+    "safer_count": 0,
+    "excluded": [],
+    "notes": [
+      "No safer options in this list. Add candidates from lower-difficulty programs or with verified connections before finalizing.",
+      "Only 3 eligible candidates for a list of 12; discover more PIs to fill it."
+    ]
+  },
   "results": [
     {
       "candidate": {
@@ -237,13 +357,13 @@
         "searched_sources": []
       },
       "c_score": 3.7,
-      "a_score": 2.8,
-      "p_score": 3.26,
+      "a_score": 3.06,
+      "p_score": 3.5,
       "e_score": 3.25,
       "g_score": 3.85,
-      "match_score": 3.4,
-      "application_strength": 3.3,
-      "confidence_band": 0.8,
+      "match_score": 3.51,
+      "application_strength": 3.41,
+      "confidence_band": 0.58,
       "strength_label": "Reach",
       "explanation": "Evidence coverage: 3/8 verified · 4 missing (collab_with_nas, grad_placement_quality, pi_signal) · 1 unsourced (school_tier) · co-authored 3 small-team paper(s) with Prof. Lisa Wang in last 5y [https://openalex.org/authors/A_WANG_THU · openalex] · shared 2 big-collab paper(s) with Prof. Lisa Wang (alphabetical author list) [https://openalex.org/authors/A_WANG_THU · openalex] · research: Higgs boson, ATLAS, particle physics [https://openalex.org/authors/A_HARTMAN_MIT · openalex]",
       "unverified_signals": 5,
@@ -259,10 +379,10 @@
       "unsourced_signal_names": [
         "school_tier"
       ],
-      "risk_adjusted_strength": 2.9,
-      "lower_bound": 2.5,
+      "risk_adjusted_strength": 3.12,
+      "lower_bound": 2.83,
       "program_difficulty_penalty": 0.7,
-      "difficulty_adjusted_strength": 2.2,
+      "difficulty_adjusted_strength": 2.42,
       "difficulty_reasons": [
         "school_tier=top_10 admit-rate factor +0.70"
       ],
@@ -272,16 +392,58 @@
       "research_fit_axes": {},
       "o_score": null,
       "opportunity_adj": -0.1,
+      "research_fit_adj": 0.0,
+      "l_score": null,
+      "s_score": 3.51,
+      "academic_screen_penalty": 0.0,
+      "applicant": {
+        "academic_score": 3.85,
+        "research_output_score": 3.5,
+        "research_experience_score": 3.25,
+        "letters_score": null,
+        "letters_coverage": 0.0,
+        "honors_bonus": 0.0,
+        "tests_adj": 0.0,
+        "spike_bonus": 0.0,
+        "applicant_strength": 3.51,
+        "tier": "strong",
+        "confidence": "low",
+        "inputs_provided": 0,
+        "inputs_total": 6,
+        "strengths": [
+          "academic record (3.85)"
+        ],
+        "weaknesses": [],
+        "risk_flags": [],
+        "missing_inputs": [
+          "undergraduate institution tier (puts the GPA in context)",
+          "class rank or major-course GPA",
+          "who will write your recommendation letters and how well they know you",
+          "your role in each research project and how close it is to the target field",
+          "GPA trend or number of graduate-level courses taken",
+          "test scores (Subject GRE / English test), if you have them"
+        ],
+        "components": {
+          "gpa_4_0": 3.85,
+          "institution_offset": 0.0,
+          "trend_adj": 0.0,
+          "grad_course_bonus": 0.0,
+          "undergrad_academic": 3.85,
+          "academic": 3.85,
+          "P": 3.5,
+          "E": 3.25,
+          "G": 3.85
+        }
+      },
       "strategy": {
         "apply_bucket": "target",
         "recommended_action": "contact_first",
         "why_this_rank": [
-          "risk_adjusted_strength=2.90 ≥ 2.3",
+          "difficulty_adjusted_strength=2.42 ≥ 2.3",
           "strong connection (C=3.70)"
         ],
         "main_risks": [
           "1 unsourced claim(s) — the band is wider than it looks",
-          "wide confidence band (±0.8) — true strength may be 2.50–4.10",
           "program difficulty penalty 0.70 (top-tier admit pressure / small cohort / tight funding)"
         ],
         "evidence_to_fix": [
@@ -423,14 +585,14 @@
         },
         "searched_sources": []
       },
-      "c_score": 2.3,
-      "a_score": 2.8,
-      "p_score": 3.26,
+      "c_score": 2.32,
+      "a_score": 2.94,
+      "p_score": 3.5,
       "e_score": 3.25,
       "g_score": 3.85,
-      "match_score": 2.86,
-      "application_strength": 2.76,
-      "confidence_band": 0.8,
+      "match_score": 2.96,
+      "application_strength": 2.86,
+      "confidence_band": 0.58,
       "strength_label": "Far Reach",
       "explanation": "Evidence coverage: 3/8 verified · 4 missing (collab_with_nas, grad_placement_quality, pi_signal) · 1 unsourced (school_tier) · shared 1 big-collab paper(s) with Prof. Lisa Wang (alphabetical author list) [https://openalex.org/authors/A_WANG_THU · openalex] · research: ATLAS, particle physics, dark matter [https://openalex.org/authors/A_CHEN_BERKELEY · openalex]",
       "unverified_signals": 5,
@@ -446,10 +608,10 @@
       "unsourced_signal_names": [
         "school_tier"
       ],
-      "risk_adjusted_strength": 2.36,
-      "lower_bound": 1.96,
+      "risk_adjusted_strength": 2.57,
+      "lower_bound": 2.28,
       "program_difficulty_penalty": 0.7,
-      "difficulty_adjusted_strength": 1.66,
+      "difficulty_adjusted_strength": 1.87,
       "difficulty_reasons": [
         "school_tier=top_10 admit-rate factor +0.70"
       ],
@@ -459,15 +621,57 @@
       "research_fit_axes": {},
       "o_score": null,
       "opportunity_adj": -0.1,
+      "research_fit_adj": 0.0,
+      "l_score": null,
+      "s_score": 3.51,
+      "academic_screen_penalty": 0.0,
+      "applicant": {
+        "academic_score": 3.85,
+        "research_output_score": 3.5,
+        "research_experience_score": 3.25,
+        "letters_score": null,
+        "letters_coverage": 0.0,
+        "honors_bonus": 0.0,
+        "tests_adj": 0.0,
+        "spike_bonus": 0.0,
+        "applicant_strength": 3.51,
+        "tier": "strong",
+        "confidence": "low",
+        "inputs_provided": 0,
+        "inputs_total": 6,
+        "strengths": [
+          "academic record (3.85)"
+        ],
+        "weaknesses": [],
+        "risk_flags": [],
+        "missing_inputs": [
+          "undergraduate institution tier (puts the GPA in context)",
+          "class rank or major-course GPA",
+          "who will write your recommendation letters and how well they know you",
+          "your role in each research project and how close it is to the target field",
+          "GPA trend or number of graduate-level courses taken",
+          "test scores (Subject GRE / English test), if you have them"
+        ],
+        "components": {
+          "gpa_4_0": 3.85,
+          "institution_offset": 0.0,
+          "trend_adj": 0.0,
+          "grad_course_bonus": 0.0,
+          "undergrad_academic": 3.85,
+          "academic": 3.85,
+          "P": 3.5,
+          "E": 3.25,
+          "G": 3.85
+        }
+      },
       "strategy": {
         "apply_bucket": "reach",
         "recommended_action": "investigate_evidence",
         "why_this_rank": [
-          "application_strength=2.76 ≥ 2.4 but risk-adjusted 2.36 < 2.4 — wide confidence band"
+          "risk_adjusted_strength=2.57 clears 2.3, but program difficulty (−0.70) brings it to 1.87 — hard program for this profile"
         ],
         "main_risks": [
           "1 unsourced claim(s) — the band is wider than it looks",
-          "wide confidence band (±0.8) — true strength may be 1.96–3.56",
           "program difficulty penalty 0.70 (top-tier admit pressure / small cohort / tight funding)"
         ],
         "evidence_to_fix": [
@@ -581,13 +785,13 @@
         "searched_sources": []
       },
       "c_score": 2.3,
-      "a_score": 2.3,
-      "p_score": 3.26,
+      "a_score": 2.74,
+      "p_score": 3.5,
       "e_score": 3.25,
       "g_score": 3.85,
-      "match_score": 2.78,
-      "application_strength": 2.68,
-      "confidence_band": 0.8,
+      "match_score": 2.92,
+      "application_strength": 2.82,
+      "confidence_band": 0.58,
       "strength_label": "Far Reach",
       "explanation": "Evidence coverage: 3/8 verified · 4 missing (collab_with_nas, grad_placement_quality, pi_signal) · 1 unsourced (school_tier) · research: effective field theory, Standard Model, theoretical particle physics [https://openalex.org/authors/A_LIN_STANFORD · openalex]",
       "unverified_signals": 5,
@@ -603,10 +807,10 @@
       "unsourced_signal_names": [
         "school_tier"
       ],
-      "risk_adjusted_strength": 2.28,
-      "lower_bound": 1.88,
+      "risk_adjusted_strength": 2.53,
+      "lower_bound": 2.24,
       "program_difficulty_penalty": 0.7,
-      "difficulty_adjusted_strength": 1.58,
+      "difficulty_adjusted_strength": 1.83,
       "difficulty_reasons": [
         "school_tier=top_10 admit-rate factor +0.70"
       ],
@@ -616,6 +820,49 @@
       "research_fit_axes": {},
       "o_score": null,
       "opportunity_adj": -0.1,
+      "research_fit_adj": 0.0,
+      "l_score": null,
+      "s_score": 3.51,
+      "academic_screen_penalty": 0.0,
+      "applicant": {
+        "academic_score": 3.85,
+        "research_output_score": 3.5,
+        "research_experience_score": 3.25,
+        "letters_score": null,
+        "letters_coverage": 0.0,
+        "honors_bonus": 0.0,
+        "tests_adj": 0.0,
+        "spike_bonus": 0.0,
+        "applicant_strength": 3.51,
+        "tier": "strong",
+        "confidence": "low",
+        "inputs_provided": 0,
+        "inputs_total": 6,
+        "strengths": [
+          "academic record (3.85)"
+        ],
+        "weaknesses": [],
+        "risk_flags": [],
+        "missing_inputs": [
+          "undergraduate institution tier (puts the GPA in context)",
+          "class rank or major-course GPA",
+          "who will write your recommendation letters and how well they know you",
+          "your role in each research project and how close it is to the target field",
+          "GPA trend or number of graduate-level courses taken",
+          "test scores (Subject GRE / English test), if you have them"
+        ],
+        "components": {
+          "gpa_4_0": 3.85,
+          "institution_offset": 0.0,
+          "trend_adj": 0.0,
+          "grad_course_bonus": 0.0,
+          "undergrad_academic": 3.85,
+          "academic": 3.85,
+          "P": 3.5,
+          "E": 3.25,
+          "G": 3.85
+        }
+      },
       "strategy": {
         "apply_bucket": "only_if_space",
         "recommended_action": "investigate_evidence",
@@ -624,7 +871,6 @@
         ],
         "main_risks": [
           "1 unsourced claim(s) — the band is wider than it looks",
-          "wide confidence band (±0.8) — true strength may be 1.88–3.48",
           "program difficulty penalty 0.70 (top-tier admit pressure / small cohort / tight funding)"
         ],
         "evidence_to_fix": [

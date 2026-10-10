@@ -1,5 +1,27 @@
 {
   "$defs": {
+    "ClassRank": {
+      "additionalProperties": false,
+      "description": "Rank within the student's cohort, e.g. 3 of 120.",
+      "properties": {
+        "rank": {
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        },
+        "cohort_size": {
+          "minimum": 1,
+          "title": "Cohort Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rank",
+        "cohort_size"
+      ],
+      "title": "ClassRank",
+      "type": "object"
+    },
     "CurrentAdvisor": {
       "additionalProperties": false,
       "properties": {
@@ -140,6 +162,40 @@
           ],
           "title": "Output Type",
           "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "enum": [
+                "lead",
+                "core",
+                "assistant"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "field_relevance": {
+          "anyOf": [
+            {
+              "enum": [
+                "same_subfield",
+                "adjacent",
+                "different"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Relevance"
         }
       },
       "required": [
@@ -149,6 +205,44 @@
         "output_type"
       ],
       "title": "Experience",
+      "type": "object"
+    },
+    "Honor": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "international",
+            "national",
+            "regional",
+            "university",
+            "other"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        }
+      },
+      "required": [
+        "name",
+        "level"
+      ],
+      "title": "Honor",
       "type": "object"
     },
     "Paper": {
@@ -329,6 +423,149 @@
       ],
       "title": "Paper",
       "type": "object"
+    },
+    "Recommender": {
+      "additionalProperties": false,
+      "description": "One recommendation-letter writer, as the student describes them.\n\n`expected_strength` is the student's honest expectation; leave it\n\"unknown\" rather than guessing. Never invent a recommender.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "standing": {
+          "default": "other",
+          "enum": [
+            "world_class",
+            "top_us",
+            "strong_us_or_top_cn",
+            "good_us_or_985",
+            "211_or_overseas",
+            "other"
+          ],
+          "title": "Standing",
+          "type": "string"
+        },
+        "relationship": {
+          "enum": [
+            "research_supervisor",
+            "research_collaborator",
+            "course_instructor",
+            "employer",
+            "other"
+          ],
+          "title": "Relationship",
+          "type": "string"
+        },
+        "months_known": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Months Known",
+          "type": "integer"
+        },
+        "expected_strength": {
+          "default": "unknown",
+          "enum": [
+            "exceptional",
+            "strong",
+            "good",
+            "unknown"
+          ],
+          "title": "Expected Strength",
+          "type": "string"
+        },
+        "is_current_advisor": {
+          "default": false,
+          "title": "Is Current Advisor",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "relationship"
+      ],
+      "title": "Recommender",
+      "type": "object"
+    },
+    "StandardizedTests": {
+      "additionalProperties": false,
+      "description": "Optional standardized tests. Percentiles are 0-100.",
+      "properties": {
+        "gre_quant_percentile": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gre Quant Percentile"
+        },
+        "gre_verbal_percentile": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gre Verbal Percentile"
+        },
+        "subject_gre_percentile": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject Gre Percentile"
+        },
+        "english_test": {
+          "anyOf": [
+            {
+              "enum": [
+                "toefl",
+                "ielts",
+                "duolingo",
+                "native_or_waived"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "English Test"
+        },
+        "english_score": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "English Score"
+        }
+      },
+      "title": "StandardizedTests",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -412,6 +649,165 @@
       },
       "title": "Experiences",
       "type": "array"
+    },
+    "undergrad_tier": {
+      "anyOf": [
+        {
+          "enum": [
+            "elite",
+            "very_strong",
+            "strong",
+            "good",
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Undergrad Tier"
+    },
+    "class_rank": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClassRank"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "major_gpa_raw": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Major Gpa Raw"
+    },
+    "gpa_trend": {
+      "anyOf": [
+        {
+          "enum": [
+            "rising",
+            "flat",
+            "falling"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gpa Trend"
+    },
+    "graduate_course_count": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Graduate Course Count"
+    },
+    "degree_level": {
+      "default": "bachelor",
+      "enum": [
+        "bachelor",
+        "master"
+      ],
+      "title": "Degree Level",
+      "type": "string"
+    },
+    "master_tier": {
+      "anyOf": [
+        {
+          "enum": [
+            "elite",
+            "very_strong",
+            "strong",
+            "good",
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Master Tier"
+    },
+    "master_gpa_raw": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Master Gpa Raw"
+    },
+    "master_gpa_scale": {
+      "anyOf": [
+        {
+          "enum": [
+            "4.0",
+            "4.3",
+            "4.5",
+            "100",
+            "uk"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Master Gpa Scale"
+    },
+    "recommenders": {
+      "items": {
+        "$ref": "#/$defs/Recommender"
+      },
+      "title": "Recommenders",
+      "type": "array"
+    },
+    "honors": {
+      "items": {
+        "$ref": "#/$defs/Honor"
+      },
+      "title": "Honors",
+      "type": "array"
+    },
+    "test_scores": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StandardizedTests"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

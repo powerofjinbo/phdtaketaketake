@@ -45,23 +45,39 @@ big-collab credit without inversion at lower tiers.
 
 Unknown status raises an error (no silent default to 1.0).
 
-**Multi-paper aggregation** (top-3 weighted):
+**Multi-paper aggregation** (best paper + depth bonus, v0.4):
 - 0 papers → `2.0` (no-paper floor; sits *below* the lowest real-paper
   baseline of 2.3 so honestly reporting a weak paper never scores below
   reporting none)
 - 1 paper → that paper's score
-- 2 papers → `0.7 · best + 0.3 · 2nd_best`
-- 3+ papers → `0.5 · best + 0.3 · 2nd + 0.2 · 3rd` (only top-3)
+- 2+ papers → `P = s1 + (4.0 − s1) · (0.30 · q2 + 0.15 · q3)`, where
+  `q = clip((s − 2.8) / 1.2, 0, 1)` (only top-3 used)
 
-Note: aggregation is a convex *average* of the top papers, bounded by the
-best score — adding a paper weaker than your current best can lower P. This
-is intentional (rewards a consistent body of work, resists CV-padding).
+Adding a paper never lowers P (the old convex average did: `[4.0]` → 4.0
+but `[4.0, 3.5]` → 3.85, and a published 3.3 plus an in-prep paper fell to
+2.67). Papers at or below 2.8 add exactly nothing, so padding a CV with weak
+entries gains nothing either. P is capped at 4.0.
+
+### Applicant model v2
+
+P, E and G are now produced by `phd_matcher/scoring/applicant.py` as one
+candidate-independent `ApplicantAssessment`. It adds GPA context (institution
+tier, class rank, major GPA, trend, graduate courses, master's degree), a
+letters pillar (L), experience role / relevance / depth, and bounded honors,
+tests and spike bonuses. Inside CAPEG the P/E/G slot becomes the
+tier-weighted applicant composite, minus a tier-dependent academic
+screening penalty. Full spec:
+[`references/applicant_model.md`](../references/applicant_model.md).
 
 ### 2. GPA Score (G)
 
 Multi-system normalization (see `references/profile_schema.md` for the full
 table). Direct on 4.0; percentage and 4.3 / 4.5 / UK-honours systems all
-mapped.
+mapped. On a 4.3 scale A = 4.0 (A+ is an extra grade above it), so the
+value is capped at 4.0 rather than divided by 4.3. The 100-point scale
+interpolates linearly between the conservative anchors (60 → 2.0, 65 → 2.3,
+70 → 2.7, 75 → 3.0, 80 → 3.3, 85 → 3.7, 90 → 4.0), so 89.9 no longer scores
+0.3 below 90.
 
 ### 3. Experience Score (E)
 
@@ -141,7 +157,12 @@ intrinsic prestige (h-index proxy / NAS / placement) lives in A
 (post-roadmap-#3); their admit-cycle availability lives in O
 (post-roadmap-#6a).
 
-**0–1 → 4.0 mapping:** ≥0.8 → 4.0, 0.6–0.8 → 3.7, 0.4–0.6 → 3.3, 0.2–0.4 → 2.8, <0.2 → 2.3
+**Multiple advisors (v0.4):** `C_raw = best path + 0.10 × second-best path`
+(cap 1.0), so a second verified route into the lab helps a little.
+
+**0–1 → 4.0 mapping (v0.4, piecewise-linear):** anchors 0 → 2.3, 0.2 → 2.8,
+0.4 → 3.3, 0.6 → 3.7, ≥0.8 → 4.0, linear in between. The old step form
+jumped up to 0.5 on a 0.01 change in raw strength (0.59 → 3.3, 0.60 → 3.7).
 
 ### 4b. Advisor Influence Score (A) — post-roadmap-#6a (reputation-only)
 
@@ -156,7 +177,7 @@ A_raw = 0.40 · influence_percentile  (h-index proxy)
       + 0.30 · grad_placement_quality
 ```
 
-`A` then maps 0–1 → 4.0 via the same `raw_to_4_0` buckets as C. A new
+`A` then maps 0–1 → 4.0 via the same piecewise-linear `raw_to_4_0` as C. A new
 PI without placement record will score lower on A — by design. Their
 strengths (active grants, growing lab, recruiting openings) belong in
 O.
@@ -184,15 +205,15 @@ O_raw = clip(
 , 0, 1)
 ```
 
-`opportunity_adj` ladder (replaces pi_adj):
+`opportunity_adj` (replaces pi_adj; v0.4 continuous form):
 
 | condition | adj |
 |-----------|-----|
 | `not_recruiting` | force application_strength = 0 |
-| O ≥ 0.70 | +0.2 |
-| O ≥ 0.50 |  0.0 |
-| O ≥ 0.30 | −0.2 |
-| O < 0.30 | −0.4 |
+| otherwise | `clip(O − 0.5, −0.4, +0.2)` |
+
+This passes through the original ladder points (O 0.70 → +0.2, 0.50 → 0,
+0.30 → −0.2, ≤0.10 → −0.4) without the 0.2 jumps between them.
 
 Pure-legacy candidates (no `opportunity_signal`) use the v1 PI_ADJ
 table verbatim — preserving exact old behavior. Candidates with
@@ -229,7 +250,9 @@ get to dilute the connection-first thesis.
 > it — calibration is qualitative.
 
 ```
-application_strength = clip(match + opportunity_adj, 0, 4.0)
+application_strength = clip(match + opportunity_adj + research_fit_adj, 0, 4.0)
+research_fit_adj     = 0.15 · clip((research_fit_score − 0.5) / 0.5, −1, 1)
+                       (0 when no fit computed; upside dropped when unsourced)
 ```
 
 Post-roadmap-#5: school-tier difficulty no longer enters
@@ -289,10 +312,18 @@ The ranker uses this descending priority:
 5. `application_strength` (raw)
 6. `lower_bound` (final tiebreak — favors narrower band)
 
-Research fit is **not** part of the match formula — it cannot move
-`risk_adjusted_strength` and (since #5) cannot move
-`difficulty_adjusted_strength` either. It only breaks ties when two
-candidates are otherwise equal. The connection-first thesis is preserved.
+Research fit is **not** a CAPEG pillar. Since v0.4 it enters
+`application_strength` through the bounded `research_fit_adj` (±0.15,
+centred on a neutral 0.5 fit), the "≤0.15× adjustment" roadmap #4
+envisioned. As a pure tie-breaker it could only separate candidates whose
+strengths matched to two decimals, so a near-zero fit could outrank an
+excellent one on a 0.01 difference. ±0.15 is well under the swing
+Connection produces (≈0.65 at top_10), so connection-first is preserved.
+An unsourced fit keeps its downside but loses its upside.
+
+`direction_relevance` (v0.4) uses light stemming, CJK character bigrams,
+and a recall-weighted F2 score instead of Jaccard, which punished PIs for
+listing more research areas.
 
 To make this airtight, `research_fit` is excluded from evidence
 coverage when `research_fit_score is None` — otherwise a missing fit

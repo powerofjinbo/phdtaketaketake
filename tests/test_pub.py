@@ -90,29 +90,47 @@ def test_aggregate_one_paper():
 
 
 def test_aggregate_two_papers():
-    assert aggregate_papers([4.0, 3.0]) == pytest.approx(0.7 * 4.0 + 0.3 * 3.0)
+    # 3.3 + (4.0 − 3.3) · 0.30 · (3.0 − 2.8)/1.2
+    assert aggregate_papers([3.3, 3.0]) == pytest.approx(3.3 + 0.7 * 0.30 * (0.2 / 1.2))
 
 
 def test_aggregate_three_papers():
-    assert aggregate_papers([4.0, 3.5, 3.0]) == pytest.approx(
-        0.5 * 4.0 + 0.3 * 3.5 + 0.2 * 3.0
-    )
+    q2 = (3.3 - 2.8) / 1.2
+    q3 = (3.0 - 2.8) / 1.2
+    expected = 3.3 + 0.7 * (0.30 * q2 + 0.15 * q3)
+    assert aggregate_papers([3.3, 3.3, 3.0]) == pytest.approx(expected)
 
 
 def test_aggregate_more_than_three_only_top_3_used():
-    expected = 0.5 * 4.0 + 0.3 * 3.5 + 0.2 * 3.0
-    assert aggregate_papers([4.0, 3.5, 3.0, 2.5, 2.0]) == pytest.approx(expected)
+    assert aggregate_papers([3.3, 3.3, 3.0, 3.0, 3.0]) == pytest.approx(
+        aggregate_papers([3.3, 3.3, 3.0])
+    )
 
 
 def test_aggregate_unsorted_input():
-    expected = 0.5 * 4.0 + 0.3 * 3.5 + 0.2 * 3.0
-    assert aggregate_papers([2.0, 4.0, 3.0, 3.5]) == pytest.approx(expected)
+    assert aggregate_papers([3.0, 3.3, 2.0, 3.3]) == pytest.approx(
+        aggregate_papers([3.3, 3.3, 3.0])
+    )
 
 
-def test_aggregate_is_convex_average_by_design():
-    # Pinned: adding a weaker paper lowers the top-weighted average. This
-    # is intentional (consistency over one spike; anti-CV-padding), not a bug.
-    assert aggregate_papers([4.0, 2.3]) < aggregate_papers([4.0])
+def test_aggregate_capped_at_4():
+    assert aggregate_papers([4.0, 4.0, 4.0]) == pytest.approx(4.0)
+    assert aggregate_papers([3.9, 4.0, 4.0]) <= 4.0
+
+
+def test_aggregate_is_monotone_adding_a_paper_never_hurts():
+    # Honesty invariant (same spirit as NO_PAPER_FLOOR): reporting another
+    # real paper must never lower P. The old convex average violated this
+    # ([4.0, 3.5] scored 3.85 < [4.0] = 4.0).
+    base = [3.7]
+    for extra in (0.0, 2.3, 2.8, 3.0, 3.3, 3.7, 4.0):
+        assert aggregate_papers(base + [extra]) >= aggregate_papers(base)
+    assert aggregate_papers([4.0, 3.5]) == pytest.approx(4.0)
+
+
+def test_aggregate_weak_papers_add_nothing():
+    # Anti-padding: papers at or below the depth floor contribute zero.
+    assert aggregate_papers([3.3, 2.8, 2.3, 2.3]) == pytest.approx(3.3)
 
 
 # ---- pub_score end-to-end ----
@@ -126,7 +144,8 @@ def test_pub_score_full_pipeline():
         {"journal_tier": 1, "author_position": 1},  # 4.0
         {"journal_tier": 2, "author_position": 2},  # 3.6
     ]
-    expected = 0.7 * 4.0 + 0.3 * 3.6
+    # Best paper already at the 4.0 ceiling → no headroom for depth bonus.
+    expected = 4.0
     assert pub_score(papers) == pytest.approx(expected)
 
 
@@ -136,8 +155,8 @@ def test_pub_score_atlas_paper():
         {"journal_tier": 3, "author_position": 312},  # PRD, 5+ → min(3.5, 2.85) = 2.85
         {"journal_tier": 1, "author_position": 456},  # PRL, 5+ → min(3.5, 3.55) = 3.5
     ]
-    # best=3.5, 2nd=2.85
-    expected = 0.7 * 3.5 + 0.3 * 2.85
+    # best=3.5, 2nd=2.85 → depth bonus 0.5 · 0.30 · (0.05 / 1.2)
+    expected = 3.5 + 0.5 * 0.30 * (0.05 / 1.2)
     assert pub_score(papers) == pytest.approx(expected)
 
 
@@ -180,8 +199,8 @@ def test_pub_score_mixes_statuses():
         {"journal_tier": 1, "author_position": 1, "status": "published"},  # 4.0
         {"journal_tier": 1, "author_position": 1, "status": "submitted"},  # 4.0 * 0.7 = 2.8
     ]
-    # best=4.0 (published), 2nd=2.8 (submitted)
-    expected = 0.7 * 4.0 + 0.3 * 2.8
+    # best=4.0 (published), 2nd=2.8 (submitted) → already at ceiling
+    expected = 4.0
     assert pub_score(papers) == pytest.approx(expected)
 
 
@@ -192,8 +211,10 @@ def test_pub_score_in_prep_dominated_by_published():
         {"journal_tier": 3, "author_position": 1, "status": "published"},   # 3.3
         {"journal_tier": 1, "author_position": 1, "status": "in_prep"},     # 1.2
     ]
-    # Sorted desc: [3.3, 1.2]. Aggregated as 2 papers.
-    expected = 0.7 * 3.3 + 0.3 * 1.2
+    # Sorted desc: [3.3, 1.2]. The in-prep paper is below the depth floor,
+    # so it neither helps nor (as under the old convex average) drags the
+    # published paper down from 3.3 to 2.67.
+    expected = 3.3
     assert pub_score(papers) == pytest.approx(expected)
 
 

@@ -13,8 +13,11 @@ def test_4_0_capped_at_4():
     assert gpa_score(4.5, "4.0") == pytest.approx(4.0)
 
 
-def test_4_3_scaling():
-    assert gpa_score(4.0, "4.3") == pytest.approx(4.0 * 4.0 / 4.3)
+def test_4_3_straight_a_is_4_0():
+    # 4.3 scale: A = 4.0, A+ = 4.3. A straight-A transcript is a 4.0.
+    assert gpa_score(4.0, "4.3") == pytest.approx(4.0)
+    assert gpa_score(4.3, "4.3") == pytest.approx(4.0)
+    assert gpa_score(3.7, "4.3") == pytest.approx(3.7)
 
 
 def test_4_5_scaling():
@@ -26,8 +29,16 @@ def test_percentage_90_plus_is_4():
     assert percentage_to_4_0(90) == 4.0
 
 
-def test_percentage_85_to_89():
-    assert percentage_to_4_0(87) == pytest.approx(3.7)
+def test_percentage_anchor_values_unchanged():
+    assert percentage_to_4_0(85) == pytest.approx(3.7)
+    assert percentage_to_4_0(80) == pytest.approx(3.3)
+    assert percentage_to_4_0(65) == pytest.approx(2.3)
+
+
+def test_percentage_interpolates_between_anchors():
+    assert percentage_to_4_0(87) == pytest.approx(3.82)
+    # No cliff at 90: 89.9 is within 0.01 of 90.
+    assert percentage_to_4_0(90) - percentage_to_4_0(89.9) < 0.01
 
 
 def test_percentage_below_65_is_2():
@@ -35,7 +46,7 @@ def test_percentage_below_65_is_2():
 
 
 def test_percentage_via_gpa_score():
-    assert gpa_score(88, "100") == pytest.approx(3.7)
+    assert gpa_score(88, "100") == pytest.approx(3.88)
 
 
 def test_uk_first():

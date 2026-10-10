@@ -16,13 +16,13 @@ Formula:
       + 0.10 · availability(sabbatical_or_admin_load)
     , 0, 1)
 
-`opportunity_adj` ladder (replaces `pi_adj`):
+`opportunity_adj` (replaces `pi_adj`):
 
     not_recruiting → force application_strength = 0
-    O ≥ 0.70  → +0.2
-    O ≥ 0.50  →  0.0
-    O ≥ 0.30  → −0.2
-    O <  0.30 → −0.4
+    otherwise      → clip(O − 0.5, −0.4, +0.2)
+
+which passes through the original ladder points (0.70 → +0.2, 0.50 → 0,
+0.30 → −0.2, ≤0.10 → −0.4) without the step cliffs between them.
 
 For pure legacy candidates with no `opportunity_signal`, the matcher
 falls back to the v1 PI_ADJ table directly (no O computation), so old
@@ -91,7 +91,11 @@ LEGACY_PI_ADJ: dict[str, float] = {
 }
 
 
-# ---- New opportunity_adj ladder ------------------------------------------
+# ---- opportunity_adj anchor points ---------------------------------------
+#
+# The original step ladder. `opportunity_adj_from_score` now interpolates
+# through these points instead of stepping between them; kept as the
+# documented calibration anchors.
 
 OPPORTUNITY_ADJ_THRESHOLDS: tuple[tuple[float, float], ...] = (
     (0.70, +0.2),
@@ -216,13 +220,19 @@ def opportunity_score(candidate: CandidateAdvisor) -> float | None:
     return max(0.0, min(1.0, raw))
 
 
+OPPORTUNITY_ADJ_MIN = -0.4
+OPPORTUNITY_ADJ_MAX = +0.2
+
+
 def opportunity_adj_from_score(o_score: float) -> float:
-    """Map O (0-1) to ±adj. Caller must check `not_recruiting` separately
-    via `is_not_recruiting()` since that forces `application_strength=0`."""
-    for threshold, adj in OPPORTUNITY_ADJ_THRESHOLDS:
-        if o_score >= threshold:
-            return adj
-    return -0.4
+    """Map O (0-1) to ±adj: ``clip(O − 0.5, −0.4, +0.2)``.
+
+    This is the continuous form of `OPPORTUNITY_ADJ_THRESHOLDS`: it passes
+    exactly through every old ladder point (0.70 → +0.2, 0.50 → 0.0,
+    0.30 → −0.2, ≤0.10 → −0.4) but no longer jumps 0.2 between O = 0.69
+    and O = 0.70. Caller must check `not_recruiting` separately via
+    `is_not_recruiting()` since that forces `application_strength=0`."""
+    return max(OPPORTUNITY_ADJ_MIN, min(OPPORTUNITY_ADJ_MAX, o_score - 0.5))
 
 
 def legacy_pi_adj(pi_signal: str | PISignal) -> float:

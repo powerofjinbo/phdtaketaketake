@@ -1,13 +1,21 @@
-# Research fit — tie-breaker, NOT a pillar
+# Research fit — bounded adjustment + tie-breaker, NOT a pillar
 
 Research fit is a 0–1 alignment score between the student's
 `research_direction` and the candidate's actual recent work. It is
-**not** part of the match formula — it does not move `match_score` or
-`application_strength`. It only breaks ties in the sort order when two
-candidates land at the same `risk_adjusted_strength`.
+**not** a CAPEG pillar and does not move `match_score`. Since v0.4 it
+enters `application_strength` as a bounded adjustment:
 
-The connection-first thesis is preserved by construction: research fit
-**cannot** beat clearly stronger risk-adjusted strength.
+```
+research_fit_adj = 0.15 · clip((research_fit_score − 0.5) / 0.5, −1, 1)
+```
+
+so a perfect fit adds +0.15, a neutral 0.5 adds nothing, and a clear
+mismatch subtracts up to 0.15. An unsourced fit keeps its downside but
+loses its upside. It also remains a sort tie-breaker.
+
+The connection-first thesis is preserved: ±0.15 is far below the swing
+Connection produces (≈0.65 on the 4.0 scale at top_10), so research fit
+**cannot** beat clearly stronger connection-driven strength.
 
 > The score lives on `CandidateAdvisor`, so it must be filled in **before**
 > the matcher runs. You can't compute it after-the-fact.

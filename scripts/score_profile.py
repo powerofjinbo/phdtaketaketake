@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from phd_matcher.models import StudentProfile  # noqa: E402
-from phd_matcher.scoring import experience, gpa, pub  # noqa: E402
+from phd_matcher.scoring import applicant  # noqa: E402
 
 
 def main() -> int:
@@ -47,14 +47,15 @@ def main() -> int:
 
     student = StudentProfile(**profile_dict)
 
-    p = pub.pub_score([pp.model_dump() for pp in student.papers])
-    g = gpa.gpa_score(student.gpa_raw, student.gpa_scale)
-    e = experience.experience_score([ee.model_dump() for ee in student.experiences])
+    assessment = applicant.assess_applicant(student)
 
     output = {
-        "p_score": round(p, 2),
-        "g_score": round(g, 2),
-        "e_score": round(e, 2),
+        "p_score": round(assessment.research_output_score, 2),
+        "g_score": round(assessment.academic_score, 2),
+        "e_score": round(assessment.research_experience_score, 2),
+        "l_score": (round(assessment.letters_score, 2)
+                    if assessment.letters_score is not None else None),
+        "applicant": assessment.model_dump(),
         "note": (
             "Connection (C) is computed per (student, candidate) pair, so it is "
             "omitted from this dimensional self-score. Run scripts/match.py to "

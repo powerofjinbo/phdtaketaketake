@@ -212,7 +212,7 @@ strategy             = bucket(difficulty_adjusted, evidence, …)      # → pri
 
 - **Opportunity (O)** —— 招生周期可用性：recruiting health + active funding + lab capacity + accessibility。派生 `opportunity_adj`（替代 v1 `pi_adj`）。`not_recruiting` 强制 `application_strength=0`。
 - **Program difficulty (D)** —— per-program penalty 0–0.8：school tier admit-rate factor + cohort size + admission model + funding structure + faculty count + international friendliness。从 `risk_adjusted_strength` 减掉得到 `difficulty_adjusted_strength`（**主排序键**）。
-- **Research fit (R)** —— 结构化 6 轴 tie-breaker：`0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant + 0.10·background`。永远不当 6th pillar，仅作排序 tie-break。
+- **Research fit (R)** —— 结构化 6 轴评分：`0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant + 0.10·background`。永远不当 6th pillar；只以 ±0.15 的有界调整进入 `application_strength`（加分部分要求有来源），并作排序 tie-break。
 
 5 档定性标签（应用在 `difficulty_adjusted_strength` 上）：**Far Reach · Reach · Target · Match · Safe**。
 

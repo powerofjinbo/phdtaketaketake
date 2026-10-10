@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "description": "How the applicant's profile compares with the typical admit at one\nschool tier, before any PI-specific signal (connection, opportunity).",
+  "properties": {
+    "school_tier": {
+      "enum": [
+        "top_10",
+        "top_11_30",
+        "top_31_60",
+        "top_60_plus"
+      ],
+      "title": "School Tier",
+      "type": "string"
+    },
+    "applicant_score": {
+      "title": "Applicant Score",
+      "type": "number"
+    },
+    "screen_penalty": {
+      "title": "Screen Penalty",
+      "type": "number"
+    },
+    "typical_admit_bar": {
+      "title": "Typical Admit Bar",
+      "type": "number"
+    },
+    "margin": {
+      "title": "Margin",
+      "type": "number"
+    },
+    "verdict": {
+      "enum": [
+        "above_bar",
+        "at_bar",
+        "below_bar"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "note": {
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "school_tier",
+    "applicant_score",
+    "screen_penalty",
+    "typical_admit_bar",
+    "margin",
+    "verdict",
+    "note"
+  ],
+  "title": "TierReadiness",
+  "type": "object"
+}
