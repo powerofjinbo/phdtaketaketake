@@ -16,6 +16,7 @@ from phd_matcher.matching.direction import direction_relevance
 from phd_matcher.matching.explainer import explain_match
 from phd_matcher.matching.strategy import recommend_strategy
 from phd_matcher.models import (
+    ApplicantAssessment,
     CandidateAdvisor,
     EvidenceEntry,
     FieldProfile,
@@ -27,11 +28,11 @@ from phd_matcher.scoring import (
     admit,
     advisor,
     connection,
-    experience,
-    gpa,
     opportunity,
     program,
-    pub,
+)
+from phd_matcher.scoring import (
+    applicant as applicant_module,
 )
 from phd_matcher.scoring import (
     research_fit as research_fit_module,
@@ -479,8 +480,13 @@ def compute_match(
     candidate: CandidateAdvisor,
     *,
     field_profile: FieldProfile | None = None,
+    applicant: ApplicantAssessment | None = None,
 ) -> MatchResult:
     """Score one (student, candidate) pair across all dimensions.
+
+    `applicant` (the candidate-independent `ApplicantAssessment`) is
+    computed here when not supplied; `rank_advisors` computes it once and
+    passes it in.
 
     Post-roadmap-#5 the pipeline is:
       1. CAPEG match_score (unchanged formula)
@@ -496,19 +502,26 @@ def compute_match(
     paper-status weight overrides and author-role normalization. Its `id`
     is recorded on the result for traceability.
     """
-    p = pub.pub_score(
-        [pp.model_dump() for pp in student.papers],
-        field_profile=field_profile,
-    )
-    g = gpa.gpa_score(student.gpa_raw, student.gpa_scale)
-    e = experience.experience_score([ee.model_dump() for ee in student.experiences])
+    if applicant is None:
+        applicant = applicant_module.assess_applicant(student, field_profile)
+    p = applicant.research_output_score
+    e = applicant.research_experience_score
+    g = applicant.academic_score
     c = connection.connection_score(
         [a.model_dump() for a in student.current_advisors],
         candidate.model_dump(),
     )
     a_score = advisor.advisor_strength(candidate.model_dump())
 
-    m = admit.match_score(c, a_score, p, e, g, candidate.school_tier)
+    # CAPEG with the applicant block: C and A keep their tier weights; the
+    # P/E/G slot is filled by the tier-weighted applicant composite (which
+    # adds letters and bonuses when known), then the academic screening
+    # floor applies.
+    tier_w = admit.TIER_WEIGHTS[candidate.school_tier]
+    s_tier = applicant_module.tier_applicant_score(applicant, tier_w)
+    w_peg = tier_w["P"] + tier_w["E"] + tier_w["G"]
+    screen = applicant_module.academic_screen_penalty(g, candidate.school_tier)
+    m = max(0.0, tier_w["C"] * c + tier_w["A"] * a_score + w_peg * s_tier - screen)
 
     cov = evidence_coverage(student, candidate)
 
@@ -568,6 +581,11 @@ def compute_match(
         # the priority.
         research_fit_score=rf_score,
         research_fit_adj=round(rf_adj, 3),
+        l_score=(round(applicant.letters_score, 2)
+                 if applicant.letters_score is not None else None),
+        s_score=round(s_tier, 2),
+        academic_screen_penalty=round(screen, 3),
+        applicant=applicant,
         research_fit_summary=candidate.research_fit_summary,
         research_fit_axes=dict(candidate.research_fit_axes),
         o_score=(round(o_score, 2) if o_score is not None else None),
@@ -609,8 +627,10 @@ def rank_advisors(
     if field_filter:
         candidates = [c for c in candidates if c.field == student.field]
 
+    assessment = applicant_module.assess_applicant(student, field_profile)
     results = [
-        compute_match(student, c, field_profile=field_profile) for c in candidates
+        compute_match(student, c, field_profile=field_profile, applicant=assessment)
+        for c in candidates
     ]
 
     def sort_key(r: MatchResult):

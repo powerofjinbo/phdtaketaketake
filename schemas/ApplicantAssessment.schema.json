@@ -1,0 +1,123 @@
+{
+  "additionalProperties": false,
+  "description": "How strong the applicant is on their own, before any PI is involved.\n\nEvery sub-score is on the 4.0 scale. `applicant_strength` is the\nneutral-weight composite; the matcher re-weights the same pillars per\nschool tier. Derived only from what the student provided.",
+  "properties": {
+    "academic_score": {
+      "title": "Academic Score",
+      "type": "number"
+    },
+    "research_output_score": {
+      "title": "Research Output Score",
+      "type": "number"
+    },
+    "research_experience_score": {
+      "title": "Research Experience Score",
+      "type": "number"
+    },
+    "letters_score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Letters Score"
+    },
+    "honors_bonus": {
+      "default": 0.0,
+      "title": "Honors Bonus",
+      "type": "number"
+    },
+    "tests_adj": {
+      "default": 0.0,
+      "title": "Tests Adj",
+      "type": "number"
+    },
+    "spike_bonus": {
+      "default": 0.0,
+      "title": "Spike Bonus",
+      "type": "number"
+    },
+    "applicant_strength": {
+      "title": "Applicant Strength",
+      "type": "number"
+    },
+    "tier": {
+      "enum": [
+        "exceptional",
+        "strong",
+        "competitive",
+        "developing"
+      ],
+      "title": "Tier",
+      "type": "string"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "inputs_provided": {
+      "default": 0,
+      "title": "Inputs Provided",
+      "type": "integer"
+    },
+    "inputs_total": {
+      "default": 0,
+      "title": "Inputs Total",
+      "type": "integer"
+    },
+    "strengths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Strengths",
+      "type": "array"
+    },
+    "weaknesses": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Weaknesses",
+      "type": "array"
+    },
+    "risk_flags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risk Flags",
+      "type": "array"
+    },
+    "missing_inputs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Inputs",
+      "type": "array"
+    },
+    "components": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Components",
+      "type": "object"
+    }
+  },
+  "required": [
+    "academic_score",
+    "research_output_score",
+    "research_experience_score",
+    "applicant_strength",
+    "tier",
+    "confidence"
+  ],
+  "title": "ApplicantAssessment",
+  "type": "object"
+}

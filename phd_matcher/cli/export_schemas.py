@@ -26,6 +26,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from phd_matcher.models import (
+    ApplicantAssessment,
     CandidateAdvisor,
     EvidenceEntry,
     EvidenceSource,
@@ -56,6 +57,7 @@ EXPORTED_MODELS: tuple[type[BaseModel], ...] = (
     MatchResult,
     StrategyRecommendation,
     StrategySummary,
+    ApplicantAssessment,
 )
 
 
