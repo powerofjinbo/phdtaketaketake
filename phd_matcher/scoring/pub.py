@@ -304,28 +304,43 @@ def validate_paper_contributions(papers: list[dict]) -> list[str]:
     return warnings
 
 
-def aggregate_papers(scores: list[float]) -> float:
-    """Top-3 weighted aggregation.
+# Depth bonus for papers beyond the best one. Only the part of a paper's
+# score above `DEPTH_QUALITY_FLOOR` counts, so a weak extra paper adds
+# nothing (no CV-padding gain) and also subtracts nothing (no incentive to
+# hide a real publication). The bonus fills a share of the remaining
+# headroom (4.0 − best), so the aggregate never exceeds 4.0.
+DEPTH_QUALITY_FLOOR = 2.8          # tier-4 first-author baseline
+DEPTH_WEIGHTS: tuple[float, ...] = (0.30, 0.15)   # 2nd, 3rd best paper
+P_MAX = 4.0
 
-    This is a convex weighted *average* of the top papers, so it is bounded
-    by the best score: adding a paper weaker than your current best can
-    *lower* the aggregate (e.g. [4.0] → 4.0, but [4.0, 2.3] → 3.49). This is
-    intentional — P rewards a consistent body of strong work, not a single
-    spike padded with weak entries, and it composes with the big-collab /
-    consortium anti-inflation floors. The explainer surfaces this so a
-    counter-intuitive P is understood rather than distrusted.
+
+def aggregate_papers(scores: list[float]) -> float:
+    """Best paper + headroom-scaled depth bonus from the 2nd and 3rd best.
+
+        P = s1 + (4.0 − s1) · Σ_k w_k · q_k
+        q_k = clip((s_k − 2.8) / (4.0 − 2.8), 0, 1),   w = (0.30, 0.15)
+
+    Properties (all pinned by tests):
+      - one paper scores exactly its own score (unchanged from v1);
+      - monotone: adding any paper never lowers P. The previous convex
+        weighted average did — [4.0] scored 4.0 but [4.0, 3.5] scored
+        3.85 — which penalised honestly reporting a second good paper, the
+        same perverse incentive `NO_PAPER_FLOOR` exists to prevent;
+      - padding-proof: papers at or below 2.8 add exactly nothing;
+      - bounded by 4.0.
     """
     if not scores:
         return NO_PAPER_FLOOR
 
-    sorted_scores = sorted(scores, reverse=True)
-    n = len(sorted_scores)
-
-    if n == 1:
-        return sorted_scores[0]
-    if n == 2:
-        return 0.7 * sorted_scores[0] + 0.3 * sorted_scores[1]
-    return 0.5 * sorted_scores[0] + 0.3 * sorted_scores[1] + 0.2 * sorted_scores[2]
+    ranked = sorted(scores, reverse=True)
+    best = ranked[0]
+    headroom = max(0.0, P_MAX - best)
+    span = P_MAX - DEPTH_QUALITY_FLOOR
+    bonus = 0.0
+    for weight, s in zip(DEPTH_WEIGHTS, ranked[1:], strict=False):
+        quality = min(1.0, max(0.0, (s - DEPTH_QUALITY_FLOOR) / span))
+        bonus += weight * quality
+    return min(P_MAX, best + headroom * bonus)
 
 
 def pub_score(

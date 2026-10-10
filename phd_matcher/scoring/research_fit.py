@@ -17,9 +17,9 @@ back-compat).
 score additive over a meaningful 6-axis basis. Future calibration may
 include it as a ±0.05 modifier.
 
-Sort-key role unchanged from roadmap #4: research_fit_score is a pure
-tie-breaker (rank 3 in the post-#5 ladder), never overrides
-risk_adjusted_strength or difficulty_adjusted_strength.
+Strength role: the score enters `application_strength` through the
+bounded `research_fit_adj` (±0.15, centred on 0.5) and remains a sort
+tie-breaker after that. It is not a CAPEG pillar.
 
 > **Thresholds are v2 defaults; recalibrate after running real
 > portfolios.**
@@ -62,3 +62,33 @@ def effective_research_fit_score(candidate: CandidateAdvisor) -> float | None:
     if candidate.research_fit is not None:
         return research_fit_v2_score(candidate.research_fit)
     return candidate.research_fit_score
+
+
+# ---- Bounded strength adjustment ----------------------------------------
+#
+# Roadmap #4 always envisioned "tie-breaker / ≤0.15× adjustment". As a
+# pure tie-breaker, research fit could only reorder candidates whose
+# strength matched to two decimals, so a PI whose work the student cannot
+# credibly join (fit 0.25) ranked above an excellent fit (0.90) on a 0.01
+# strength difference. The adjustment is centred on a neutral 0.5 fit and
+# capped at ±0.15 — far below the swing Connection can produce (≈0.65 on
+# the 4.0 scale at top_10), so it cannot overturn connection-first.
+
+RESEARCH_FIT_ADJ_MAX = 0.15
+RESEARCH_FIT_NEUTRAL = 0.5
+
+
+def research_fit_adj(score: float | None, *, sourced: bool = True) -> float:
+    """``0.15 · clip((score − 0.5) / 0.5, −1, 1)``; None → 0.0.
+
+    An unsourced fit keeps its downside but loses its upside (same rule
+    as an unverified `contribution_role` in the P pillar): an agent's
+    unsupported claim of strong fit must not lift a candidate.
+    """
+    if score is None:
+        return 0.0
+    rel = (score - RESEARCH_FIT_NEUTRAL) / RESEARCH_FIT_NEUTRAL
+    adj = RESEARCH_FIT_ADJ_MAX * max(-1.0, min(1.0, rel))
+    if not sourced:
+        adj = min(0.0, adj)
+    return adj

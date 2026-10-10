@@ -439,3 +439,91 @@ def test_rank_advisors_attaches_strategy_per_candidate():
     ]
     ranked = rank_advisors(student, cands, top_k=3)
     assert all(r.strategy is not None for r in ranked)
+
+
+# ---- Program difficulty, sourced-only strong signals ---------------------
+
+def _sourced_strong_path() -> dict:
+    return {
+        "adv_001": PathEdge(
+            small_team_coauthor_5y=5,
+            most_recent_connection_year=2026,
+            items=[EvidenceSource(
+                url="https://scholar.google.com/...",
+                source_type="google_scholar",
+                claim="5 small-team papers",
+                supports_fields=["small_team_coauthor_5y"],
+            )],
+        ),
+    }
+
+
+def _ev(field: str) -> EvidenceEntry:
+    return EvidenceEntry(items=[EvidenceSource(
+        url=f"https://example.org/{field}", source_type="lab_page",
+        claim=field, supports_fields=[field],
+    )])
+
+
+def _well_sourced(cid: str, tier: str, placement: float = 0.5) -> CandidateAdvisor:
+    fields = ["school_tier", "research_areas", "normalized_collab_top20pct",
+              "collab_with_nas", "grad_placement_quality",
+              "active_funding_quality", "pi_signal"]
+    return _bare_candidate(
+        cid=cid, school_tier=tier,
+        normalized_collab_top20pct=0.5, collab_with_nas=False,
+        grad_placement_quality=placement, active_funding_quality=0.6,
+        pi_signal="normal",
+        paths_to_advisors=_sourced_strong_path(),
+        evidence={f: _ev(f) for f in fields},
+    )
+
+
+def test_buckets_respect_program_difficulty():
+    """Identical well-sourced candidate at a top_60_plus vs top_10 school:
+    the hard program gets a strictly worse bucket (it used to share the
+    easy program's bucket because buckets ignored the difficulty penalty)."""
+    order = ["drop", "only_if_space", "reach", "target", "priority"]
+    easy = compute_match(_student(), _well_sourced("easy", "top_60_plus"))
+    hard = compute_match(_student(), _well_sourced("hard", "top_10"))
+    assert easy.unsourced_signals == 0 and hard.unsourced_signals == 0
+    assert easy.strategy.apply_bucket == "priority"
+    assert order.index(hard.strategy.apply_bucket) < order.index("priority")
+
+
+def test_difficulty_penalty_alone_makes_reach():
+    """A profile that clears the target floor on its own but falls under
+    it after the program-difficulty penalty is a reach, with the reason."""
+    hard = compute_match(_student(), _well_sourced("hard", "top_10", placement=0.2))
+    assert hard.unsourced_signals == 0
+    assert hard.risk_adjusted_strength >= 2.30
+    assert hard.difficulty_adjusted_strength < 2.30
+    assert hard.strategy.apply_bucket == "reach"
+    assert any("program difficulty" in w for w in hard.strategy.why_this_rank)
+
+
+def test_unsourced_path_is_not_strong_connection():
+    """A claimed-but-unsourced co-authorship still feeds C (the band
+    carries the doubt) but must not drive contact_first or an outreach
+    line that would put the claim in front of the PI."""
+    cand = _bare_candidate(
+        cid="unsourced_path", school_tier="top_60_plus",
+        paths_to_advisors={"adv_001": PathEdge(
+            small_team_coauthor_5y=5, most_recent_connection_year=2026,
+        )},
+    )
+    r = compute_match(_student(), cand)
+    assert r.c_score >= 3.7
+    assert "path:adv_001" in r.unsourced_signal_names
+    assert r.strategy.recommended_action != "contact_first"
+    assert r.strategy.outreach_angle is None
+
+
+def test_unsourced_research_fit_summary_not_used_for_outreach():
+    cand = _bare_candidate(
+        research_fit_score=0.9,
+        research_fit_summary="Works on exactly your topic",
+    )
+    r = compute_match(_student(), cand)
+    assert "research_fit" in r.unsourced_signal_names
+    assert r.strategy.outreach_angle is None

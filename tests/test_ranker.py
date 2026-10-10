@@ -674,9 +674,9 @@ def test_strong_connection_beats_strong_advisor_strength():
 
 # ---- Roadmap-#4: Research fit as tie-breaker ----
 
-def test_research_fit_breaks_tie_when_risk_adjusted_strength_equal():
-    """Two candidates at the same risk_adjusted_strength: the one with
-    higher research_fit_score ranks first."""
+def test_research_fit_adjusts_strength_and_orders_candidates():
+    """Two otherwise-identical candidates: the one with higher
+    research_fit_score ranks first, via the bounded research_fit_adj."""
     from phd_matcher.matching.ranker import compute_match, rank_advisors
     from phd_matcher.models import CandidateAdvisor, StudentProfile
 
@@ -695,11 +695,14 @@ def test_research_fit_breaks_tie_when_risk_adjusted_strength_equal():
     fit_high = CandidateAdvisor(id="fit_high", name="A", **base, research_fit_score=0.9)
     fit_low = CandidateAdvisor(id="fit_low", name="B", **base, research_fit_score=0.3)
 
-    # Both candidates have identical scoring inputs except research_fit_score
-    # → identical risk_adjusted_strength → fit breaks the tie.
+    # Identical scoring inputs except research_fit_score. Both fits are
+    # unsourced, so only the downside of the bounded adjustment applies:
+    # fit_high (0.9) gets 0.0, fit_low (0.3) gets 0.15·(−0.4) = −0.06.
     r_high = compute_match(student, fit_high)
     r_low = compute_match(student, fit_low)
-    assert r_high.risk_adjusted_strength == r_low.risk_adjusted_strength
+    assert r_high.research_fit_adj == pytest.approx(0.0)
+    assert r_low.research_fit_adj == pytest.approx(-0.06)
+    assert r_high.application_strength - r_low.application_strength == pytest.approx(0.06)
 
     ranked = rank_advisors(student, [fit_low, fit_high], top_k=2)
     assert ranked[0].candidate.id == "fit_high"
@@ -784,7 +787,9 @@ def test_research_fit_with_no_score_sorts_below_with_score():
         research_areas=["physics"],
     )
 
-    has_fit = CandidateAdvisor(id="has_fit", name="A", **base, research_fit_score=0.05)
+    # Neutral fit (0.5) → research_fit_adj = 0, so the strengths tie and
+    # only the tie-breaker separates them.
+    has_fit = CandidateAdvisor(id="has_fit", name="A", **base, research_fit_score=0.5)
     no_fit = CandidateAdvisor(id="no_fit", name="B", **base, research_fit_score=None)
 
     ranked = rank_advisors(student, [no_fit, has_fit], top_k=2)
@@ -907,7 +912,23 @@ def test_research_fit_none_does_not_widen_band():
     assert r_none.unverified_signals == 0
     assert r_set.unverified_signals == 0
     assert r_none.confidence_band == r_set.confidence_band
-    assert r_none.risk_adjusted_strength == r_set.risk_adjusted_strength
+    # The only strength difference is the sourced fit adjustment
+    # (0.15 · (0.7 − 0.5)/0.5 = +0.06) — nothing leaks in via the band.
+    assert r_none.research_fit_adj == 0.0
+    assert r_set.research_fit_adj == pytest.approx(0.06)
+    assert r_set.risk_adjusted_strength - r_none.risk_adjusted_strength == pytest.approx(0.06)
+
+
+def test_research_fit_adj_bounds_and_sourcing():
+    from phd_matcher.scoring.research_fit import research_fit_adj
+
+    assert research_fit_adj(None) == 0.0
+    assert research_fit_adj(0.5) == pytest.approx(0.0)
+    assert research_fit_adj(1.0) == pytest.approx(0.15)
+    assert research_fit_adj(0.0) == pytest.approx(-0.15)
+    # Unsourced: downside kept, upside dropped.
+    assert research_fit_adj(1.0, sourced=False) == 0.0
+    assert research_fit_adj(0.2, sourced=False) == pytest.approx(-0.09)
 
 
 def test_research_fit_axes_value_out_of_bounds_rejected():

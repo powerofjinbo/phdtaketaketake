@@ -144,8 +144,13 @@ def application_strength_from_adj(
     force_zero: bool,
     unverified_count: int = 0,
     total_count: int | None = None,
+    research_fit_adj: float = 0.0,
 ) -> tuple[float, float]:
     """Returns (application_strength on 4.0, confidence_band on 4.0).
+
+    ``application_strength = clip(match + opportunity_adj + research_fit_adj,
+    0, 4)``; `research_fit_adj` defaults to 0 so existing callers are
+    unchanged.
 
     Post-roadmap-#6a entry point. Takes `opportunity_adj` directly
     (computed upstream by
@@ -166,7 +171,7 @@ def application_strength_from_adj(
     if force_zero:
         return (0.0, band)
 
-    raw = match + opportunity_adj
+    raw = match + opportunity_adj + research_fit_adj
     strength = max(0.0, min(4.0, raw))
     return (strength, band)
 

@@ -864,9 +864,10 @@ class MatchResult(BaseModel):
     # Which FieldProfile (if any) was active for this match — for traceability.
     field_profile_id: str | None = None
 
-    # Roadmap #4 — research fit. Mirrors CandidateAdvisor fields. Used
-    # as a tie-breaker in `rank_advisors` between candidates with the
-    # same `risk_adjusted_strength`; does NOT enter the match formula.
+    # Roadmap #4 — research fit. Mirrors CandidateAdvisor fields. Enters
+    # `application_strength` only as the bounded `research_fit_adj`
+    # (±0.15, see `phd_matcher.scoring.research_fit`); still a sort
+    # tie-breaker too. Never a CAPEG pillar.
     research_fit_score: float | None = None
     research_fit_summary: str | None = None
     research_fit_axes: dict[str, float] = Field(default_factory=dict)
@@ -879,6 +880,11 @@ class MatchResult(BaseModel):
     # only (no funding, no recruiting); both moved to O.
     o_score: float | None = None
     opportunity_adj: float = 0.0
+
+    # Bounded research-fit adjustment inside `application_strength`
+    # (0.0 when no research fit was computed; positive part dropped when
+    # the fit score is unsourced).
+    research_fit_adj: float = Field(default=0.0, ge=-0.15, le=0.15)
 
     # Sprint-2-c5 — strategy explainer (post-Roadmap-#7). Derived from
     # the scoring fields above; does NOT modify them.

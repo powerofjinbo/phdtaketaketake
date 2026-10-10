@@ -269,7 +269,7 @@ Three **non-CAPEG** dimensions:
 
 - **Opportunity (O)** — admit-cycle availability: recruiting health + funding + lab capacity + accessibility. Drives `opportunity_adj` (replaces v1 `pi_adj`); `not_recruiting` forces `application_strength=0`.
 - **Program difficulty (D)** — per-program penalty 0–0.8 from school-tier admit rate + cohort size + admission model + funding structure + faculty count + international friendliness. Subtracted to form `difficulty_adjusted_strength` (the **primary sort key**).
-- **Research fit (R)** — structured 6-axis tie-breaker: `0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant + 0.10·background`. Never a 6th pillar; sorts ties only.
+- **Research fit (R)** — structured 6-axis score: `0.30·topic + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant + 0.10·background`. Never a 6th pillar; a bounded ±0.15 adjustment to `application_strength` (upside requires a sourced fit) plus tie-breaker.
 
 5-tier label (applied to `difficulty_adjusted_strength`): **Far Reach · Reach · Target · Match · Safe**.
 

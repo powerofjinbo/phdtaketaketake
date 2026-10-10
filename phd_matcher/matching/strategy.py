@@ -8,7 +8,14 @@ modify `match_score`, `application_strength`, `risk_adjusted_strength`,
 
 Bucket precedence (hard-risk first; first match wins):
 
-  drop → only_if_space → reach → target → priority
+  drop → only_if_space → reach → priority → target
+
+drop / only_if_space read the candidate's own risk
+(`risk_adjusted_strength`); priority / target read
+`difficulty_adjusted_strength` — the same value the ranking sorts on — so a
+profile that is solid in absolute terms but faces a top_10 / small-cohort
+program lands in reach, not priority. "Strong connection" and "strong fit"
+count only when the underlying claim is sourced.
 
 This means hard risks (not_recruiting, ≥3 unsourced claims, very low
 fit) override high nominal scores. The strategy report is a decision
@@ -26,10 +33,12 @@ from typing import Literal
 from phd_matcher.models import (
     ApplyBucket,
     MatchResult,
+    PathEdge,
     RecommendedAction,
     StrategyRecommendation,
     StrategySummary,
 )
+from phd_matcher.scoring.opportunity import effective_pi_signal
 
 # ---- Bucket thresholds (v1 defaults) ------------------------------------
 
@@ -55,6 +64,30 @@ STRONG_C_FLOOR = 3.7      # C bucket boundary for "strong connection"
 STRONG_FIT_FLOOR = 0.65
 
 
+# ---- Shared predicates ---------------------------------------------------
+
+def _has_strong_c(result: MatchResult) -> bool:
+    """Strong connection that is actually backed by evidence.
+
+    C is computed from the claimed edges whether or not they are sourced
+    (the band carries the uncertainty). A strategy that tells the user to
+    "lead with the connection" must not rest on an unsourced path, so any
+    `path:*` signal in `unsourced_signal_names` disqualifies strong C.
+    """
+    if result.c_score < STRONG_C_FLOOR:
+        return False
+    return not any(n.startswith("path:") for n in result.unsourced_signal_names)
+
+
+def _has_strong_fit(result: MatchResult) -> bool:
+    """Strong research fit that is backed by evidence."""
+    return (
+        result.research_fit_score is not None
+        and result.research_fit_score >= STRONG_FIT_FLOOR
+        and "research_fit" not in result.unsourced_signal_names
+    )
+
+
 # ---- Bucket assignment (first-match precedence) -------------------------
 
 def _assign_bucket(result: MatchResult) -> tuple[ApplyBucket, list[str]]:
@@ -63,13 +96,7 @@ def _assign_bucket(result: MatchResult) -> tuple[ApplyBucket, list[str]]:
     cand = result.candidate
 
     # 1. drop — hard risks
-    eff_pi = (
-        cand.opportunity_signal.pi_signal
-        if cand.opportunity_signal is not None
-        and cand.opportunity_signal.pi_signal != "missing"
-        else cand.pi_signal
-    )
-    if eff_pi == "not_recruiting":
+    if effective_pi_signal(cand) == "not_recruiting":
         return "drop", ["pi_signal=not_recruiting (lab is not accepting students)"]
     if result.unsourced_signals >= DROP_UNSOURCED_THRESHOLD:
         return "drop", [
@@ -98,10 +125,7 @@ def _assign_bucket(result: MatchResult) -> tuple[ApplyBucket, list[str]]:
             for edge in cand.paths_to_advisors.values()
         )
     )
-    no_strong_fit = (
-        result.research_fit_score is None
-        or result.research_fit_score < STRONG_FIT_FLOOR
-    )
+    no_strong_fit = not _has_strong_fit(result)
     if result.risk_adjusted_strength < ONLY_IF_SPACE_RISK_ADJUSTED_CEIL:
         return "only_if_space", [
             f"risk_adjusted_strength={result.risk_adjusted_strength:.2f} < "
@@ -136,14 +160,28 @@ def _assign_bucket(result: MatchResult) -> tuple[ApplyBucket, list[str]]:
         )
         return "reach", reasons
 
-    # 4. priority — clean evidence + strong signal
-    has_strong_c = result.c_score >= STRONG_C_FLOOR
-    has_strong_fit = (
-        result.research_fit_score is not None
-        and result.research_fit_score >= STRONG_FIT_FLOOR
-    )
+    # 3b. reach — the profile clears the target floor on its own, but the
+    # program's difficulty penalty pulls it below. The ranking already
+    # sorts on difficulty_adjusted_strength; the buckets used to ignore it,
+    # so a top_10 direct-admit program could be labelled "priority" while
+    # ranking below an easier "target".
+    diff_adj = result.difficulty_adjusted_strength
     if (
-        result.risk_adjusted_strength >= PRIORITY_RISK_ADJUSTED_FLOOR
+        result.risk_adjusted_strength >= TARGET_RISK_ADJUSTED_FLOOR
+        and diff_adj < TARGET_RISK_ADJUSTED_FLOOR
+    ):
+        return "reach", [
+            f"risk_adjusted_strength={result.risk_adjusted_strength:.2f} clears "
+            f"{TARGET_RISK_ADJUSTED_FLOOR}, but program difficulty "
+            f"(−{result.program_difficulty_penalty:.2f}) brings it to "
+            f"{diff_adj:.2f} — hard program for this profile"
+        ]
+
+    # 4. priority — clean evidence + strong signal, after program difficulty
+    has_strong_c = _has_strong_c(result)
+    has_strong_fit = _has_strong_fit(result)
+    if (
+        diff_adj >= PRIORITY_RISK_ADJUSTED_FLOOR
         and result.unsourced_signals == PRIORITY_UNSOURCED_REQUIREMENT
         and result.lower_bound >= PRIORITY_LOWER_BOUND_FLOOR
         and (has_strong_c or has_strong_fit)
@@ -155,7 +193,7 @@ def _assign_bucket(result: MatchResult) -> tuple[ApplyBucket, list[str]]:
                 f"strong research fit ({result.research_fit_score:.2f})"
             )
         reasons.extend([
-            f"risk_adjusted_strength={result.risk_adjusted_strength:.2f} ≥ "
+            f"difficulty_adjusted_strength={diff_adj:.2f} ≥ "
             f"{PRIORITY_RISK_ADJUSTED_FLOOR}",
             f"lower_bound={result.lower_bound:.2f} ≥ {PRIORITY_LOWER_BOUND_FLOOR}",
             "0 unsourced claims (clean evidence)",
@@ -164,12 +202,12 @@ def _assign_bucket(result: MatchResult) -> tuple[ApplyBucket, list[str]]:
 
     # 5. target — solid match without all priority criteria
     if (
-        result.risk_adjusted_strength >= TARGET_RISK_ADJUSTED_FLOOR
+        diff_adj >= TARGET_RISK_ADJUSTED_FLOOR
         and result.unsourced_signals <= TARGET_UNSOURCED_CEIL
         and (has_strong_c or has_strong_fit or result.a_score >= 3.3)
     ):
         reasons.append(
-            f"risk_adjusted_strength={result.risk_adjusted_strength:.2f} ≥ "
+            f"difficulty_adjusted_strength={diff_adj:.2f} ≥ "
             f"{TARGET_RISK_ADJUSTED_FLOOR}"
         )
         if has_strong_c:
@@ -210,11 +248,8 @@ def _recommend_action(
     if bucket == "drop":
         return "skip"
 
-    has_strong_c = result.c_score >= STRONG_C_FLOOR
-    has_strong_fit = (
-        result.research_fit_score is not None
-        and result.research_fit_score >= STRONG_FIT_FLOOR
-    )
+    has_strong_c = _has_strong_c(result)
+    has_strong_fit = _has_strong_fit(result)
 
     # Verified strong connection trumps bucket boundaries — the user
     # should reach out personally even if the rest of the picture is
@@ -237,6 +272,32 @@ def _recommend_action(
 
 # ---- Outreach angle ------------------------------------------------------
 
+def _sourced_path_phrase(adv_id: str, edge: PathEdge) -> str | None:
+    """Describe the strongest *evidenced* edge on a path, or None.
+
+    Previously any set edge was "assumed sourced for outreach purposes",
+    so an unsourced co-authorship claim could end up in the email the
+    user sends the PI — the worst place for a fabricated connection.
+    """
+    def ok(field: str) -> bool:
+        return edge.has_evidence_for(field)
+
+    n = edge.small_team_coauthor_5y
+    if n and n >= 2 and ok("small_team_coauthor_5y"):
+        return f"shared small-team coauthorship with {adv_id} ({n} papers)"
+    if edge.co_mentored_student_count and ok("co_mentored_student_count"):
+        return f"co-mentored student(s) with {adv_id}"
+    if edge.shared_grant_count_5y and ok("shared_grant_count_5y"):
+        return f"shared grant(s) with {adv_id}"
+    if edge.same_working_group and ok("same_working_group"):
+        return f"same working group as {adv_id}"
+    if edge.analysis_contact_overlap and ok("analysis_contact_overlap"):
+        return f"analysis-contact overlap with {adv_id}"
+    if edge.genealogy_relation == "same_advisor" and ok("genealogy_relation"):
+        return f"academic-sibling relation through {adv_id}"
+    return None
+
+
 def _outreach_angle(result: MatchResult) -> str | None:
     """Produce a restrained, evidence-backed outreach angle.
 
@@ -249,42 +310,12 @@ def _outreach_angle(result: MatchResult) -> str | None:
     """
     cand = result.candidate
 
-    # Find a sourced path (small_team_coauthor / co_mentored / shared_grant
-    # / working_group / analysis_contact / genealogy)
+    # Find a sourced path, strongest kind first. Each claim is used only
+    # when that specific edge field has evidence on the PathEdge.
     sourced_path: str | None = None
     for adv_id, edge in cand.paths_to_advisors.items():
-        if not edge.has_any_edge:
-            continue
-        # Has at least some edge data — assume sourced for outreach purposes
-        # (strict-mode evidence enforcement happens elsewhere).
-        if edge.small_team_coauthor_5y and edge.small_team_coauthor_5y >= 2:
-            sourced_path = (
-                f"shared small-team coauthorship with {adv_id} "
-                f"({edge.small_team_coauthor_5y} papers)"
-            )
-            break
-        if (
-            edge.co_mentored_student_count
-            and edge.co_mentored_student_count >= 1
-        ):
-            sourced_path = (
-                f"co-mentored student(s) with {adv_id}"
-            )
-            break
-        if (
-            edge.shared_grant_count_5y
-            and edge.shared_grant_count_5y >= 1
-        ):
-            sourced_path = f"shared grant(s) with {adv_id}"
-            break
-        if edge.same_working_group:
-            sourced_path = f"same working group as {adv_id}"
-            break
-        if edge.analysis_contact_overlap:
-            sourced_path = f"analysis-contact overlap with {adv_id}"
-            break
-        if edge.genealogy_relation == "same_advisor":
-            sourced_path = f"academic-sibling relation through {adv_id}"
+        sourced_path = _sourced_path_phrase(adv_id, edge)
+        if sourced_path:
             break
 
     if sourced_path:
@@ -296,6 +327,7 @@ def _outreach_angle(result: MatchResult) -> str | None:
         cand.research_fit_summary
         and result.research_fit_score is not None
         and result.research_fit_score >= 0.50
+        and "research_fit" not in result.unsourced_signal_names
     ):
         return (
             f"Lead with research overlap; do not claim a personal "

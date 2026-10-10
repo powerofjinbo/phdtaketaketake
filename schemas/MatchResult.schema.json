@@ -1330,6 +1330,13 @@
       "title": "Opportunity Adj",
       "type": "number"
     },
+    "research_fit_adj": {
+      "default": 0.0,
+      "maximum": 0.15,
+      "minimum": -0.15,
+      "title": "Research Fit Adj",
+      "type": "number"
+    },
     "strategy": {
       "anyOf": [
         {
