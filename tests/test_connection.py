@@ -152,12 +152,51 @@ def test_path_strength_empty():
     assert path_strength({}) == 0.0
 
 
-def test_raw_to_4_0_buckets():
-    assert raw_to_4_0(0.85) == 4.0
-    assert raw_to_4_0(0.65) == 3.7
-    assert raw_to_4_0(0.45) == 3.3
-    assert raw_to_4_0(0.25) == 2.8
-    assert raw_to_4_0(0.05) == 2.3
+def test_raw_to_4_0_anchors_unchanged():
+    """The old bucket edges are still exact anchor points."""
+    assert raw_to_4_0(0.0) == pytest.approx(2.3)
+    assert raw_to_4_0(0.2) == pytest.approx(2.8)
+    assert raw_to_4_0(0.4) == pytest.approx(3.3)
+    assert raw_to_4_0(0.6) == pytest.approx(3.7)
+    assert raw_to_4_0(0.8) == pytest.approx(4.0)
+    assert raw_to_4_0(0.95) == pytest.approx(4.0)
+    assert raw_to_4_0(-0.1) == pytest.approx(2.3)
+
+
+def test_raw_to_4_0_interpolates_between_anchors():
+    assert raw_to_4_0(0.5) == pytest.approx(3.5)
+    assert raw_to_4_0(0.1) == pytest.approx(2.55)
+    assert raw_to_4_0(0.7) == pytest.approx(3.85)
+
+
+def test_raw_to_4_0_has_no_cliffs():
+    """A 0.01 change in raw strength must not move the score by more than
+    a proportionate amount (the old step form jumped 0.4 at raw=0.6)."""
+    xs = [i / 1000 for i in range(0, 1001)]
+    ys = [raw_to_4_0(x) for x in xs]
+    assert all(b >= a for a, b in zip(ys, ys[1:], strict=False))
+    assert max(b - a for a, b in zip(ys, ys[1:], strict=False)) < 0.01
+
+
+def test_connection_score_second_advisor_adds_small_bonus():
+    """Two verified routes into the lab beat one, by a bounded amount."""
+    one = connection_score(
+        [{"id": "a1"}, {"id": "a2"}],
+        {"paths_to_advisors": {"a1": {"small_team_coauthor_5y": 2,
+                                      "most_recent_connection_year": 2026}}},
+        current_year=2026,
+    )
+    two = connection_score(
+        [{"id": "a1"}, {"id": "a2"}],
+        {"paths_to_advisors": {
+            "a1": {"small_team_coauthor_5y": 2, "most_recent_connection_year": 2026},
+            "a2": {"same_center_or_institute": True, "most_recent_connection_year": 2026},
+        }},
+        current_year=2026,
+    )
+    assert two > one
+    # 0.40 + 0.10 × 0.40 = 0.44 raw → 3.3 + 0.4·(0.04/0.2) = 3.38
+    assert two == pytest.approx(3.38)
 
 
 def test_advisor_strength_components():

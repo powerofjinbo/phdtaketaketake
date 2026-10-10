@@ -12,7 +12,8 @@ Aggregation (post-Sprint-2-c1):
 
   edge_raw  = strongest_edge + 0.10 · second_strongest_edge   (cap 1.0)
   edge_raw *= recency_multiplier(most_recent_connection_year)
-  C         = raw_to_4_0(edge_raw)
+  C_raw     = best advisor path + 0.10 · second-best advisor path (cap 1.0)
+  C         = raw_to_4_0(C_raw)   (piecewise-linear, no bucket cliffs)
 
 Recency multiplier:
 
@@ -290,12 +291,35 @@ def path_strength(
 
 # ---- Final composite + 4.0 mapping ---------------------------------------
 
+# Anchor points of the 0–1 → 4.0 mapping. These are the v1 bucket edges;
+# the mapping now interpolates linearly *between* them instead of stepping.
+# The step form created cliffs where a 0.01 change in raw strength moved C
+# or A by up to 0.5 (e.g. raw 0.59 → 3.3 but 0.60 → 3.7), which then decided
+# rankings on noise in the inputs. Every anchor value is unchanged, so a
+# signal sitting exactly on an old bucket edge scores exactly as before.
+RAW_TO_4_0_ANCHORS: tuple[tuple[float, float], ...] = (
+    (0.0, 2.3),
+    (0.2, 2.8),
+    (0.4, 3.3),
+    (0.6, 3.7),
+    (0.8, 4.0),
+)
+
+
 def raw_to_4_0(raw: float) -> float:
-    if raw >= 0.8: return 4.0
-    if raw >= 0.6: return 3.7
-    if raw >= 0.4: return 3.3
-    if raw >= 0.2: return 2.8
-    return 2.3
+    """Map a 0–1 composite onto the 4.0 scale, piecewise-linearly through
+    `RAW_TO_4_0_ANCHORS`. Monotone non-decreasing and continuous; clamps
+    to 2.3 below 0 and 4.0 at/above 0.8."""
+    anchors = RAW_TO_4_0_ANCHORS
+    if raw <= anchors[0][0]:
+        return anchors[0][1]
+    for (x0, y0), (x1, y1) in zip(anchors, anchors[1:], strict=False):
+        if raw <= x1:
+            return y0 + (y1 - y0) * (raw - x0) / (x1 - x0)
+    return anchors[-1][1]
+
+
+SECONDARY_ADVISOR_BONUS_FACTOR = 0.10
 
 
 def connection_score(
@@ -334,5 +358,14 @@ def connection_score(
                 path_strength(paths[adv_id], current_year=current_year)
             )
 
-    c_path = max(path_strengths) if path_strengths else 0.0
+    # Multiple advisors: strongest path + 0.10 × second-strongest (same
+    # shape as the per-edge aggregation, cap 1.0). Two independent verified
+    # routes into a lab are a better position than one, but never as good
+    # as a single strong direct one.
+    if not path_strengths:
+        return raw_to_4_0(0.0)
+    ranked = sorted(path_strengths, reverse=True)
+    c_path = ranked[0]
+    if len(ranked) >= 2:
+        c_path = min(1.0, c_path + SECONDARY_ADVISOR_BONUS_FACTOR * ranked[1])
     return raw_to_4_0(c_path)

@@ -91,9 +91,11 @@ back to cited evidence:
   + faculty count + international friendliness. Subtracted from
   `risk_adjusted_strength` to form `difficulty_adjusted_strength`
   (the **primary sort key**, replaces v1 `tier_adj`).
-- **Research fit (R)** — structured 6-axis tie-breaker: `0.30·topic
+- **Research fit (R)** — structured 6-axis score: `0.30·topic
   + 0.20·method + 0.15·system + 0.15·temporal + 0.10·grant +
-  0.10·background`. Never a 6th pillar; sorts ties only.
+  0.10·background`. Never a 6th pillar; enters `application_strength`
+  only as a bounded ±0.15 adjustment (upside requires a sourced fit) and
+  breaks ties.
 
 Pipeline diagram: [`docs/scoring_pipeline.md`](docs/scoring_pipeline.md).
 Full formulas: [`docs/scoring.md`](docs/scoring.md). Per-feature
@@ -650,17 +652,17 @@ When `program_profile` is null, only the school_tier factor contributes
 (top_10=0.70, top_11_30=0.50, top_31_60=0.30, top_60+=0.00) — this is
 the v2 replacement for the v1 `tier_adj` term, which has been removed.
 
-### Step 6.5 — Research fit (roadmap #4 — tie-breaker, NOT a pillar)
+### Step 6.5 — Research fit (roadmap #4 — bounded ±0.15 adjustment, NOT a pillar)
 
 After C / A / P / E / G fields are populated and **before** the matcher
 is invoked, optionally compute a **research_fit_score** per candidate.
 This is a 0–1 alignment between the student's `research_direction` and
 the candidate's actual recent work.
 
-It is **not** part of the match formula — it does not move `match_score`
-or `application_strength`. It only breaks ties in the sort order when
-two candidates land at the same `risk_adjusted_strength`. The connection-
-first thesis is preserved.
+It is **not** part of the match formula — it does not move `match_score`.
+It adjusts `application_strength` by at most ±0.15 (centred on 0.5; an
+unsourced fit gets the downside only) and breaks ties in the sort order.
+The connection-first thesis is preserved.
 
 The fit fields live on the same `CandidateAdvisor` JSON record alongside
 the other signals, so they must be filled in before piping candidates to

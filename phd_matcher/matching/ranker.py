@@ -484,7 +484,8 @@ def compute_match(
 
     Post-roadmap-#5 the pipeline is:
       1. CAPEG match_score (unchanged formula)
-      2. application_strength = match_score + pi_adj   (no more tier_adj)
+      2. application_strength = match_score + opportunity_adj
+                                + research_fit_adj (±0.15)
       3. risk_adjusted_strength = application_strength − band/2
       4. program_difficulty_penalty = f(school_tier, program_profile)
       5. difficulty_adjusted_strength = max(0, risk_adjusted − penalty)  ← new sort key
@@ -517,9 +518,14 @@ def compute_match(
     # exact old behavior. Candidates with opportunity_signal get the
     # field-by-field merged O score → opportunity_adj.
     o_score, opp_adj, force_zero = opportunity.compute_opportunity_state(candidate)
+    rf_score = research_fit_module.effective_research_fit_score(candidate)
+    rf_adj = research_fit_module.research_fit_adj(
+        rf_score, sourced="research_fit" not in cov.unsourced_names,
+    )
     strength, band = admit.application_strength_from_adj(
         m, opp_adj, force_zero=force_zero,
         unverified_count=cov.unverified, total_count=cov.total,
+        research_fit_adj=rf_adj,
     )
     risk_adj = _risk_adjusted(strength, band)
 
@@ -560,7 +566,8 @@ def compute_match(
         # Sprint-2-c3: structured research_fit takes precedence over legacy
         # research_fit_score field. effective_research_fit_score resolves
         # the priority.
-        research_fit_score=research_fit_module.effective_research_fit_score(candidate),
+        research_fit_score=rf_score,
+        research_fit_adj=round(rf_adj, 3),
         research_fit_summary=candidate.research_fit_summary,
         research_fit_axes=dict(candidate.research_fit_axes),
         o_score=(round(o_score, 2) if o_score is not None else None),

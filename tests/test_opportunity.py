@@ -135,7 +135,8 @@ def test_opportunity_score_missing_fields_neutral():
 
 def test_opportunity_score_shrinking_no_funding_low_capacity():
     """Shrinking lab + zero funding + zero open positions + no recent
-    graduates + sabbatical → low O → -0.4 adj."""
+    graduates + sabbatical → low O → strongly negative adj
+    (continuous: clip(O − 0.5, −0.4, +0.2))."""
     cand = _candidate(opportunity_signal=OpportunitySignal(
         pi_signal="shrinking",
         active_funding_quality=0.0,
@@ -147,7 +148,23 @@ def test_opportunity_score_shrinking_no_funding_low_capacity():
     o = opportunity_score(cand)
     assert o is not None
     assert o < 0.30
-    assert opportunity_adj_from_score(o) == pytest.approx(-0.4)
+    assert opportunity_adj_from_score(o) == pytest.approx(o - 0.5)
+    assert opportunity_adj_from_score(o) < -0.2
+
+
+@pytest.mark.parametrize("o,adj", [
+    (1.0, 0.2), (0.70, 0.2), (0.60, 0.1), (0.50, 0.0),
+    (0.30, -0.2), (0.10, -0.4), (0.0, -0.4),
+])
+def test_opportunity_adj_continuous_through_old_ladder(o, adj):
+    """Continuous form passes through every old ladder point."""
+    assert opportunity_adj_from_score(o) == pytest.approx(adj)
+
+
+def test_opportunity_adj_has_no_step_at_threshold():
+    """O = 0.69 vs 0.70 used to differ by 0.2; now by 0.01."""
+    gap = opportunity_adj_from_score(0.70) - opportunity_adj_from_score(0.69)
+    assert gap == pytest.approx(0.01)
 
 
 def test_opportunity_score_returns_none_for_pure_legacy():
