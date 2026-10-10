@@ -1,0 +1,181 @@
+# Admission-probability priors (phd_matcher.admission).
+#
+# These are MODEL PARAMETERS, not facts about any candidate or program.
+# They play the same role as TIER_WEIGHTS in scoring/admit.py: educated
+# defaults, chosen from public department admissions pages, NSF/CGS
+# graduate-admissions reports and widely reported cycle statistics, and
+# meant to be replaced as soon as better data exists:
+#
+#   * A verified program statistic (ProgramAdmissionStats with evidence)
+#     always overrides `base_rates` for that target.
+#   * `phdtaketaketake-admission --calibrate outcomes.json` refits the
+#     `calibration` block from real admit / reject outcomes.
+#
+# base_rates: P(offer) for a random applicant to a program of that tier,
+#   before anything is known about them. Overall offers / applications.
+# admission_model_prior: P(the PI personally decides) when the program's
+#   admission model is unknown. 1.0 = direct-admit, 0.0 = committee /
+#   rotation (advisor chosen after admission).
+# core_course_keywords: substrings (case-insensitive, en + zh) that mark a
+#   transcript course as core to the field when the course itself does not
+#   say `is_core`.
+# subject_gre_weight: index weight of the Subject GRE when one is reported.
+
+calibration:
+  intercept_shift: 0.0      # added to every target's logit
+  beta_multiplier: 1.0      # scales the applicant-index slope
+
+post_interview_rates:       # P(offer | interviewed) by tier
+  top_10: 0.40
+  top_11_30: 0.50
+  top_31_60: 0.55
+  top_60_plus: 0.60
+
+waitlist_rates:             # P(offer | waitlisted) by tier
+  top_10: 0.20
+  top_11_30: 0.25
+  top_31_60: 0.30
+  top_60_plus: 0.35
+
+default:
+  base_rates: {top_10: 0.10, top_11_30: 0.15, top_31_60: 0.22, top_60_plus: 0.32}
+  admission_model_prior: 0.5
+  subject_gre_weight: 0.03
+  core_course_keywords: []
+
+fields:
+  cs:
+    base_rates: {top_10: 0.05, top_11_30: 0.09, top_31_60: 0.15, top_60_plus: 0.25}
+    admission_model_prior: 0.75
+    subject_gre_weight: 0.0
+    pool_overrides:
+      research: {top_10: [3.0, 0.6], top_11_30: [2.8, 0.6], top_31_60: [2.5, 0.55]}
+    core_course_keywords:
+      - algorithm
+      - data structure
+      - operating system
+      - computer architecture
+      - machine learning
+      - theory of computation
+      - discrete math
+      - linear algebra
+      - probability
+      - compiler
+      - 算法
+      - 数据结构
+      - 操作系统
+      - 计算机组成
+      - 机器学习
+      - 线性代数
+      - 概率
+      - 离散数学
+      - 编译
+  physics:
+    base_rates: {top_10: 0.10, top_11_30: 0.15, top_31_60: 0.22, top_60_plus: 0.32}
+    admission_model_prior: 0.3
+    subject_gre_weight: 0.10
+    core_course_keywords:
+      - quantum
+      - electrodynamics
+      - electromagnetism
+      - classical mechanics
+      - analytical mechanics
+      - statistical mechanics
+      - statistical physics
+      - thermodynamics
+      - mathematical methods
+      - mathematical physics
+      - particle physics
+      - solid state
+      - condensed matter
+      - 量子
+      - 电动力学
+      - 电磁学
+      - 理论力学
+      - 分析力学
+      - 统计物理
+      - 热力学
+      - 数学物理
+      - 原子物理
+      - 固体物理
+  chemistry:
+    base_rates: {top_10: 0.18, top_11_30: 0.25, top_31_60: 0.33, top_60_plus: 0.42}
+    admission_model_prior: 0.3
+    subject_gre_weight: 0.04
+    core_course_keywords:
+      - organic
+      - inorganic
+      - physical chemistry
+      - analytical chemistry
+      - quantum chemistry
+      - biochemistry
+      - spectroscopy
+      - 有机化学
+      - 无机化学
+      - 物理化学
+      - 分析化学
+      - 结构化学
+      - 量子化学
+      - 生物化学
+  biology:
+    base_rates: {top_10: 0.10, top_11_30: 0.15, top_31_60: 0.22, top_60_plus: 0.30}
+    admission_model_prior: 0.15
+    subject_gre_weight: 0.02
+    core_course_keywords:
+      - molecular biology
+      - cell biology
+      - genetics
+      - biochemistry
+      - neuroscience
+      - immunology
+      - bioinformatics
+      - microbiology
+      - 分子生物学
+      - 细胞生物学
+      - 遗传学
+      - 生物化学
+      - 神经
+      - 免疫
+      - 生物信息
+      - 微生物
+  math:
+    base_rates: {top_10: 0.08, top_11_30: 0.13, top_31_60: 0.20, top_60_plus: 0.30}
+    admission_model_prior: 0.1
+    subject_gre_weight: 0.07
+    core_course_keywords:
+      - real analysis
+      - complex analysis
+      - abstract algebra
+      - topology
+      - differential geometry
+      - functional analysis
+      - measure theory
+      - number theory
+      - 实分析
+      - 复分析
+      - 抽象代数
+      - 近世代数
+      - 拓扑
+      - 微分几何
+      - 泛函分析
+      - 实变函数
+      - 复变函数
+      - 数学分析
+  mse:
+    base_rates: {top_10: 0.14, top_11_30: 0.20, top_31_60: 0.28, top_60_plus: 0.38}
+    admission_model_prior: 0.5
+    subject_gre_weight: 0.02
+    core_course_keywords:
+      - materials
+      - thermodynamics
+      - kinetics
+      - crystallography
+      - solid state
+      - mechanical behavior
+      - polymer
+      - 材料
+      - 热力学
+      - 动力学
+      - 晶体
+      - 固体物理
+      - 高分子

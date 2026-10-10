@@ -1219,6 +1219,61 @@ Standard product-boundary disclaimer (zh + en, same as advisor matching):
 - ❌ Does not optimize for industry / ATS resumes (the template is academic-PhD-application style)
 - ❌ Does not assess content quality (good experiment vs bad experiment is the user's judgment)
 
+## Admission probability (Workflow C)
+
+Use when the user names specific schools (optionally a professor at each)
+and asks for their chance of admission / 录取概率. This is the **only**
+place the skill outputs a probability; the matcher's 4.0 index above stays
+a relative-fit index. Full algorithm: `docs/admission_probability.md`.
+
+### Step AP-1 — Collect the applicant (required fields first)
+
+Required: GPA + scale, transcript (course name, grade, level, year — parse
+it from the uploaded transcript, never invent courses), publications (ask
+explicitly; an empty list is a valid "none" answer), research interests,
+application direction. Optional: GRE General, Subject GRE, current
+advisors, research experiences, letter writers (prominence + whether they
+supervised research), international status, external fellowship,
+undergraduate tier. If the user uploaded an SOP, read it and fill `sop`
+(`research_specificity`, `direction_coherence`, `names_target_faculty`) —
+leave `sop` out when no SOP was provided.
+
+### Step AP-2 — Deep background research per target
+
+For each school / professor, research with the same evidence rules as
+Steps 4–6.5 and build an `AdmissionTarget`:
+
+- `pi` — a full `CandidateAdvisor` for the professor: connection paths to
+  the user's advisors, structured `research_fit`, recruiting / opportunity
+  signals, `program_profile` (admission model, cohort size, funding,
+  international friendliness).
+- `stats` — the program's admit rate from the department's admissions
+  statistics page, with an `EvidenceSource` whose
+  `supports_fields=["admission:admit_rate"]`. This is the single biggest
+  accuracy improvement; skip it rather than estimate it.
+- `stage` / `contact_status` — only from what the user tells you.
+
+### Step AP-3 — Run the estimator
+
+```bash
+phdtaketaketake-admission --applicant-file applicant.json --targets-file targets.json
+```
+
+### Step AP-4 — Present
+
+Per target: probability with its 80% interval, P(joining this PI's group)
+when it differs, verdict, confidence grade, the top 3 factors by
+`delta_pp`, the levers, and `missing_inputs` phrased as "what would
+sharpen this". Then P(at least one offer) for the whole list. Always end
+with:
+
+> **This is a model estimate with an 80% interval, anchored on program
+> admit rates — not a guarantee. Missing or unverified information widens
+> the interval instead of being guessed.**
+>
+> 这是基于录取率基准的模型估计（附 80% 区间），不是保证。缺失或未经证实的信息
+> 会让区间变宽，而不会被猜测填充。
+
 ## Confidence calibration — claim-level evidence coverage
 
 The matcher's `confidence_band` widens as the count of unverified signals
