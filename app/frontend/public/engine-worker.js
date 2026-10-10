@@ -2,6 +2,7 @@
  *
  * Messages in:  {id, type: "rank", profile, candidates, topK, strict}
  *               {id, type: "validate-profile", profile}
+ *               {id, type: "admission", applicant, targets}
  * Messages out: {id, ok, result} | {id, ok: false, error}
  *               {type: "status", note}  (loading progress, no id)
  */
@@ -46,6 +47,10 @@ from phd_matcher.models import StudentProfile, CandidateAdvisor
 from phd_matcher.matching.ranker import rank_advisors, strict_validate
 from phd_matcher.matching.strategy import recommend_strategy, summarize_portfolio
 from phd_matcher.data.loaders import load_field_profile
+from phd_matcher.admission.api import estimate_admission_json
+
+def _admission(applicant_json, targets_json):
+    return estimate_admission_json(applicant_json, targets_json, "/eng/data")
 
 def _rank(profile_json, candidates_json, top_k, strict):
     profile = json.loads(profile_json)
@@ -146,6 +151,11 @@ self.onmessage = async (ev) => {
     } else if (type === "validate-profile") {
       const fn = pyodide.globals.get("_validate_profile");
       const out = fn(JSON.stringify(ev.data.profile));
+      fn.destroy();
+      self.postMessage({ id, ok: true, result: JSON.parse(out) });
+    } else if (type === "admission") {
+      const fn = pyodide.globals.get("_admission");
+      const out = fn(JSON.stringify(ev.data.applicant), JSON.stringify(ev.data.targets));
       fn.destroy();
       self.postMessage({ id, ok: true, result: JSON.parse(out) });
     } else if (type === "warmup") {

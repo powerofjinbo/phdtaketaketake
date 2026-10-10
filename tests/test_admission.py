@@ -320,3 +320,16 @@ def test_cli_end_to_end():
     data = json.loads(out.stdout)
     assert len(data["estimates"]) == len(_targets())
     assert 0 < data["p_at_least_one"] < 1
+
+
+def test_lenient_api_drops_bad_research_blocks_with_a_warning():
+    targets = _targets()[:1]
+    targets[0]["stats"] = {"reported_admit_rate": 7}  # invalid: not a fraction
+    strict = json.loads(estimate_admission_json(
+        (DEMO / "applicant.json").read_text(), json.dumps(targets), lenient=False))
+    assert strict["error"] == "invalid input"
+    out = json.loads(estimate_admission_json(
+        (DEMO / "applicant.json").read_text(), json.dumps(targets), samples=400))
+    est = out["estimates"][0]
+    assert est["pi_name"] is not None
+    assert any("stats" in w for w in est["warnings"])

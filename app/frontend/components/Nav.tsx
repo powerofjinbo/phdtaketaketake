@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loadProfile, loadSettings, onSetupChanged } from "@/lib/store";
-import { IconCheck, IconCompass, IconKey, IconUser } from "@/components/Icons";
+import { IconChart, IconCheck, IconCompass, IconKey, IconUser } from "@/components/Icons";
 
 /** The logo mark: one bright node (you) wired to three advisors. */
 export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
@@ -32,6 +32,7 @@ const LINKS = [
   { href: "/settings", label: "Key", full: "API key", Icon: IconKey, step: "key" as const },
   { href: "/profile", label: "Profile", full: "Profile", Icon: IconUser, step: "profile" as const },
   { href: "/dashboard", label: "Match", full: "Match", Icon: IconCompass, step: null },
+  { href: "/admission", label: "Odds", full: "Admission odds", Icon: IconChart, step: null },
 ];
 
 export default function Nav() {
