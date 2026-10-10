@@ -26,10 +26,13 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from phd_matcher.models import (
+    ApplicantAssessment,
+    ApplicationPlan,
     CandidateAdvisor,
     EvidenceEntry,
     EvidenceSource,
     FieldProfile,
+    ImprovementAction,
     MatchResult,
     OpportunitySignal,
     PathEdge,
@@ -38,6 +41,7 @@ from phd_matcher.models import (
     StrategyRecommendation,
     StrategySummary,
     StudentProfile,
+    TierReadiness,
 )
 
 # Models to export. Each is a top-level surface that an agent or
@@ -56,6 +60,10 @@ EXPORTED_MODELS: tuple[type[BaseModel], ...] = (
     MatchResult,
     StrategyRecommendation,
     StrategySummary,
+    ApplicantAssessment,
+    TierReadiness,
+    ImprovementAction,
+    ApplicationPlan,
 )
 
 

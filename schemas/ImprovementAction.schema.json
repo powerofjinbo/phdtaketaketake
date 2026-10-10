@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "description": "A what-if: one realistic change to the profile and how much it would\nmove the applicant composite. Hypothetical — never written back into\nthe profile and only meaningful if the student can actually do it.",
+  "properties": {
+    "action": {
+      "title": "Action",
+      "type": "string"
+    },
+    "pillar": {
+      "enum": [
+        "G",
+        "P",
+        "E",
+        "L",
+        "tests"
+      ],
+      "title": "Pillar",
+      "type": "string"
+    },
+    "effort": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Effort",
+      "type": "string"
+    },
+    "delta_strength": {
+      "title": "Delta Strength",
+      "type": "number"
+    },
+    "new_strength": {
+      "title": "New Strength",
+      "type": "number"
+    },
+    "assumption": {
+      "title": "Assumption",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "pillar",
+    "effort",
+    "delta_strength",
+    "new_strength",
+    "assumption"
+  ],
+  "title": "ImprovementAction",
+  "type": "object"
+}

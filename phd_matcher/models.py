@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Enum types — Literal so typos fail at construction
@@ -38,6 +38,35 @@ OutputType = Literal[
 ]
 
 GPAScale = Literal["4.0", "4.3", "4.5", "100", "uk"]
+
+# ---- Applicant model v2 (deep applicant-strength assessment) ------------
+
+# Selectivity of the student's own institution. Used to put the GPA in
+# context (a 3.6 from a top school is not a 3.6 from an unranked one).
+InstitutionTier = Literal[
+    "elite",         # MIT/Stanford/Caltech/Oxbridge/ETH, Tsinghua/PKU
+    "very_strong",   # US top 11-30, C9 / top-tier international
+    "strong",        # US top 31-80, 985 / strong national universities
+    "good",          # 211 / solid regional universities
+    "other",
+]
+GPATrend = Literal["rising", "flat", "falling"]
+ExperienceRole = Literal["lead", "core", "assistant"]
+FieldRelevance = Literal["same_subfield", "adjacent", "different"]
+RecommenderRelationship = Literal[
+    "research_supervisor",    # supervised the student's research directly
+    "research_collaborator",  # worked with the student on research
+    "course_instructor",      # knows the student from coursework
+    "employer",               # industry / internship manager
+    "other",
+]
+LetterStrength = Literal["exceptional", "strong", "good", "unknown"]
+HonorLevel = Literal[
+    "international", "national", "regional", "university", "other",
+]
+DegreeLevel = Literal["bachelor", "master"]
+EnglishTest = Literal["toefl", "ielts", "duolingo", "native_or_waived"]
+ApplicantTier = Literal["exceptional", "strong", "competitive", "developing"]
 
 StrengthLabel = Literal["Far Reach", "Reach", "Target", "Match", "Safe"]
 
@@ -421,6 +450,12 @@ class Experience(BaseModel):
     duration_months: int = Field(ge=0)
     output_type: OutputType
 
+    # Applicant model v2 (optional). `role` = how much of the project the
+    # student owned; `field_relevance` = how close the work is to the field
+    # the student is applying in. None = not stated → neutral.
+    role: ExperienceRole | None = None
+    field_relevance: FieldRelevance | None = None
+
     model_config = ConfigDict(extra="forbid")
 
 
@@ -436,6 +471,62 @@ class CurrentAdvisor(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ClassRank(BaseModel):
+    """Rank within the student's cohort, e.g. 3 of 120."""
+    rank: int = Field(ge=1)
+    cohort_size: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _rank_within_cohort(self) -> ClassRank:
+        if self.rank > self.cohort_size:
+            raise ValueError(
+                f"rank {self.rank} is larger than cohort_size {self.cohort_size}"
+            )
+        return self
+
+    @property
+    def percentile_from_top(self) -> float:
+        """Fraction of the cohort ranked at or above the student (0-1]."""
+        return self.rank / self.cohort_size
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class Recommender(BaseModel):
+    """One recommendation-letter writer, as the student describes them.
+
+    `expected_strength` is the student's honest expectation; leave it
+    "unknown" rather than guessing. Never invent a recommender.
+    """
+    name: str
+    standing: LabTier = "other"
+    relationship: RecommenderRelationship
+    months_known: int = Field(default=0, ge=0)
+    expected_strength: LetterStrength = "unknown"
+    is_current_advisor: bool = False
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class Honor(BaseModel):
+    name: str
+    level: HonorLevel
+    year: int | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StandardizedTests(BaseModel):
+    """Optional standardized tests. Percentiles are 0-100."""
+    gre_quant_percentile: float | None = Field(default=None, ge=0, le=100)
+    gre_verbal_percentile: float | None = Field(default=None, ge=0, le=100)
+    subject_gre_percentile: float | None = Field(default=None, ge=0, le=100)
+    english_test: EnglishTest | None = None
+    english_score: float | None = Field(default=None, ge=0)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class StudentProfile(BaseModel):
     name: str | None = None
     field: str
@@ -447,6 +538,23 @@ class StudentProfile(BaseModel):
     current_advisors: list[CurrentAdvisor] = Field(default_factory=list)
     papers: list[Paper] = Field(default_factory=list)
     experiences: list[Experience] = Field(default_factory=list)
+
+    # ---- Applicant model v2 (all optional, user-provided only) ----------
+    # Academic record context
+    undergrad_tier: InstitutionTier | None = None
+    class_rank: ClassRank | None = None
+    major_gpa_raw: float | None = None          # same scale as gpa_scale
+    gpa_trend: GPATrend | None = None
+    graduate_course_count: int | None = Field(default=None, ge=0)
+    # Master's degree (most recent degree weighs more)
+    degree_level: DegreeLevel = "bachelor"
+    master_tier: InstitutionTier | None = None
+    master_gpa_raw: float | str | None = None
+    master_gpa_scale: GPAScale | None = None
+    # Letters, honors, tests
+    recommenders: list[Recommender] = Field(default_factory=list)
+    honors: list[Honor] = Field(default_factory=list)
+    test_scores: StandardizedTests | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -704,6 +812,96 @@ class CandidateAdvisor(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Applicant assessment (applicant model v2) — candidate-independent
+# ---------------------------------------------------------------------------
+
+class ApplicantAssessment(BaseModel):
+    """How strong the applicant is on their own, before any PI is involved.
+
+    Every sub-score is on the 4.0 scale. `applicant_strength` is the
+    neutral-weight composite; the matcher re-weights the same pillars per
+    school tier. Derived only from what the student provided.
+    """
+
+    academic_score: float              # G v2: GPA in context
+    research_output_score: float       # P
+    research_experience_score: float   # E v2
+    letters_score: float | None = None # L (None = no recommenders described)
+    letters_coverage: float = 0.0      # described letters / 3, capped at 1
+
+    honors_bonus: float = 0.0
+    tests_adj: float = 0.0
+    spike_bonus: float = 0.0
+
+    applicant_strength: float
+    tier: ApplicantTier
+    confidence: Literal["high", "medium", "low"]
+    inputs_provided: int = 0
+    inputs_total: int = 0
+
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
+    risk_flags: list[str] = Field(default_factory=list)
+    missing_inputs: list[str] = Field(default_factory=list)
+    components: dict[str, float] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TierReadiness(BaseModel):
+    """How the applicant's profile compares with the typical admit at one
+    school tier, before any PI-specific signal (connection, opportunity)."""
+
+    school_tier: SchoolTier
+    applicant_score: float      # tier-weighted applicant composite
+    screen_penalty: float
+    typical_admit_bar: float
+    margin: float               # applicant_score − screen_penalty − bar
+    verdict: Literal["above_bar", "at_bar", "below_bar"]
+    note: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ImprovementAction(BaseModel):
+    """A what-if: one realistic change to the profile and how much it would
+    move the applicant composite. Hypothetical — never written back into
+    the profile and only meaningful if the student can actually do it."""
+
+    action: str
+    pillar: Literal["G", "P", "E", "L", "tests"]
+    effort: Literal["low", "medium", "high"]
+    delta_strength: float
+    new_strength: float
+    assumption: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ApplicationPick(BaseModel):
+    candidate_id: str
+    institution: str
+    band: Literal["reach", "target", "safer"]
+    difficulty_adjusted_strength: float
+    why: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ApplicationPlan(BaseModel):
+    """A balanced shortlist built from ranked results."""
+
+    picks: list[ApplicationPick] = Field(default_factory=list)
+    reach_count: int = 0
+    target_count: int = 0
+    safer_count: int = 0
+    excluded: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
 # Match result
 # ---------------------------------------------------------------------------
 
@@ -885,6 +1083,16 @@ class MatchResult(BaseModel):
     # (0.0 when no research fit was computed; positive part dropped when
     # the fit score is unsourced).
     research_fit_adj: float = Field(default=0.0, ge=-0.15, le=0.15)
+
+    # Applicant model v2. `l_score` is the letters pillar (None when no
+    # recommenders were described); `s_score` the tier-weighted applicant
+    # composite that fills the P/E/G slot of CAPEG; `academic_screen_penalty`
+    # the subtraction applied when the academic record sits under the tier's
+    # screening floor.
+    l_score: float | None = None
+    s_score: float | None = None
+    academic_screen_penalty: float = 0.0
+    applicant: ApplicantAssessment | None = None
 
     # Sprint-2-c5 — strategy explainer (post-Roadmap-#7). Derived from
     # the scoring fields above; does NOT modify them.

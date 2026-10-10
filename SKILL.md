@@ -135,7 +135,12 @@ output:
 ### Optional but improves output quality
 
 - **Papers**: title, venue, status (`published` / `accepted` / `submitted` / `preprint` / `in_prep`), author position, total authors. Without this, P pillar floors out; user gets an honest "no publication evidence" rather than a guess.
-- **Experiences**: lab name, duration months, output (paper / poster / thesis). Without this, E pillar floors.
+- **Experiences**: lab name, duration months, output (paper / poster / thesis), and optionally the student's role (lead / core / assistant) and how close the work is to the target field. Without this, E pillar floors.
+- **Applicant model v2 inputs** (all optional; each one raises confidence — see [`references/applicant_model.md`](references/applicant_model.md)):
+  - academic context: undergraduate institution tier, class rank (e.g. 3/120), major-course GPA, GPA trend, number of graduate courses, master's GPA
+  - **recommenders**: who will write letters, their standing, relationship (research supervisor / collaborator / course instructor / employer), months known, and expected strength. Use "unknown" unless the user says otherwise.
+  - honors (international / national / regional / university), Subject GRE / GRE / English test scores
+  - The match output's `applicant.missing_inputs` lists what is still missing; ask for those in plain English.
 - **Specific candidate PIs**: if the user already has a target list, skip Step 3 (discovery_plan) and feed candidates straight to `collect_evidence`. If not, run discovery_plan first.
 - **Theory / experiment crossover preferences** (physics-specific): affects research_fit.theory_experiment_fit signal.
 - **International friendliness needs** (visa / funding constraints): affects program_difficulty interpretation.
@@ -1348,6 +1353,7 @@ When the user asks deeper questions, read the relevant doc:
 - `references/evidence_schema.md` — `EvidenceSource` / `supports_fields` / strict mode / verified-empty pattern / per-claim audit
 - `references/scoring_reference.md` — CAPEG cheat-sheet (in-context); points at `docs/scoring.md` for derivations
 - `references/candidate_discovery.md` — per-field PI search recipes, connection-edge classification, advisor-influence detail signals
+- `references/applicant_model.md` — applicant model v2: academic context, letters, experience depth, bonuses, screening floor, tier readiness, improvement plan, application list
 - `references/research_fit.md` — research_fit_axes per field + tie-breaker semantics
 - `references/program_profile.md` — program difficulty signals + penalty formula (post-roadmap-#5)
 - `references/opportunity.md` — admit-cycle availability + A vs O split + opportunity_adj ladder (post-roadmap-#6a)
