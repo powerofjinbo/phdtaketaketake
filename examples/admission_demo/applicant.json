@@ -1,0 +1,113 @@
+{
+  "name": "Sample Physics Applicant",
+  "field": "physics",
+  "undergrad_institution": "Tsinghua University",
+  "undergrad_tier": "elite",
+  "gpa_raw": 3.82,
+  "gpa_scale": "4.0",
+  "transcript": {
+    "class_rank_percentile": 8,
+    "courses": [
+      {
+        "name": "Calculus I",
+        "grade": "A-",
+        "year": 1
+      },
+      {
+        "name": "General Physics I",
+        "grade": "B+",
+        "year": 1
+      },
+      {
+        "name": "Linear Algebra",
+        "grade": "A-",
+        "year": 1
+      },
+      {
+        "name": "Theoretical Mechanics",
+        "grade": "A-",
+        "year": 2
+      },
+      {
+        "name": "Electromagnetism",
+        "grade": "B+",
+        "year": 2
+      },
+      {
+        "name": "Quantum Mechanics",
+        "grade": "A",
+        "year": 3
+      },
+      {
+        "name": "Electrodynamics",
+        "grade": "A",
+        "year": 3
+      },
+      {
+        "name": "Statistical Mechanics",
+        "grade": "A-",
+        "year": 3
+      },
+      {
+        "name": "Particle Physics",
+        "grade": "A",
+        "year": 4,
+        "level": "graduate"
+      },
+      {
+        "name": "Quantum Field Theory I",
+        "grade": "A-",
+        "year": 4,
+        "level": "graduate"
+      }
+    ]
+  },
+  "publications": [
+    {
+      "title": "Search for new physics in dijet events with the ATLAS detector",
+      "journal": "Physical Review D",
+      "journal_tier": 3,
+      "author_position": 312,
+      "total_authors": 2900,
+      "status": "published",
+      "year": 2024
+    }
+  ],
+  "research_interests": "Higgs boson coupling measurements and BSM searches with the ATLAS detector",
+  "application_direction": "experimental high energy physics",
+  "gre_subject": {
+    "subject": "physics",
+    "score": 960,
+    "percentile": 88
+  },
+  "current_advisors": [
+    {
+      "id": "adv_001",
+      "name": "Prof. Lisa Wang",
+      "institution": "Tsinghua University"
+    }
+  ],
+  "experiences": [
+    {
+      "lab_pi_name": "Prof. Lisa Wang",
+      "lab_tier": "strong_us_or_top_cn",
+      "duration_months": 18,
+      "output_type": "honors_thesis"
+    }
+  ],
+  "letters": [
+    {
+      "name": "Prof. Lisa Wang",
+      "prominence": "established",
+      "is_research_supervisor": true
+    },
+    {
+      "name": "Prof. Visiting Summer Host",
+      "prominence": "field_leader",
+      "is_research_supervisor": true
+    }
+  ],
+  "is_international": true,
+  "external_fellowship": "applying",
+  "fellowship_name": "CSC scholarship"
+}

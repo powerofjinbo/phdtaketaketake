@@ -23,6 +23,10 @@ defined in **[`SKILL.md`](SKILL.md)**:
 - **Workflow B** (CV optimization): Steps CV-1–CV-6 — read the
   bundled LaTeX template, fill from user-typed input, optionally
   reorder for a target PI from `match.json`, compile.
+- **Workflow C** (admission probability): Steps AP-1–AP-4 — collect
+  the required applicant inputs, research each target school / PI with
+  evidence, run `phdtaketaketake-admission`, present probability +
+  interval + levers.
 
 ## Hard rules (non-negotiable for both workflows)
 
@@ -38,9 +42,11 @@ defined in **[`SKILL.md`](SKILL.md)**:
    to something the user explicitly provided in conversation. Target
    PIs from `match.json` drive ordering decisions; their names never
    appear in the CV body.
-5. **Output is a relative-fit index, not an admission probability.**
-   Surface what's strong, what's weak, what's uncertain — never claim
-   a numeric admit chance.
+5. **Probabilities only from the admission estimator.** The matcher's
+   output is a relative-fit index, not an admission probability. A
+   numeric admit chance comes only from Workflow C
+   (`phdtaketaketake-admission`), always with its 80% interval and
+   never stated as a guarantee.
 
 The full data-integrity contract, scoring formulas, source-of-truth
 allowed/forbidden table, blocked-source four-state policy, and
@@ -54,6 +60,7 @@ phdtaketaketake-discovery-plan      # per-field PI search recipe
 phdtaketaketake-collect-evidence    # auto-fill via OpenAlex / PubMed / DBLP / SS
 phdtaketaketake-audit               # evidence repair queue
 phdtaketaketake-match               # rank candidates
+phdtaketaketake-admission           # P(offer) per target school / PI
 phdtaketaketake-export-schemas      # Pydantic → JSON Schema
 phdtaketaketake-cv-template         # bundled LaTeX template (path or contents)
 phdtaketaketake-cv-compile          # latexmk / pdflatex compile pipeline

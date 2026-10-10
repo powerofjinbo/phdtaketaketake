@@ -77,3 +77,12 @@ export function validateProfile(
 ): Promise<{ ok: boolean; error?: string }> {
   return call({ type: "validate-profile", profile });
 }
+
+// Admission-probability estimator (phd_matcher.admission). Shapes mirror
+// AdmissionApplicant / AdmissionTarget / PortfolioEstimate in Python.
+export function estimateAdmission<T>(
+  applicant: unknown,
+  targets: unknown[]
+): Promise<T> {
+  return call({ type: "admission", applicant, targets });
+}

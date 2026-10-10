@@ -282,10 +282,13 @@ classes of fabrication risk.
   Crossref Metadata Plus, Semantic Scholar paid, etc. The skill must
   remain runnable at $0 / month for individual users. Free-tier API
   keys are recommended, but no feature may *require* a paid key.
-- **Admission probability output** — the score is a 4.0-scale
-  relative-fit index, not P(admit). Surfacing anything that looks like
-  a probability (percentages, "75% chance", calibrated odds) is
-  forbidden — see §11.
+- **Admission probability from the matcher** — the matcher's score is a
+  4.0-scale relative-fit index, not P(admit), and must never be presented
+  as a percentage — see §11. *Revised 2026-10 at the owner's request:*
+  probabilities now come from a separate estimator
+  (`phd_matcher.admission`, `docs/admission_probability.md`) that anchors
+  on program admit rates, is calibrated so an unknown applicant gets the
+  base rate, reports an 80% interval, and can be refit on real outcomes.
 - **Auto-bypass / scraping of blocked sites** — Cloudflare challenges,
   CAPTCHA-walled pages, login walls, paywalls. Blocked sources widen
   the confidence band; the skill does not work around access controls.

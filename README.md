@@ -121,6 +121,9 @@ phdtaketaketake-audit            # report evidence repair queue
 phdtaketaketake-match            # rank candidates given profile + JSON
 phdtaketaketake-export-schemas   # write Pydantic models out to JSON Schema (Draft 2020-12)
 
+# Workflow C — admission probability (docs/admission_probability.md)
+phdtaketaketake-admission        # P(offer) + 80% interval per target school / professor
+
 # Workflow B — CV optimization
 phdtaketaketake-cv-template      # print the bundled LaTeX CV template (path or contents)
 phdtaketaketake-cv-compile       # compile a CV .tex to PDF via latexmk / pdflatex
