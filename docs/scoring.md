@@ -58,6 +58,17 @@ but `[4.0, 3.5]` → 3.85, and a published 3.3 plus an in-prep paper fell to
 2.67). Papers at or below 2.8 add exactly nothing, so padding a CV with weak
 entries gains nothing either. P is capped at 4.0.
 
+### Applicant model v2
+
+P, E and G are now produced by `phd_matcher/scoring/applicant.py` as one
+candidate-independent `ApplicantAssessment`. It adds GPA context (institution
+tier, class rank, major GPA, trend, graduate courses, master's degree), a
+letters pillar (L), experience role / relevance / depth, and bounded honors,
+tests and spike bonuses. Inside CAPEG the P/E/G slot becomes the
+tier-weighted applicant composite, minus a tier-dependent academic
+screening penalty. Full spec:
+[`references/applicant_model.md`](../references/applicant_model.md).
+
 ### 2. GPA Score (G)
 
 Multi-system normalization (see `references/profile_schema.md` for the full
